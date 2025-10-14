@@ -1,0 +1,25 @@
+---
+title: "Overview"
+---
+
+Dynamically visualize data from [Data Axle](https://doc.arcgis.com/en/esri-demographics/latest/arcgis-places/data-axle.htm) to display four metrics related to church closures at the tract level over various date ranges. Include 'snapshot' views of socioeconomic information about the areas alongside the church closure metrics.
+
+## Project Goals
+
+1. Review the existing data cleaning, validation, and harmonization procedures employed by [Dr. Insang Song](https://sigmafelix.wixsite.com/mysite) for accuracy and identify opportunities for improvement.
+
+2. Implement the improvements as appropriate to prepare the dataset for analysis.
+
+3. Calculate the metrics for dynamic visualization as required.
+
+Refer to the pages in the top right of the navigation bar for the findings addressing each of these concerns.
+
+## Important Links and Locations
+
+In accordance with the Data Use Agreement for this dataset, some repositories may not be publicly accessible or may contain local files that are not tracked by Git and or included on GitHub. Complete copies of the data and summary results can be accessed in the 'SOCAH LAB\\Church closing\\Raw data' folder on Yale's OneDrive.
+
+Active dashboard: [Closed Churches in the US](https://church-closing-dashboard.vercel.app/)
+
+Original GitHub Repo by Dr. Song: [sigmafelix/healthreligion_project](https://github.com/sigmafelix/healthreligion_project)
+
+Source for Dashboard Map Code: [ysph-dsde/church-closures](https://github.com/ysph-dsde/church-closures)

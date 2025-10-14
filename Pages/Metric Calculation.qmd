@@ -1,0 +1,20 @@
+---
+title: "Metric Calculations"
+editor: source
+---
+
+Persistence
+
+- method = “lookahead” – the original method the team used. Entries that ended with a 1 OR was open during the date range AND after the date range was determined to be persistent.
+- method = “ratio” – the new method I proposed. This function calculates the persistence ratio of a church being open in a subset period compared to the full span of time recorded.
+
+Closures
+
+- The previous string detection mechanism did not correctly label all simulated strings of 20 years of responses. Also did not county occurrences, only binary detection.
+- Modified the string detection functions to be more robust; i.e. does not classify “00000100000” as a closure, since reopening’s must be two consecutive 1’s.
+
+Reopening’s
+
+- Reopening’s were defined but did not seem to be calculated. Also used to give the closures count to contain the reopening’s outcome so they make sense relative to each other; i.e. reopening can only be one less or the same as number of closures.
+
+

@@ -1,0 +1,23 @@
+---
+title: "Cleaning and Validation"
+editor: source
+---
+
+
+## 
+
+- **Step #1:** Compress similar addresses using stringdist() to generate a connected component of similar strings, and then Depth-First Search (DFS) to aggregate nearest neighbors. Randomly select one of the address variations to proceed with.
+
+- **Step #2:** Validate the address using the [USPS Address 3.0](https://developers.usps.com/addressesv3) API to correct the address. This is time consuming, but is important to do before the following steps, as invalid addresses draw errors.
+
+- **Step #3:** Validate the longitude and latitude associated with an address using the [US Census Bureau's Geocoder](https://geocoding.geo.census.gov/geocoder/) API.
+
+- **Step #4:** Associate PO Box with physical addresses and identify moves based on longitude/latitude nearness by clustering their geolocation.
+
+- **Step #5:** Using the street address (and for PO Boxes, the associated street address defined in the previous step) add the census tract and county for the 2000, 2010, and 2020 decennial years also using the US Census Bureau’s Geocoder API. This should improve accuracy when calculating metrics over different decennial years and mitigate map projection mismatching.
+
+
+
+## 
+
+
