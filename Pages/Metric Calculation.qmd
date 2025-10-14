@@ -3,6 +3,10 @@ title: "Metric Calculations"
 editor: source
 ---
 
+::: {.callout-important}
+# THIS PAGES IS IN PROGRESS
+:::
+
 Persistence
 
 - method = “lookahead” – the original method the team used. Entries that ended with a 1 OR was open during the date range AND after the date range was determined to be persistent.
