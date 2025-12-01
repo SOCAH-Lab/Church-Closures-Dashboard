@@ -17,11 +17,12 @@ sites_libs/
 *.pptx
 
 # The location for all the sensitive data that is individual level.
-
-R/KEEP LOCAL/
 Code/KEEP LOCAL/
 Data/Raw/KEEP LOCAL/
 Data/Results/KEEP LOCAL/
+
+# Catch-all to ensure all KEEP LOCAL directories are ignored
+**/KEEP LOCAL/
 
 
 # API credentials cannot be shared. Add them to the following environment
@@ -33,5 +34,3 @@ Data/Results/KEEP LOCAL/
 # provided in scripts where an API key is loaded.
 
 .Renviron
-
-/.quarto/

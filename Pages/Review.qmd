@@ -516,8 +516,8 @@ ex1
 
 ### Example #2:
 
-Reported year first observed: 2015\
-Reported year last observed: 2015\
+Reported year first observed: 2001\
+Reported year last observed: 2021\
 Date first closure: 2005 and reopened in 2010
 
 Derived from:
