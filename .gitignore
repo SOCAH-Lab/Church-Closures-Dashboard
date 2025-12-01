@@ -19,6 +19,7 @@ sites_libs/
 # The location for all the sensitive data that is individual level.
 
 R/KEEP LOCAL/
+Code/KEEP LOCAL/
 Data/Raw/KEEP LOCAL/
 Data/Results/KEEP LOCAL/
 
