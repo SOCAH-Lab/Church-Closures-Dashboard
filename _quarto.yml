@@ -1,5 +1,9 @@
 project:
   type: website
+  output-dir: _site
+  render:
+    - "*.qmd"
+    - "!Local Only/"
 
 website:
   title: "Church Closures Dashboard"
