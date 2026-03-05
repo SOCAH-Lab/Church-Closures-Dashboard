@@ -34,3 +34,5 @@ Data/Results/KEEP LOCAL/
 # provided in scripts where an API key is loaded.
 
 .Renviron
+
+**/*.quarto_ipynb
