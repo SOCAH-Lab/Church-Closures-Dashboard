@@ -1,14 +1,19 @@
 ## ----------------------------------------------------------------
-## Define the coding parameters used in the environment.
+## Define general-purpose functions referenced in subsequent scripts.
 ##
-##      Authors: Shelby Golden, MS from Yale's YSPH DSDE group
-## Date Created: May 15th, 2025
+##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
+##  Date Created: May 15th, 2025
+## Date Modified: March 5th, 2026
 ## 
-## Description: All custom functions used in the raw data cleaning
-##              and preparation process. Much of this content was written
-##              with the assistance of Yale's AI Clarity.
+## Description: General-purpose functions used across the data cleaning,
+##              harmonization, and metric calculation processes, some of
+##              which are nested within other functions and others used
+##              independently.
 ##
-## Functions
+## NOTE: Much of this content was developed with the assistance of Yale's
+##       AI Clarity.
+##
+## Functions:
 ##   1. check_all_counts_0_or_1: This function summarizes the selected year 
 ##       columns (if the columns are preceded by a "20") by summing them, and 
 ##       checks if all counts in these columns are either 0 or 1.

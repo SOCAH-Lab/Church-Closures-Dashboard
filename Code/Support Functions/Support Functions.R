@@ -1,8 +1,9 @@
 ## ----------------------------------------------------------------
 ## Define the coding parameters used in the environment.
 ##
-##      Authors: Shelby Golden, MS from Yale's YSPH DSDE group
-## Date Created: May 15th, 2025
+##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
+##  Date Created: May 15th, 2025
+## Date Modified: April 8th, 2026
 ## 
 ## Description: All custom functions used in the raw data cleaning
 ##              and preparation process. Much of this content was written

@@ -1,17 +1,13 @@
 ## ----------------------------------------------------------------
-## Define functions used in the Step 1 script.
+## Define functions used in the data exploration script.
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025
-## Date Modified: April 9th, 2026
+## Date Modified: April 10th, 2026
 ## 
 ## Description: In addition to the general-purpose functions defined in another
-##              script, the following functions are used to complete Step 1 of
-##              the data cleaning and validation process, as identified through
-##              exploratory data analysis.
-##
-## NOTE: Much of this content was developed with the assistance of Yale's
-##       AI Clarity.
+##              script, the following functions are used to complete the EDA of
+##              the raw data.
 ##
 ## Functions:
 ##    1. preprocess_address: This function standardizes the format of an 
@@ -32,16 +28,15 @@
 ##       similarity using a specified threshold. It preprocesses the addresses, 
 ##       builds a similarity graph, and identifies groups of similar addresses.
 ## 
-##    4. find_first_one: Finds the date column name where the first 1 
-##       occurs. Used for arranging the rows associated with one ABI 
-##       in descending order: i.e. older address to recent address.
+##    4. build_zip_city_lookup: Takes the Simplemaps `uscities` dataset (e.g., 
+##       `simplemaps_uscities_basicv1.90`) and creates a lookup table with 
+##       **one row per 5-digit ZIP code**, mapping each ZIP to a single city/state.
 ## 
-##    5. process_abi_group: Processes a group of ABI entries by extracting 
-##       compiled addresses and identifying similar addresses within the group.
-## 
-##    6. count_sublists: For each ABI element, compare the number of sublists 
-##       in $exact vs $similar and return a boolean indicating whether they are 
-##       the same length.
+##    5. get_city_info: Looks up city name(s) for one or more ZIP codes in 
+##       `zip_city_lookup`, converts them to uppercase, de-duplicates, and 
+##       returns a single comma-separated string. If no matches are found, 
+##       returns "No Matches Found: " followed by the ZIPs provided to `zip` 
+##       (normalized to 5 digits where possible).
 
 
 ## ----------------------------------------------------------------
@@ -182,96 +177,112 @@ find_similar_addresses <- function(addresses, threshold = 0.15) {
 
 
 
-find_first_one <- function(...) {
+build_zip_city_lookup <- function(uscities_df) {
   #' @description
-  #' This function finds the first column where a 1 occurs in a given row of a 
-  #' data frame. It is used for arranging rows in descending order, from older 
-  #' dates to more recent dates.
-  #' 
-  #' @param ... Variable arguments representing the elements of a row in a given 
-  #'            data frame.
-  #' 
-  #' @return A character string representing the name of the first column where 
-  #'         a 1 occurs. If no 1 is found, returns NA.
-  
-  
-  # Convert the row elements into a single vector.
-  row <- c(...)
-  
-  # Find the index of the first occurrence of 1.
-  first_one_index <- which(row == 1)
-  
-  if (length(first_one_index) == 0) {
-    # If there is no 1 in the row, return NA.
-    return(NA)
-    
-  } else {
-    # Return the name of the first column where a 1 occurs, removing any "X" 
-    # prefix added to numeric column names.
-    return(str_replace(names(row)[first_one_index[1]], "X", ""))
-    
-  }
-}
-
-
-
-process_abi_group <- function(abi_group) {
-  #' @description
-  #' Processes a group of ABI entries by extracting compiled addresses and
-  #' identifying (a) exact matches and (b) near matches within the group.
+  #' Takes the Simplemaps `uscities` dataset (e.g., `simplemaps_uscities_basicv1.90`)
+  #' and creates a lookup table with **one row per 5-digit ZIP code**, mapping each
+  #' ZIP to a single city/state.
   #'
-  #' @param abi_group A data frame containing a group of ABI entries, including
-  #'   a \code{compiled_address} column.
+  #' @param uscities_df A data frame containing (at minimum) the columns:
+  #'   `city`, `state_id`, and `zips`. The `zips` column is expected to be a
+  #'   whitespace-separated list of 5-digit ZIP codes (as in the Simplemaps file).
   #'
-  #' @return A list with two elements:
-  #'   \itemize{
-  #'     \item \code{exact}: results from \code{find_similar_addresses(..., threshold = 0)}
-  #'     \item \code{similar}: results from \code{find_similar_addresses(..., threshold = 0.15)}
-  #'   }
-  
-  addresses <- abi_group$compiled_address
-  
-  exact_matches   <- find_similar_addresses(addresses, threshold = 0)
-  similar_matches <- find_similar_addresses(addresses, threshold = 0.15)
-  
-  list(
-    exact   = exact_matches,
-    similar = similar_matches
-  )
-}
-
-
-
-count_sublists <- function(main_list) {
-  #' @description
-  #' For each ABI element, compare the number of sublists in $exact vs $similar
-  #' and return a boolean indicating whether they are the same length.
-  #'
-  #' @param main_list A named list where each element is a list with two elements:
-  #'   \code{$exact} and \code{$similar}.
-  #'
-  #' @return A data frame with columns:
+  #' @return A tibble/data.frame with columns:
   #'   \describe{
-  #'     \item{abi}{The ABI identifier.}
-  #'     \item{same_length}{TRUE if length(exact) == length(similar), else FALSE.}
+  #'     \item{zip}{5-digit ZIP code as a character string (zero-padded).}
+  #'     \item{city}{City name associated with the ZIP in the Simplemaps file.}
+  #'     \item{state_id}{Two-letter state abbreviation.}
   #'   }
+  #'   If a ZIP appears for multiple cities in the source, the function keeps the
+  #'   **first** encountered mapping due to `distinct(zip, .keep_all = TRUE)`.
+  #'
+  #' @details
+  #' The Simplemaps `zips` field can contain many ZIPs per city. This function
+  #' "unnests" that field into one ZIP per row via `tidyr::separate_rows()`, then
+  #' standardizes ZIP formatting and removes duplicates.
   
-  abi_vector <- names(main_list)
-  same_length_vector <- logical(length(main_list))
-  
-  for (i in seq_along(main_list)) {
-    x <- main_list[[i]]
-    same_length_vector[i] <- length(x$exact) == length(x$similar)
-  }
-  
-  data.frame(
-    abi = abi_vector,
-    same_length = same_length_vector,
-    stringsAsFactors = FALSE
-  )
+  uscities_df %>%
+    # Keep only what we need for the lookup
+    dplyr::select(city, state_id, zips) %>%
+    
+    # Expand the whitespace-separated `zips` list:
+    # one output row per ZIP code per city.
+    tidyr::separate_rows(zips, sep = "\\s+") %>%
+    
+    # Standardize/validate ZIP formatting:
+    # - extract 5 digits (defensive)
+    # - pad with leading zeros
+    dplyr::mutate(
+      zip = stringr::str_pad(
+        stringr::str_extract(zips, "\\d{5}"),
+        width = 5,
+        pad = "0"
+      )
+    ) %>%
+    
+    # Drop rows where we couldn't parse a 5-digit ZIP
+    dplyr::filter(!is.na(zip)) %>%
+    
+    # Ensure one row per ZIP in the final lookup.
+    # If a ZIP appears multiple times, keep the first occurrence.
+    dplyr::distinct(zip, .keep_all = TRUE) %>%
+    
+    # Output only the fields typically needed for matching
+    dplyr::select(zip, city, state_id)
 }
 
 
+
+get_city_info <- function(zip, zip_city_lookup) {
+  #' @description
+  #' Looks up city name(s) for one or more ZIP codes in `zip_city_lookup`, converts
+  #' them to uppercase, de-duplicates, and returns a single comma-separated string.
+  #' If no matches are found, returns "No Matches Found: " followed by the ZIPs
+  #' provided to `zip` (normalized to 5 digits where possible).
+  #'
+  #' @param zip A ZIP code or vector of ZIP codes (character or numeric). The first
+  #'   5 digits are used; non-digits are ignored.
+  #' @param zip_city_lookup A data frame with at least columns `zip` and `city`.
+  #'
+  #' @return A length-1 character string like `"NEW HAVEN"` or `"NEW HAVEN, BOULDER"`;
+  #'   if none match, returns `"No Matches Found: 06519, 80324"`.
+  
+  # Coerce input ZIP(s) to character so we can safely run regex on them
+  z <- as.character(zip)
+  
+  # Normalize each input to a 5-digit ZIP:
+  # - extract the first 5 consecutive digits anywhere in the string
+  # - left-pad with zeros to ensure width 5
+  z5 <- stringr::str_pad(stringr::str_extract(z, "\\d{5}"), width = 5, pad = "0")
+  
+  # Lookup: for each normalized ZIP, find the matching city in the lookup table
+  # (match() returns NA when the ZIP isn't found)
+  cities <- zip_city_lookup$city[match(z5, zip_city_lookup$zip)]
+  
+  # Treat any missing ZIP normalization or missing lookup result as NA
+  cities[is.na(z5) | is.na(cities)] <- NA_character_
+  
+  # Standardize output formatting:
+  # - uppercase
+  # - drop NAs
+  # - de-duplicate while preserving first-seen order
+  cities_out <- unique(stats::na.omit(stringr::str_to_upper(cities)))
+  
+  # If there were no matched cities at all, return a message listing the ZIPs tried
+  if (length(cities_out) == 0) {
+    # Keep only valid normalized ZIPs (drop NAs), and de-duplicate
+    z_list <- unique(stats::na.omit(z5))
+    
+    # If we couldn't even extract any 5-digit ZIPs, return a simpler message
+    if (length(z_list) == 0) return("No Matches Found")
+    
+    # Otherwise, list the ZIPs we attempted
+    return(paste0("No Matches Found: ", paste(z_list, collapse = ", ")))
+  }
+  
+  # Otherwise, return the matched city/cities as a single comma-separated string
+  paste(cities_out, collapse = ", ")
+}
 
 
 
