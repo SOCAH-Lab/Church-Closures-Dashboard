@@ -17,32 +17,36 @@ editor: source
 renv::restore()
 
 suppressPackageStartupMessages({
-  library("readr")
-  library("tidyr")
-  library("dplyr")
-  library("stringr")
-  library("ggplot2")
-  library("gridExtra")
-  library("scales")
-  library("lubridate")
-  library("future.apply")
-  library("stringdist")
-  library("httr")
-  library("xml2")
-  library("jsonlite")
-  library("combinat")
+  library("readr")            # Reads in CSV and other delimited files
+  library("dplyr")            # Data manipulation and transformation
+  library("stringr")          # String operations
+  library("ggplot2")          # Graphics and visualization
+  library("gridExtra")        # Arrange multiple grid-based plots on a page
+  library("tibble")           # Manipulate data frames in tidyverse
+  library("purrr")            # Functional programming tools
+  library("lubridate")        # Manipulate dates
+  library("stringdist")       # Measuring string distances
+  library("future.apply")     # Parallel processing
+  library("progress")         # Progress bars
 })
-
-"%!in%" <- function(x,y)!("%in%"(x,y))
 
 # Set up the plan for parallel processing.
 plan(multisession, workers = 4)
 
 # Load in the functions.
-source('./Functions.R')
+source("./Functions.R")
+
+# Define the "not in" operation
+"%!in%" <- function(x,y)!("%in%"(x,y))
 ```
 
+<small>Last Updated: April 10<sup>th</sup>, 2026</small>
+
 The purpose of this page is to provide an understanding of the challenges associated with the data and to identify opportunities for data validation or cleaning. Therefore, we do not need to be concerned with evaluating every case.
+
+:::{.callout-important}
+## Reference code
+:::
 
 ## Raw Data Dictionary
 
@@ -62,18 +66,19 @@ Number of columns: 31
 
 - **address_line_1:** The primary address line associated with the ABI entry.
 
-- **primary_naics_code:** This dataset combines the six-digit 2022 vintage [North American Industry Classification System (NAICS)](https://www.census.gov/naics/?input=813110&year=2022&details=813110) code and a two-digit proprietary code from Data Axle. The two-digit Data Axle code provides additional classification details, but this specific encoding was not supplied.
+- **primary_naics_code:** This dataset combines the six-digit 2022 vintage [North American Industry Classification System (NAICS)](https://www.census.gov/naics/?input=813110&year=2022&details=813110) code and a two-digit proprietary code from Data Axle. The two-digit Data Axle code provides additional classification details not reflected here.
 
-- **naics8_descriptions:** All entries have NAICS = 813110, indicating they are classified as 'Religious Organizations', which includes churches, shrines, monasteries (except schools), synagogues, mosques, and temples. The two-digit Data Axle code provides additional classification details, but this specific encoding was not supplied.
+- **naics8_descriptions:** All entries have NAICS = 813110, indicating they are classified as 'Religious Organizations', which includes churches, shrines, monasteries (except schools), synagogues, mosques, and temples.
 
 - **longitude and latitude:** Given as two columns. Provides the geolocation associated with the address listed in that row.
 
-- **2001 to 2021:** Create one column for each year from 2001 to 2021. Report `NA` for no response received and `1` for a response received.
+- **2001 to 2021:** One binary column per year (2001–2021) indicating whether a response was recorded
+for that address: `1` if a response was received, `NA` if no response was received.
 
 
 ## Reduplicate ABI's
 
-Since ABIs are used to uniquely identify entries, we need to ensure that there are no reduplicates.
+Because ABIs are used to uniquely identify entries, we need to ensure that there are no reduplicates.
 
 ```{r}
 #| eval: false
@@ -91,10 +96,10 @@ data.frame(c("TRUE", "FALSE"), c(1647336, 954263)) %>% `colnames<-`(NULL) %>% `r
 
 It appears that there may be several entries containing reduplicated information, impacting as many as `577727` unique ABIs. We examine each unique ABI that may potentially be reduplicated in the following ways:
 
-1. Confirm that the date binaries are mutually exclusive.
-2. Ensure that the zipcode remains consistent.
-3. Verify that the other metadata are consistent: `year_established`, `state`, `city`, `primary_naics_code`, and `naics8_descriptions`.
-4. Check that the longitude and latitude are within acceptable error margins of each other.
+1. Confirm that the date binaries are mutually exclusive, indicating that each recorded entry provides unique information.
+2. Confirm that the ZIP code remains consistent across entries.
+3. Verify that the following metadata fields are consistent across entries: `year_established`, `state`, `city`, `primary_naics_code`, and `naics8_descriptions`.
+4. Confirm that the longitude and latitude coordinates fall within acceptable error margins for a given business address.
 
 ```{r}
 #| eval: false
@@ -151,7 +156,7 @@ write.csv(result, "Data/Results/KEEP LOCAL/From Explore the Raw Data/ABI Duplica
 
 ### Mutually Exclusive Dates
 
-Each duplicated ABI reports unique binary records for every column-year, summing to 0 or 1.
+Each reduplicated ABI reports unique binary records across all year columns. The table below confirms that every column-wise sum per ABI yields 0 or 1 (TRUE), the expected result for unique records.
 
 ```{r}
 #| echo: false
@@ -229,31 +234,31 @@ We expect the following results if certain combinations of assumptions are valid
 
 1. `LonLat_Similar, Zip_Same, Metadata_Same = TRUE`: The church has not moved, no alternative address outside of the reported zip code was used (e.g., PO Box), and the other metadata did not change. This implies that the only variation detected comes from the `address_line_1` entry, and no special considerations are required.
 
-    **Results:** Approximately 54\% of unique ABIs with more than one associated entry apply, accounting for 33\% of all unique ABIs. About 5% of these ABIs have at least one PO Box associated with them, which is nearly half of all ABI's with a PO Box detected.
+    **RESULTS:** Approximately 54\% of duplicated entries apply, accounting for 33\% of all unique ABIs in the dataset. Of these, nearly 15% used a PO Box at some point, representing almost 5\% of all ABIs and 39\% of all PO Box entries..
 
-2. `LonLat_Similar, Zip_Same = TRUE` and `Metadata_Same = FALSE`: The church has not significantly moved. This indicates that something other than the `address_line_1` variable (e.g., `year_established`, `state`, `city`, `primary_naics_code`, or `naics8_descriptions`) has varied. Since multiple metadata fields are batched together, it is possible that variations arise from errors or different addresses being associated with a business without constituting a significant move. The source of this variation will be further explored to ensure completeness.
+2. `LonLat_Similar, Zip_Same = TRUE` and `Metadata_Same = FALSE`: The church has not significantly moved, which implies that the observed variation is driven by a field other than `address_line_1` (e.g., `year_established`, `state`, `city`, `primary_naics_code`, or `naics8_descriptions`). These discrepancies may reflect data entry errors or the recording of alternative city locations rather than an actual relocation. Further investigation will ensure completeness.
 
-    **Results:** Approximately 33\% of unique ABIs with more than one associated entry apply, accounting for 20\% of all unique ABIs. About 2% of these ABIs have at least one PO Box associated with them.
+    **RESULTS:** Approximately 33\% of duplicated entries apply, accounting for 20\% of all unique ABIs in the dataset. Of these, nearly 12\% used a PO Box at some point, representing almost 3\% of all ABIs and 19\% of all PO Box entries.
 
 3. `LonLat_Similar, Metadata_Same = TRUE` and `Zip_Same = FALSE`: This issue can be attributed to two explainable scenarios: either the move was small but resulted in a new zip code, or one of the addresses used a PO Box with a different zip code but the same latitude and longitude as a nearby address. Additionally, there might have been a typographical error in the zip code.
 
-    **Results:** Almost 5\% of unique ABIs with more than one associated entry apply, accounting for almost 3\% of all unique ABIs. About 1.4% of these ABIs have at least one PO Box associated with them.
+    **RESULTS:** Approximately 5\% of duplicated entries apply, accounting for 3\% of all unique ABIs in the dataset. Of these, nearly 48\% used a PO Box at some point, representing almost 1.4\% of all ABIs and 12\% of all PO Box entries.
 
-4. `LonLat_Similar = TRUE` and `Zip_Same, Metadata_Same = FALSE`: This issue could also be related to small moves that are not detected by the geolocation change threshold but result in a change of the city, zip code, or possibly even the state. The source of this variation will be further investigated, but it is expected to be addressed in the same manner as the second or third combinations of assumptions.
+4. `LonLat_Similar = TRUE` and `Zip_Same, Metadata_Same = FALSE`: This discrepancy may also be attributable to small relocations that go undetected by the geolocation change threshold yet produce a change in city, zip code, or state for border locations. Variation in the recorded year established may similarly contribute. Both sources of discrepancy will be further investigated and are expected to be addressed in the same manner as the second or third assumption combinations.
 
-    **Results:** Almost 9\% of unique ABIs with more than one associated entry apply, accounting for 5.2\% of all unique ABIs. Almost 2% of these ABIs have at least one PO Box associated with them.
+    **RESULTS:** Approximately 9\% of duplicated entries apply, accounting for 5.2\% of all unique ABIs in the dataset. Of these, nearly 36\% used a PO Box at some point, representing almost 1.9\% of all ABIs and 15\% of all PO Box entries.
 
 5. `LonLat_Similar = FALSE` and `Zip_Same, Metadata = TRUE`: It is unlikely that there would be a significant move without a change in the zip code and other metadata, such as the city or state. It is also possible that non-physical addresses, like PO Boxes, are contributing to this outcome. These are rare occurrences and will be investigated individually to assess for typographical errors.
 
-    **Results:** 0.02\% of unique ABIs with more than one associated entry apply, accounting for about 0.01\% of all unique ABIs. 0.004\% of these ABIs have at least one PO Box associated with them.
+    **RESULTS:** Approximately 0.02\% of duplicated entries apply, accounting for 0.01\% of all unique ABIs in the dataset. Of these, nearly 31\% used a PO Box at some point, representing almost 0.004\% of all ABIs and  0.04\% of all PO Box entries.
 
 6. `LonLat_Similar, Zip_Same, Metadata = FALSE`: These entries are most likely associated with a significant move out of the area and will be treated in the same manner as the fifth combination of assumptions. Their zip codes and other metadata might also contain typographical errors that will need to be assessed for completeness.
 
-    **Results:** 0.18\% of unique ABIs with more than one associated entry apply, accounting for about 0.11\% of all unique ABIs. 0.03\% of these ABIs have at least one PO Box associated with them.
+    **RESULTS:** Approximately 0.18\% of duplicated entries apply, accounting for 0.11\% of all unique ABIs in the dataset. Of these, nearly 31\% used a PO Box at some point, representing almost 0.03\% of all ABIs and 0.3\% of all PO Box entries.
 
-7. `LonLat_Similar, Metadata = FALSE` and `Zip_Same = TRUE` **OR** `LonLat_Similar, Zip_Same = FALSE` and `Metadata = TRUE`: These results suggest significant moves, yet no change in either the zip code or other metadata. While it is plausible that the zip code might remain the same, it is unusual for none of the address entries to change. These are rare occurrences and will be investigated individually to assess for typographical errors.
+7. `LonLat_Similar, Metadata = FALSE` and `Zip_Same = TRUE` **OR** `LonLat_Similar, Zip_Same = FALSE` and `Metadata = TRUE`: These results suggest significant relocations with no change in zip code or other metadata. Though a stable zip code is plausible, no change across any address field is unusual. These rare cases will be individually reviewed for typographical errors.
 
-    **Results:** 0.002\% of unique ABIs with more than one associated entry apply, accounting for about 0.001\% of all unique ABIs. 0.001\% of these ABIs have at least one PO Box associated with them.
+    **RESULTS:** Approximately 0.002\% of duplicated entries apply, accounting for 0.001\% of all unique ABIs in the dataset. Of these, nearly 91\% used a PO Box at some point, representing almost 0.001\% of all ABIs and 0.01\% of all PO Box entries.
 
 <div style="height: 1em;"></div>
 
@@ -269,7 +274,7 @@ Below are graphs showing the distribution of representation across the seven dif
 df <- data.frame(
   Assumptions = 1:7,
   Percent_Unique_ABI = c(53.65, 32.47, 4.69, 8.59, 0.02, 0.18, 0.002),
-  Percent_Unique_ABI_with_PO_Boxes = c(5, 2, 1.4, 2, 0.004, 0.03, 0.001),
+  Percent_Unique_ABI_with_PO_Boxes = c(14.58, 11.56, 48.78, 35.75, 30.6, 30.56, 90.91),
   Total_Percent_Unique_ABI = c(32.48, 19.66, 2.84, 5.2, 0.01, 0.11, 0.001),
   Total_Percent_of_PO_Boxes = c(39, 18.7, 11.39, 15.31, 0.04, 0.28, 0.01)
 )
@@ -287,7 +292,7 @@ p1 <- ggplot(df, aes(x = Assumptions)) +
   ) +
   scale_color_manual(values = c("Percent of Reduplicated ABI" = "blue", "Percent of All Unique ABI" = "green")) +
   scale_x_continuous(breaks = df$Assumptions) +
-  scale_y_continuous(limits = c(0, 60), labels = function(x) paste0(x, "%")) +
+  scale_y_continuous(limits = c(0, 100), labels = function(x) paste0(x, "%")) +
   theme_linedraw() +
   theme(
     legend.position = "top",
@@ -311,7 +316,7 @@ p2 <- ggplot(df, aes(x = Assumptions)) +
   ) +
   scale_color_manual(values = c("Percent of Reduplicated ABI" = "red", "Percent of All PO Boxes" = "orange")) +
   scale_x_continuous(breaks = df$Assumptions) +
-  scale_y_continuous(limits = c(0, 60), labels = function(x) paste0(x, "%")) +
+  scale_y_continuous(limits = c(0, 100), labels = function(x) paste0(x, "%")) +
   theme_linedraw() +
   theme(
     legend.position = "top",
@@ -329,10 +334,12 @@ grid.arrange(p1, p2, nrow = 1)
 <div style="height: 1em;"></div>
 
 
-Typographical errors are most likely attributable to the last three combinations of assumptions. Fortunately, most entries appear to meet superficial expectations, but it is clear that more work is needed to validate the entries and ensure accuracy.
+Typographical errors are most likely associated with the last three assumption combinations. Although most entries appear to satisfy superficial expectations, additional validation is clearly needed to ensure accuracy. There is also a trend suggesting that PO Box entries are a notable source of inaccuracies.
 
 
 ## Closer Look at Assumptions #2
+
+### Metadata Fields
 
 Above, we showed that the set of assumptions with `LonLat_Similar, Zip_Same = TRUE` and `Metadata_Same = FALSE`, covering 20% of the data, could be associated with typographical errors in the metadata. Other occurrences with `Metadata_Same = FALSE` (assumptions #4, #6, and #7) are likely related to typographical errors not necessarily associated with the metadata fields.
 
@@ -347,8 +354,11 @@ The metadata fields batched together included: `year_established`, `state`, `cit
 result <- read_csv("Data/Results/KEEP LOCAL/From Explore the Raw Data/ABI Duplicates Test_05.16.2025.csv", 
                    col_types = cols(...1 = col_skip())) %>% as.data.frame()
 
+# Subset the assumption test results and full raw data
 subset_2 <- result[result$Zip_Same %in% TRUE & result$LonLat_Similar %in% TRUE & result$Metadata_Same %in% FALSE, ] %>%
   `rownames<-`(NULL)
+church_2 <- church_wide[church_wide$abi %in% subset_2$abi, ]
+
 
 search_space <- subset_2$abi
 
@@ -378,7 +388,7 @@ result2 <- result2 %>% as.data.frame() %>%
 result2[, -1] <- apply(result2[, -1], 2, function(x) as.logical(x))
 
 # Save the result.
-write.csv(result2, "Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same_05.18.2025.csv")
+write.csv(result2, "Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same_04.10.2026.csv")
 ```
 
 
@@ -392,14 +402,14 @@ year_values <- c(FALSE, TRUE)
 
 # Data for the counts table
 counts_data <- c(
-  359, 3490, 12926, 130819,  # Year Established = FALSE
-  694, 7360, 31922, 0       # Year Established = TRUE
+  359, 12926, 3490, 130819,  # Year Established = FALSE
+  694, 31922, 7360, 0        # Year Established = TRUE
 )
 
 # Data for the percentage table
 percentage_data <- c(
-  0.19, 1.86, 6.89, 69.74,  # Year Established = FALSE
-  0.37, 3.92, 17.02, 0.00   # Year Established = TRUE
+  0.19, 6.89, 1.86, 69.74,  # Year Established = FALSE
+  0.37, 17.02, 3.92, 0.00   # Year Established = TRUE
 )
 
 # Assign dimension names
@@ -439,11 +449,188 @@ result_table_percents
 ::: 
 :::
 
-We see that most (about 70%) of the results only vary with the 'Year Established' reporting. This variable is not considered important, so its source of variation will not be further explored, only noted.
+Most discrepancies (approximately 70\%) are attributable to variation in the reported year established, approximately 17\% to NAICS code variation, 4\% to city variation. The remaining 9\% contain a combination of two or all of these factors. Approximately 94.65\% of total cases contained an error from either the year established or NAICS Code variable but not city. Approximately 2\% contained variation with the city reported and either one or both of the other two variables.
 
-::: {.callout-important}
-# THIS SECTION AND BELOW ARE IN PROGRESS
+Variation in the reported year established and NAICS code are properties of the business itself rather than of each address under which it was listed. As neither is considered critical to validate completely, both sources of variation will be noted and recorded but not further pursued.
+
+Validating city accuracy poses specific challenges, as approximately 12,000 entries are affected. It is possible that border cities experienced changes in their city association over the three decennial periods captured in this dataset. During the address validation phase, similar addresses differing only by city should be retained as separate entries, with only those validated by the reference source kept.
+
+### Zip Codes
+
+Building on the results from Assumption #2, this section further explores the degree of inconsistency in the city reported for a given address. The simplemaps [United States Cities Database](https://simplemaps.com/data/us-cities) is used to identify the recommended city name for a given five-digit ZIP code, and the results are compared against the unique cities listed for each business.
+
+This analysis separates by unique ABI but not unique address, as the focus is on consistency between each unique ZIP code and its corresponding simplemaps result. Granularity beyond the business level is therefore unnecessary. ZIP codes with leading or trailing zeros stripped prior to receipt of this version of the raw data are marked as invalid.
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Show the code"
+
+# Load in the pre-produced test results for evaluation.
+result2 <- read_csv("Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same_04.10.2026.csv", 
+                   col_types = cols(...1 = col_skip())) %>% as.data.frame()
+
+# Subset the assumption test results and full raw data
+subset_2 <- result[result$Zip_Same %in% TRUE & result$LonLat_Similar %in% TRUE & result$Metadata_Same %in% FALSE, ] %>%
+  `rownames<-`(NULL)
+church_2 <- church_wide[church_wide$abi %in% subset_2$abi, ]
+
+
+search_space <- result2[result2$City == FALSE, "abi"]
+
+# Add a progress bar to show where the function is in the for loop.
+pb = txtProgressBar(min = 0, max = length(search_space), style = 3)
+
+result3 <- NULL
+for(i in 1:length(search_space)) {
+  # Subset to show only the entries associated with one reduplicated ABI.
+  subset <- church_2[church_2$abi %in% search_space[i], ]
+
+  # Preferred city for that entry.
+  zip_code <- unique(subset$zipcode)
+
+  # Some of the entered zip codes are invalid. In most cases, it seems a leading
+  # or trailing zero was erroneously removed.
+  if(str_length(zip_code) != 5) {
+    listed_city <- str_c("Invalid Zip Code: ", zip_code)
+
+  # If the zip code is valid, then check for the preferred city name.
+  } else if(str_length(zip_code) == 5) {
+    query_result <- get_city_info(unique(subset$zipcode), zip_city_lookup)
+
+    # Sometimes that query might not result in a match to the API database.
+    if(is.null(query_result) ) {
+      listed_city <- str_c("Invalid Zip Code: ", zip_code)
+    } else {
+      listed_city <- query_result
+    }
+  }
+
+  # Number of entries total.
+  num_entries <- nrow(subset)
+
+  # Variation due to a PO Box?
+  any_poBox   <- length(str_which(subset$address_line_1, "(?i)PO Box|P O Box")) != 0
+
+  # Report the cities that are similar to other entries, match within some
+  # threshold, and compare with those that are uniquely reported.
+  similar_entries <- find_similar_addresses(subset$city) %>% unlist() %>% unique() %>%
+    (\(x) { str_flatten(x, collapse = ", ") }) ()
+
+  unique_entries  <- find_similar_addresses(subset$city, threshold = 0) %>% unlist() %>%
+    unique() %>% (\(x) { str_flatten(x, collapse = ", ") }) ()
+
+  result3 <- rbind(result3, cbind(search_space[i], listed_city, num_entries, any_poBox, similar_entries, unique_entries))
+
+  # Print the for loop's progress.
+  setTxtProgressBar(pb, i)
+}
+# Commit result with reformatting.
+result3  <- result3 %>% as.data.frame() %>%
+   `colnames<-`(c("abi", "Preferred City Name", "# Entries", "PO Box?", "Similar Names", "Unique Names"))
+
+# Calculate summary metrics to facilitate assessment of the results.
+result3 <- result3 %>%
+  mutate(
+    # Calculate the difference between the number of unique cities and the number
+    # of cities with minor typographical differences (i.e. similar).
+    c1 = str_split(`Unique Names`, "\\s*,\\s*"),
+    c2 = str_split(`Similar Names`, "\\s*,\\s*"),
+    `Unique-Similar` = map2_int(c1, c2, ~ length(.x) - length(.y)),
+    # Count the number of unique suggested cities.
+    c3 = if_else(
+      str_detect(`Preferred City Name`, "Invalid Zip Code:|No Matches Found:"),
+      list(NA_character_),
+      str_split(`Preferred City Name`, "\\s*,\\s*")
+    ),
+    `# Cities Suggested` = map_int(
+      c3,
+      \(x) {
+        if (is.null(x)) return(NA_integer_)
+        x <- as.character(x)
+        x <- str_trim(x)
+        x <- x[x != ""]
+        if (length(x) == 0 || (length(x) == 1 && is.na(x))) NA_integer_ else length(x)
+      }
+    ),
+    # Calculate the difference between the number of unique cities and the number
+    # of cities suggested as preferred.
+    `Unique-Preferred` = map2_int(
+      c1,
+      `# Cities Suggested`,
+      \(x, y) {
+        if (anyNA(x) || anyNA(y)) return(NA_integer_)
+        length(x) - length(y)
+      }
+    ),
+    # Verify whether the preferred address is present in the unique address vector.
+    `Preferred in Unique?` = if_else(
+      str_detect(`Preferred City Name`, "Invalid Zip Code:|No Matches Found:"),
+      NA,
+      map2_lgl(`Unique Names`, `Preferred City Name`, ~ str_detect(.x, fixed(.y)))
+    )
+  ) %>%
+  select(-c1, -c2, -c3)
+
+# Save the result.
+write.csv(result3, "Data/Results/KEEP LOCAL/From Explore the Raw Data/City Name Variation_04.10.2026.csv")
+```
+
+The algorithm returned only one preferred address suggestion per five-digit zip code. NA values were assigned when the zip code was invalid (missing a leading or trailing zero) or when no match was found in the database. Of all businesses, 6.5% had invalid zip codes, while 1.7\% had valid zip codes but returned no match. Only 6.7\% of these businesses had city variations involving a PO Box.
+
+68\% of businesses returned a potential match, while nearly 25\% returned no preferred city. The proportion of matches increased as the number of addresses increased (see table below). There does not appear to be a strong association between PO Box addresses and the absence of a preferred city.
+
+```{r}
+#| echo: false
+
+tab1 <- array(
+  c(2743, 93, 0,
+    7992, 92, 1),
+  dim = c(3, 2),
+  dimnames = list(
+    "Unique-Preferred" = c("1", "2", "3"),
+    "Preferred in Unique?" = c("FALSE", "TRUE")
+  )
+)
+
+tab2 <- array(
+  c(22.6, 1.3,
+    63.3, 4.6),
+  dim = c(2, 2),
+  dimnames = list(
+    "PO Box?" = c("FALSE", "TRUE"),
+    "Preferred in Unique?" = c("FALSE", "TRUE")
+  )
+)
+
+```
+
+:::{.columns}
+::: {.column width="50%"}
+
+<u>Address Count & Preferred City Presence</u>
+
+```{r}
+#| echo: false
+tab1
+```
+
+::: 
+::: {.column width="50%"}
+
+<u>PO Box & Preferred City Presence</u>
+
+```{r}
+#| echo: false
+tab2
+```
+
+::: 
 :::
+
+
+These evaluations indicate inconsistencies in the address entries that warrant validation before they can be considered accurate. Accurate addresses are expected to be more readily matched in the reference database used for geolocation.
+
 
 ## PO Box's
 
@@ -457,14 +644,14 @@ round(length(unique(poBox_all$abi))/length(unique(church_wide$abi))*100, digits 
 
 The full extent of the skew is not evaluated on this page. However, to illustrate the issue, several simulated examples based on real instances are provided. These examples highlight two key aspects:
 
-1. A PO Box address is used either before or after other addresses.
+1. A PO Box address is used either before or after other addresses, misrepresenting the span of year open.
 2. A PO Box address is used between other addresses for more than three consecutive years.
 
-The second point can result in a skew because Professor Ransome and Dr. Insang's methods define a church closure as occurring when more than three consecutive zeros are observed from 2001 to 2021. As a result, sequences like “10001” and “101” are replaced with “11111” and “111,” respectively.
+The second point may introduce skew because the closure detection method defined by Professor Ransome and Dr. Insang identifies a church closure as more than three consecutive zeros between 2001 and 2021. Under this method, sequences such as "10001" and "101" are replaced with "11111" and "111," respectively, and treated as continuously open. A PO Box used between other addresses that exceeds this threshold would therefore be artificially identified as a closure and reopening event.
 
-Examples are indexed in the "Explore the Raw Data.R" file under the section *ASSUMPTION TO REMOVE PO BOX'S*. Only those with access to the full data will be able to see these examples.
+Below are two artificially generated examples illustrating this issue. Real examples from the dataset are indexed in the `Explore the Raw Data.R` file under the section **ASSUMPTION TO REMOVE PO BOXES**. Note that access to the full dataset is required to view the real examples. In these cited real examples, 
 
-### Example #1:
+**EXAMPLE #1:**
 
 Reported year first observed: 2005\
 Reported year last observed: 2021\
@@ -514,7 +701,7 @@ ex1 <- data.frame(
 ex1
 ```
 
-### Example #2:
+**EXAMPLE #2:**
 
 Reported year first observed: 2001\
 Reported year last observed: 2021\
@@ -563,5 +750,167 @@ ex2 <- data.frame(
 
 ex2
 ```
+
+These examples also show that the geolocation of a PO Box is sometimes identical to that of a physical address. This is not problematic if the intent is to closely associate the two; however, it may be problematic if multiple matches exist or if the PO Box location is sufficiently distant to suggest a move outside of the community.
+
+The full extent of this issue warrants further assessment.
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Show the code"
+
+search_space <- church_wide[str_which(church_wide$address_line_1, "(?i)PO Box|P O Box"), "abi"] %>% 
+  unique() # Isolate ABIs that filed under a PO Box at one point
+church_wide_dt <- as.data.table(church_wide)  # Convert for efficient data manipulation
+result4 <- vector("list", length(search_space))  # Initialize an empty list
+pb = txtProgressBar(min = 0, max = length(search_space), style = 3)  # Initialize progress bar
+
+for (i in 1:length(search_space)) {
+  # Subset to show only the entries associated with one reduplicated ABI.
+  subset <- church_wide_dt[abi %in% search_space[i]]
+  
+  # --------------------
+  # Identify PO Box address rows for this ABI, then compare each PO Box row’s
+  # longitude/latitude to every NON–PO Box row for the same ABI (i.e., all rows
+  # excluding the PO Box row itself and all other PO Box rows).
+  
+  index <- str_which(subset$address_line_1, "(?i)PO Box|P O Box")
+  
+  build <- vector("list", length(index))
+  for(j in 1:length(index)){
+    po_box <- index[j]
+    others <- setdiff(seq_len(nrow(subset)), union(po_box, index))
+    
+    # Test how similar the longitude and latitude are.
+    negligible_change <- 0.002  # Change in degrees (~222 meters or 728 feet)
+    
+    lon_test <- abs(subset$longitude[others] - subset$longitude[po_box])
+    lat_test <- abs(subset$latitude [others] - subset$latitude [po_box])
+    lonLat_test <- lon_test < negligible_change & lat_test < negligible_change
+    
+    # Compile the results.
+    build[[j]] <- cbind(
+      # Use the ABI as the first column.
+      unique(subset$abi),
+      # Add the PO Box name.
+      subset[po_box, "address_line_1"],
+      # Add the summary results capturing if any comparisons passed.
+      any(lonLat_test, na.rm = TRUE),
+      # Number of failed Boolean tests.
+      lonLat_test %>% (\(y) sum(!y, na.rm = TRUE)) (),
+      # Total number of comparisons.
+      lonLat_test %>% (\(y) length(y)) (),
+      # Summary statistics of the failed Boolean tests (longitude diffs).
+      lon_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else min(y,  na.rm = TRUE)) (),
+      lon_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else mean(y, na.rm = TRUE)) (),
+      lon_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else max(y,  na.rm = TRUE)) (),
+      # Summary statistics of the failed Boolean tests (latitude diffs).
+      lat_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else min(y,  na.rm = TRUE)) (),
+      lat_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else mean(y, na.rm = TRUE)) (),
+      lat_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else max(y,  na.rm = TRUE)) ()
+    )
+  }
+  
+  # Store 'build' in the list.
+  result4[[i]] <- do.call(rbind, build) %>% 
+    `colnames<-`(c("abi","address_line_1","Summary Outcome", "n_failed","n_total",
+                   "lon_failed_min","lon_failed_mean","lon_failed_max", 
+                   "lat_failed_min","lat_failed_mean","lat_failed_max"))
+  
+  # Print the for loop's progress.
+  setTxtProgressBar(pb, i)
+}
+# Commit result with reformatting.
+result4 <- rbindlist(result4, use.names = TRUE, fill = TRUE) %>%
+  (\(DT) {
+    cols_to_round <- c("lon_failed_min", "lon_failed_mean","lon_failed_max",
+                       "lat_failed_min","lat_failed_mean","lat_failed_max")
+    DT[, (cols_to_round) := as.data.table(sapply(.SD, round, digits = 3)),
+       .SDcols = cols_to_round]
+  })()
+
+# # Save the result.
+write.csv(result4, "Data/Results/KEEP LOCAL/From Explore the Raw Data/PO Box Geolocation_04.10.2026.csv")
+```
+
+
+28\% of evaluations revealed that only a PO Box was listed, corresponding to almost 3\% of unique ABI. All such entries are associated with a `Summary Outcome = FALSE` result. Excluding evaluations where only PO Boxes were used, 38\% of entries showed at least one PO Box to physical address alignment. NA values were detected in one or more comparators, though these constituted fewer than 1\% of the data.
+
+Looking only at entries where `Summary Outcome = FALSE` and excluding evaluations limited to PO Boxes, the summary statistics indicate that most differences are close to zero, with the third quartile for each measure falling below 1 degree. However, some entries exhibit notably large differences, with longitude differences reaching as high as 47 degrees.
+
+
+```{r}
+#| echo: false
+
+# Longitude Failed results
+tbl1 <- data.frame(
+  c("Min.", "1st Qu.", "Median", "Mean", "3rd Qu.", "Max."),
+  min  = c(0.00000, 0.00500, 0.01200, 0.03695, 0.02900, 30.82600),
+  mean = c(0.00000, 0.00600, 0.01400, 0.04036, 0.03300, 30.82600),
+  max  = c(0.00000, 0.00600, 0.01500, 0.04487, 0.03600, 47.44800),
+  check.names = FALSE
+)
+names(tbl1)[1] <- ""
+
+# Latitude Failed results
+tbl2 <- data.frame(
+  c("Min.", "1st Qu.", "Median", "Mean", "3rd Qu.", "Max."),
+  min  = c(0.00000, 0.00400, 0.01000, 0.02660, 0.02400, 11.04400),
+  mean = c(0.00000, 0.00500, 0.01200, 0.02924, 0.02700, 11.04400),
+  max  = c(0.00000, 0.00500, 0.01300, 0.03217, 0.02900, 11.04400),
+  check.names = FALSE
+)
+names(tbl2)[1] <- ""
+```
+
+
+:::{.columns}
+::: {.column width="50%"}
+
+<u>Longitude Failed</u>
+
+```{r}
+#| echo: false
+print(tbl1, row.names = FALSE)
+```
+
+::: 
+::: {.column width="50%"}
+
+<u>Latitude Failed</u>
+
+```{r}
+#| echo: false
+print(tbl2, row.names = FALSE)
+```
+
+::: 
+:::
+
+## States Represented
+
+All 50 states are represented, along with D.C. and five U.S. territories. Confirming representation of all cities is not applicable, as some cities may genuinely have no religious institutions rather than reflecting missing data. The following abbreviations represent non-state U.S. jurisdictions that are also present:
+
+- **DC** – District of Columbia
+- **PR** – Puerto Rico
+- **VI** – U.S. Virgin Islands
+- **GU** – Guam
+- **MP** – Northern Mariana Islands
+- **FM** – Federated States of Micronesia
+
+```{r}
+#| eval: false
+
+# Confirm all 50 U.S. states are represented.
+unique(church_wide$state) %>% .[. %in% datasets::state.abb] %>% length()
+
+# Other state-level codes that are not one of the 50 U.S. states.
+unique(church_wide$state) %>% .[. %!in% datasets::state.abb]
+```
+
+
+
+
 
 
