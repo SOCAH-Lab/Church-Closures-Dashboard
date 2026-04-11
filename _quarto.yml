@@ -16,7 +16,7 @@ website:
       - text: "Review"
         href: Pages/Review.qmd
       - text: "Preparation"
-        href: Pages/Cleaning and Harmonization.qmd
+        href: Pages/Cleaning and Harmonization_Overview.qmd
       - text: "Metrics"
         href: Pages/Metric Calculation.qmd
       - text: Contact

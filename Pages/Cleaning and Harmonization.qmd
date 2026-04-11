@@ -3,24 +3,93 @@ title: "Cleaning and Validation"
 editor: source
 ---
 
-::: {.callout-important}
-# THIS PAGES IS IN PROGRESS
+<small>Last Updated: April 10<sup>th</sup>, 2026</small>
+
+The ultimate goal of this project is to produce a reasonably cleaned, concise, and validated form of the raw data suitable for dynamic visualization to the census tract level across three decennial periods. As noted in the [Review](Review.html) section, inconsistencies between addresses arise from typographical errors. A substantial portion of the various errors detected were among entries that utilized a PO Box at some point during the filing period.
+
+Without further information from the data distributor, the level of accuracy that can be assumed for the geolocation associated with each address cannot be guaranteed. It is therefore advisable to validate all unique addresses, with particular attention to PO Box entries, which are known to have incorrect geolocations associated with them.
+
+The geolocation associated with each PO Box will be used to estimate the physical address — representing the location of community impact — associated with those years of filing. If a PO Box is not reasonably near any listed physical address, it will be treated as the closest approximation to the actual business location. If it is near multiple physical addresses that are in close proximity to one another, it will be associated with the nearest listed physical address.
+
+The data cleaning and validation goals are to:
+
+- Reduce redundancy by consolidating separately listed addresses that result from typographical errors into a single entry.
+
+- Validate addresses where possible and annotate the dataset with the resulting confidence/accuracy level.
+
+- Validate each record’s associated geolocation where possible and annotate the dataset with the resulting confidence/accuracy level.
+
+- Use available geolocations to assign each record to its corresponding census tract and county for the 2000, 2010, and 2020 decennial years.
+
+## Analysis Outline
+
+To achieve this, the following stepwise procedure is outlined.
+
+:::{style="padding-left: 4.6rem; text-indent: -4.6rem"}
+**Step #1:** Compress similar addresses using `stringdist()` to generate a connected component of similar strings, and then Depth-First Search (DFS) to aggregate nearest neighbors. Randomly select one of the address variations to proceed with.
+
+**Step #2:** Validate the address using the reliable databases, such as the [USPS Address 3.0](https://developers.usps.com/addressesv3) API, to correct the address.
+
+**Step #3:** Validate the longitude and latitude associated with an address using the [US Census Bureau's Geocoder](https://geocoding.geo.census.gov/geocoder/) API.
+
+**Step #4:** Associate a PO Box with a physical addresses and identify moves based on longitude/latitude nearness by clustering their geolocation.
+
+**Step #5:** Using the street address (and for PO Boxes, the associated street address defined in the previous step) add the census tract and county for the 2000, 2010, and 2020 decennial years also using the US Census Bureau’s Geocoder API. This will improve accuracy when calculating metrics over different decennial years and mitigate map projection mismatching.
 :::
 
-## 
+:::{.callout-caution}
+## Validation Sources
 
-- **Step #1:** Compress similar addresses using stringdist() to generate a connected component of similar strings, and then Depth-First Search (DFS) to aggregate nearest neighbors. Randomly select one of the address variations to proceed with.
+In addition to the resources referenced above, the following candidate databases were considered for validating the listed physical addresses and geolocations:
 
-- **Step #2:** Validate the address using the [USPS Address 3.0](https://developers.usps.com/addressesv3) API to correct the address. This is time consuming, but is important to do before the following steps, as invalid addresses draw errors.
+- Environmental Systems Research Institute, Inc. (Esri) StreetMap Premium and
+  the local version available to Yale affiliates
+- Google Maps API
 
-- **Step #3:** Validate the longitude and latitude associated with an address using the [US Census Bureau's Geocoder](https://geocoding.geo.census.gov/geocoder/) API.
+These sources were ultimately not used due to several limiting factors. Due to the applicable Data Use Agreements (DUAs), it was necessary to confirm that no API usage would violate the terms of those agreements. The USPS and U.S. Census Bureau APIs were approved in coordination with the relevant security measures, but approval was not confirmed for the online Esri source or the Google Maps API.
 
-- **Step #4:** Associate PO Box with physical addresses and identify moves based on longitude/latitude nearness by clustering their geolocation.
-
-- **Step #5:** Using the street address (and for PO Boxes, the associated street address defined in the previous step) add the census tract and county for the 2000, 2010, and 2020 decennial years also using the US Census Bureau’s Geocoder API. This should improve accuracy when calculating metrics over different decennial years and mitigate map projection mismatching.
-
+An additional compliance review would have been required for the Google Maps API in particular. This process took longer than the project timeline allowed, rendering those resources inaccessible. Furthermore, Esri requires manual adjudication of alternative address suggestions, which would have been prohibitively time intensive. The [Yale Center for Geospatial Solutions (YCGS)](https://geospatial.yale.edu/) also noted that the online Esri resource is more current and robust than the local version.
+:::
 
 
-## 
+## Note About Optimization
+
+::: {.callout-tip}
+# Coming Soon
+:::
+
+## Step #1 Results
+
+::: {.callout-tip}
+# Coming Soon
+:::
+
+## Step #2 Results
+
+::: {.callout-tip}
+# Coming Soon
+:::
+
+## Step #3 Results
+
+::: {.callout-tip}
+# Coming Soon
+:::
+
+## Step #4 Results
+
+::: {.callout-tip}
+# Coming Soon
+:::
+
+## Step #5 Results
+
+::: {.callout-tip}
+# Coming Soon
+:::
+
+
+
+
 
 

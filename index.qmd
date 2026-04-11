@@ -6,13 +6,13 @@ Dynamically visualize data from [Data Axle](https://doc.arcgis.com/en/esri-demog
 
 ## Project Goals
 
-1. Review the existing data cleaning, validation, and harmonization procedures employed by [Dr. Insang Song](https://sigmafelix.wixsite.com/mysite) for accuracy and identify opportunities for improvement.
+1. **REVIEW:** Evaluate the raw data and previously outlined cleaning, validation, and harmonization methods employed by [Dr. Insang Song](https://sigmafelix.wixsite.com/mysite) for accuracy and identify opportunities for improvement.
 
-2. Implement the improvements as appropriate to prepare the dataset for analysis.
+2. **PREPARATION:** Implement identified improvements to prepare the dataset for analysis and distribution to qualifying collaborators.
 
-3. Calculate the metrics for dynamic visualization as required.
+3. **METRICS:** Calculate the metrics necessary for dynamic visualization.
 
-Refer to the pages in the top right of the navigation bar for the findings addressing each of these concerns.
+Findings addressing each of these objectives are accessible via the navigation bar in the top right.
 
 ## Important Links and Locations
 
@@ -23,3 +23,11 @@ Active dashboard: [Closed Churches in the US](https://church-closing-dashboard.v
 Original GitHub Repo by Dr. Song: [sigmafelix/healthreligion_project](https://github.com/sigmafelix/healthreligion_project)
 
 Source for Dashboard Map Code: [ysph-dsde/church-closures](https://github.com/ysph-dsde/church-closures)
+
+## Repository Note
+
+The Data Use Agreements (DUAs) with the data owner, Data Axle, prohibit public distribution of the raw data. Accordingly, individual-level files are stored in `~/KEEP LOCAL` directories. While most local-only files are individual-level data, some code or results may also be restricted.
+
+All publicly distributed results are summarized, and all publicly distributed code has been constructed to avoid directly revealing or referencing individual-level results. Executing all code below requires access to the raw data and results.
+
+API keys are user-specific and are not publicly distributed. Where applicable, instructions have been provided to help users obtain their own API keys.
