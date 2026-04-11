@@ -40,13 +40,11 @@ source("./Functions.R")
 "%!in%" <- function(x,y)!("%in%"(x,y))
 ```
 
-<small>Last Updated: April 10<sup>th</sup>, 2026</small>
+<small>Last Updated: April 11<sup>th</sup>, 2026</small>
 
 The purpose of this page is to provide an understanding of the challenges associated with the data and to identify opportunities for data validation or cleaning. Therefore, we do not need to be concerned with evaluating every case.
 
-:::{.callout-important}
-## Reference code
-:::
+Selected code excerpts are provided below. The complete code used to generate this report can be found in [Code/Explore the Raw Data.R](https://github.com/ysph-dsde/church-closures/blob/main/Code/Explore%20the%20Raw%20Data.R).
 
 ## Raw Data Dictionary
 
