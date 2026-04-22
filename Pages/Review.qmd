@@ -23,15 +23,7 @@ suppressPackageStartupMessages({
   library("ggplot2")          # Graphics and visualization
   library("gridExtra")        # Arrange multiple grid-based plots on a page
   library("tibble")           # Manipulate data frames in tidyverse
-  library("purrr")            # Functional programming tools
-  library("lubridate")        # Manipulate dates
-  library("stringdist")       # Measuring string distances
-  library("future.apply")     # Parallel processing
-  library("progress")         # Progress bars
 })
-
-# Set up the plan for parallel processing.
-plan(multisession, workers = 4)
 
 # Load in the functions.
 source("./Functions.R")

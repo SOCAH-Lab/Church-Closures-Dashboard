@@ -11,6 +11,10 @@ website:
   page-navigation: false
   back-to-top-navigation: true
   bread-crumbs: false
+  favicon: Images/DSDE-Social-Media-Profile.png
+  repo-url: https://github.com/ysph-dsde/church-closures
+  issue-url: https://github.com/ysph-dsde/church-closures/issues
+  repo-actions: [source, issue]
   navbar:
     right:
       - text: "Review"

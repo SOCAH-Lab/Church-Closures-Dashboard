@@ -3,7 +3,35 @@ title: "Cleaning and Validation"
 editor: source
 ---
 
-<small>Last Updated: April 10<sup>th</sup>, 2026</small>
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| include: false
+
+## ----------------------------------------------------------------
+## SET UP THE ENVIRONMENT
+
+# Initiate the package environment.
+# renv::init()
+renv::restore()
+
+suppressPackageStartupMessages({
+  library("readr")            # Reads in CSV and other delimited files
+  library("dplyr")            # Data manipulation and transformation
+  library("ggplot2")          # Graphics and visualization
+  library("microbenchmark")   # Micro-benchmarking for performance
+  library("data.table")       # High-performance data manipulation
+})
+
+# Load in the functions.
+source("./Functions.R")
+
+# Define the "not in" operation
+"%!in%" <- function(x,y)!("%in%"(x,y))
+```
+
+<small>Last Updated: April 22<sup>nd</sup>, 2026</small>
 
 The ultimate goal of this project is to produce a reasonably cleaned, concise, and validated form of the raw data suitable for dynamic visualization to the census tract level across three decennial periods. As noted in the [Review](Review.html) section, inconsistencies between addresses arise from typographical errors. A substantial portion of the various errors detected were among entries that utilized a PO Box at some point during the filing period.
 
@@ -25,14 +53,14 @@ The data cleaning and validation goals are to:
 
 To achieve this, the following stepwise procedure is outlined.
 
-:::{style="padding-left: 4.6rem; text-indent: -4.6rem"}
-**Step #1:** Compress similar addresses using `stringdist()` to generate a connected component of similar strings, and then Depth-First Search (DFS) to aggregate nearest neighbors. Randomly select one of the address variations to proceed with.
+:::{style="padding-left: 4.7rem; text-indent: -4.7rem"}
+**Step #1:** Consolidate similar addresses by applying stringdist() to build a graph of connected components based on string similarity, then use Depth-First Search (DFS) to aggregate nearest-neighbor address variants. From each resulting cluster, randomly select one representative address to carry forward. For addresses that failed the longitude/latitude similarity check, retain only the distinct address versions associated with a given business, keeping those validated in **Step #2**.
 
-**Step #2:** Validate the address using the reliable databases, such as the [USPS Address 3.0](https://developers.usps.com/addressesv3) API, to correct the address.
+**Step #2:** Validate each address against a reliable reference database, such as the [USPS Address 3.0](https://developers.usps.com/addressesv3) API, and retain whichever variant is confirmed as valid, or substitute it with the standardized suggestion returned by the database.
 
 **Step #3:** Validate the longitude and latitude associated with an address using the [US Census Bureau's Geocoder](https://geocoding.geo.census.gov/geocoder/) API.
 
-**Step #4:** Associate a PO Box with a physical addresses and identify moves based on longitude/latitude nearness by clustering their geolocation.
+**Step #4:** Associate a PO Box with a physical addresses and identify moves based on longitude/latitude nearness.
 
 **Step #5:** Using the street address (and for PO Boxes, the associated street address defined in the previous step) add the census tract and county for the 2000, 2010, and 2020 decennial years also using the US Census Bureau’s Geocoder API. This will improve accuracy when calculating metrics over different decennial years and mitigate map projection mismatching.
 :::
@@ -46,23 +74,388 @@ In addition to the resources referenced above, the following candidate databases
   the local version available to Yale affiliates
 - Google Maps API
 
-These sources were ultimately not used due to several limiting factors. Due to the applicable Data Use Agreements (DUAs), it was necessary to confirm that no API usage would violate the terms of those agreements. The USPS and U.S. Census Bureau APIs were approved in coordination with the relevant security measures, but approval was not confirmed for the online Esri source or the Google Maps API.
+These sources were ultimately not used due to a combination of limiting factors. Under the applicable Data Use Agreements (DUAs), it was necessary to confirm that no API usage would violate the terms of those agreements. The USPS and U.S. Census Bureau APIs were approved following coordination with the relevant security review processes; however, accessing the Esri online database or Google Maps API required additional review.
 
-An additional compliance review would have been required for the Google Maps API in particular. This process took longer than the project timeline allowed, rendering those resources inaccessible. Furthermore, Esri requires manual adjudication of alternative address suggestions, which would have been prohibitively time intensive. The [Yale Center for Geospatial Solutions (YCGS)](https://geospatial.yale.edu/) also noted that the online Esri resource is more current and robust than the local version.
+The review process was initiated for the Google Maps API given its anticipated capacity to efficiently validate addresses and geolocation. However, the review extended beyond the project timeline, rendering those resources inaccessible. Additionally, Esri requires manual adjudication of alternative address suggestions, which would have been prohibitively time-intensive. Researchers from the  [Yale Center for Geospatial Solutions (YCGS)](https://geospatial.yale.edu/) further noted that the online Esri resource is more current and robust than its locally hosted counterpart, suggesting that the local version would offer little advantage over the USPS Address 3.0 database in terms of address validation quality.
 :::
 
 
-## Note About Optimization
+## Code Optimization
 
-::: {.callout-tip}
-# Coming Soon
+During the initial development of this process, from late July through the first prototype unveiling on June 18<sup>th</sup>, 2025, priority was placed on rapidly processing the raw data and establishing a viable workflow, rather than on optimization. As a result, many steps were slow to execute, and only a portion of the data could be fully processed in time for the prototype presentation.
+
+Following the symposium, it was determined that running the pipeline on Yale's High Performance Computing (HPC) infrastructure could reduce processing time. Consultation with researchers at the [Yale Center for Research Computing (YCRC)](https://research.computing.yale.edu/) surfaced two critical considerations:
+
+1. **Script Efficiency:** Processing scripts must be optimized prior to deployment. This is necessary both for the responsible use of shared computational resources and because the HPC is unlikely to compensate for inefficient code.
+
+2. **API Constraints:** Workflow steps dependent on external API calls are bounded by those services' rate limits and response latencies. These bottlenecks are not addressable through parallelization.
+
+Functions with long local runtimes, even when parallelized with the `future.apply` package, were profiled using `profvis`, a tool for identifying where R spends the most time during execution. This analysis revealed two operations as primary contributors to inflation of the overall processing time: subsetting data and combining data by rows (row-binding).
+
+To address these bottlenecks, three approaches were benchmarked: base R, the `tidyverse`, and `data.table`. Within each approach, specific strategies were also compared, for example, `dplyr::filter()` vs. `dplyr::semi_join()` for subsetting, and `data.table::rbindlist()` applied within a loop vs. after loop completion for row-binding.
+
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Show the code"
+
+## ----------------------------------------------------------------
+## PART A: Enhancing Function Performance and Efficiency
+
+# Different methods were compared to enhance function speed and scalability, 
+# identifying the most efficient approaches for both local computations and 
+# high-performance computing (HPC) environments.
+#
+# The `profvis` package was used to pinpoint code sections that consume the 
+# most memory and execution time. The `profvis` function is commented out 
+# around the optimized code sections.
+
+search_space <- duplicates_detected$abi
+
+## --------------------
+## SUBSECTION A1: Optimizing Data Subsetting
+
+# Convert the 'church_wide' data frame to a data.table for efficient data manipulation
+church_wide_dt <- as.data.table(church_wide)
+
+# Benchmark different methods of subsetting the data frame
+mb <- microbenchmark(
+  # Method 1: Using base R subsetting with %in%
+  baseR = { subset_base <- church_wide[church_wide$abi %in% search_space[1],] },
+  
+  # Method 2: Using dplyr's filter function with %in%
+  dplyr_in = { subset_dplyr <- church_wide %>% filter(abi %in% search_space[1]) },
+  
+  # Method 3: Using dplyr's semi_join function for efficient subsetting
+  dplyr_join = { subset_dplyr_join <- church_wide %>% semi_join(data.frame(abi = search_space[1]), by = "abi") },
+  
+  # Method 4: Using data.table's efficient subsetting with %in%
+  data.table = { subset_dt <- church_wide_dt[abi %in% search_space[1]] },
+  
+  # Number of times to evaluate each expression
+  times = 100
+)
+
+
+## --------------------
+## SUBSECTION A2: Optimizing Data Combination
+
+# Create a large sample dataset for testing
+set.seed(123)
+n <- 1e5
+church_wide_test <- data.frame(abi = sample(letters, n, replace = TRUE), value = rnorm(n))
+search_space <- sample(letters, 10)
+
+# Dummy 'build' data frame for simulation purposes
+build <- church_wide_test[1:1000, ]
+
+# Method 1: Base R rbind in a loop
+base_rbind <- function() {
+  finish_build <- data.frame()
+  for (i in seq_along(search_space)) {
+    finish_build <- rbind(finish_build, build)
+  }
+  return(finish_build)
+}
+
+# Method 2: dplyr bind_rows in a loop
+dplyr_bind_rows <- function() {
+  finish_build <- tibble()
+  for (i in seq_along(search_space)) {
+    finish_build <- bind_rows(finish_build, build)
+  }
+  return(finish_build)
+}
+
+# Method 3: data.table rbindlist in a loop
+data_table_rbindlist <- function() {
+  finish_build <- data.table()
+  for (i in seq_along(search_space)) {
+    finish_build <- rbindlist(list(finish_build, build), use.names = TRUE, fill = TRUE)
+  }
+  return(finish_build)
+}
+
+# Method 4: Accumulate in a list and do.call rbind once
+accumulate_list <- function() {
+  result_list <- vector("list", length(search_space))
+  for (i in seq_along(search_space)) {
+    result_list[[i]] <- build
+  }
+  return(do.call(rbind, result_list))
+}
+
+# Method 5: Accumulate in a list and data.table rbindlist once
+data_table_accumulate_list <- function() {
+  result_list <- vector("list", length(search_space))
+  for (i in seq_along(search_space)) {
+    result_list[[i]] <- build
+  }
+  return(rbindlist(result_list, use.names = TRUE, fill = TRUE))
+}
+
+# Benchmark the different methods
+mb <- microbenchmark(
+  base_rbind = base_rbind(),
+  dplyr_bind_rows = dplyr_bind_rows(),
+  data_table_rbindlist = data_table_rbindlist(),
+  accumulate_list = accumulate_list(),
+  data_table_accumulate_list = data_table_accumulate_list(),
+  times = 10
+)
+```
+
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+# Results from "PART A SUBSECTION A1: Optimizing Data Subsetting" found in
+# `Clean Raw Data_Step 1.R`
+mb_result1 <- read_csv("../Data/Results/From Clean Raw Data/Step 1/Step 1 MB Timings_Subsetting_04.22.2026.csv") %>% 
+                as.data.frame()
+
+# Results from "PART A SUBSECTION A2: Optimizing Data Combination" found in
+# `Clean Raw Data_Step 1.R`
+mb_result2 <- read_csv("../Data/Results/From Clean Raw Data/Step 1/Step 1 MB Timings_Data Combining_04.22.2026.csv") %>%
+                as.data.frame()
+
+# Convert nanoseconds to milliseconds
+mb_result1$time_ms <- mb_result1$time / 1e6
+mb_result2$time_ms <- mb_result2$time / 1e6
+
+# Set factor levels to control y-axis order (matching microbenchmark default: alphabetical)
+mb_result1$expr <- factor(mb_result1$expr, 
+  levels = c("baseR", "data.table", "dplyr_in", "dplyr_join"),
+  labels = c(
+    "base_indexing",
+    "dt_indexing",
+    "dplyr_filter",
+    "dplyr_semi_join"
+  )
+)
+
+mb_result2$expr <- factor(mb_result2$expr,
+  levels = c(
+    "data_table_accumulate_list",
+    "accumulate_list",
+    "data_table_rbindlist",
+    "base_rbind",
+    "dplyr_bind_rows"
+  ),
+  labels = c(
+    "dt_rbindlist_once",
+    "base_do.call",
+    "dt_rbindlist_seq",
+    "base_rbind",
+    "dplyr_bind_rows"
+  )
+)
+
+# Plots
+mb_p1 <- ggplot(mb_result1, aes(x = time_ms, y = expr)) +
+  geom_violin(fill = "white", color = "black", linewidth = 0.4, scale = "width") +
+  scale_x_log10() +
+  labs(
+    title = "Microbenchmark Timings - 100 Iterations",
+    subtitle = "Performance evaluated on all rows in the raw data",
+    x     = "Time (milliseconds)",
+    y     = NULL
+  ) +
+  theme_linedraw(base_size = 11) +
+  theme(
+    panel.grid.major = element_line(color = "grey60"),
+    panel.grid.minor = element_line(color = "grey75"),
+    plot.title       = element_text(hjust = 0, size = 16),
+    plot.subtitle    = element_text(size = 12),
+    axis.text.x      = element_text(size = 12),
+    axis.text.y      = element_text(size = 12)
+  )
+
+mb_p2 <- ggplot(mb_result2, aes(x = time_ms, y = expr)) +
+  geom_violin(fill = "white", color = "black", linewidth = 0.4, scale = "width") +
+  scale_x_log10() +
+  labs(
+    title = "Microbenchmark Timings - 10 Iterations",
+    subtitle = "Performance evaluated on approximately 4% of total raw data rows",
+    x     = "Time (milliseconds)",
+    y     = NULL
+  ) +
+  theme_linedraw(base_size = 11) +
+  theme(
+    panel.grid.major = element_line(color = "grey60"),
+    panel.grid.minor = element_line(color = "grey75"),
+    plot.title       = element_text(hjust = 0, size = 16),
+    plot.subtitle    = element_text(size = 12),
+    axis.text.x      = element_text(size = 12),
+    axis.text.y      = element_text(size = 12)
+  )
+```
+
+:::{.columns}
+::: {.column width="50%"}
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <u>Optimizing Data Subsetting</u>
+
+```{r}
+#| echo: false
+mb_p1
+```
+
+::: 
+::: {.column width="50%"}
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <u>Optimizing Data Row-Binding</u>
+
+```{r}
+#| echo: false
+mb_p2
+```
+
+::: 
 :::
+
+Overall, processing a large data frame using the `data.table` class proved to be the most computationally efficient approach. Additionally, applying `data.table::rbindlist()` after a loop was found to be more efficient than base R's `do.call()`, while sequentially applying `data.table::rbindlist()` within a loop yielded comparable results to the latter.
+
 
 ## Step #1 Results
 
 ::: {.callout-tip}
-# Coming Soon
+# In Progress
 :::
+
+Data evaluation ([Review](Review.html)) revealed that most reduplicated entries arise from either new addresses added within the observation period or typographical errors. To resolve this, `stringdist()` and Depth-First Search (DFS) are used to cluster similar address variants, with one address randomly selected from each group to carry forward.
+
+While manual adjudication would be required to guarantee that the retained address is a verified street address, the approach described here incorporates a Boolean quality check to flag potentially incorrect combinations of similar but distinct addresses. This check evaluates the maximum change in geographic coordinates (longitude and latitude) to ensure that retained address variants are either near-identical or exact matches.
+
+For reference, one degree of longitude is approximately 69 miles (111 kilometers), while one degree of latitude varies based on proximity to the equator, averaging approximately 54 miles (87 kilometers) across the contiguous United States. The length of a typical U.S. city block also varies, with common estimates ranging from 100 to 200 meters. Based on these benchmarks, a deviation exceeding 0.002 degrees in either longitude or latitude — approximately 222 meters — is used as the threshold for flagging significant geographic discrepancy.
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Show the code"
+
+search_space <- duplicates_detected$abi  # Isolate ABIs that were reduplicated
+church_wide_dt <- as.data.table(church_wide)  # Convert for efficient data manipulation
+finish_build <- vector("list", length(search_space))  # Initialize an empty list
+pb = txtProgressBar(min = 0, max = length(search_space), style = 3)  # Initialize progress bar
+
+#profvis({
+for (i in 1:length(search_space)) {
+  # Subset to show only the entries associated with one reduplicated ABI.
+  subset <- church_wide_dt[abi %in% search_space[i]]
+  
+  # --------------------
+  # Match addresses that are similar for compression.
+  
+  # Fill in empty address lines with "None Given".
+  if (any(is.na(subset$address_line_1))) {
+    subset[is.na(subset$address_line_1), "address_line_1"] <- "None Given"
+  }
+  
+  # Make the entire address elements into one string.
+  compile_address <- str_c(subset$address_line_1, subset$city, subset$state, subset$zipcode, sep = ", ")
+  
+  # Use the support function find_similar_addresses() to compare the addresses
+  # and assign them into groups based on degree of similarity.
+  match <- find_similar_addresses(as.character(compile_address))
+  
+  # --------------------
+  # Reconcile metadata with mismatched outcomes within assigned groups.
+  
+  # The North American Industry Classification System (NAICS) code for 
+  # Religious Organizations is 813110. Any additional characters beyond the 
+  # six-digit code do not have a defined meaning in NAICS and may represent 
+  # something else. We will retain these additional values for reference.
+  #
+  # Source: https://www.census.gov/naics/?input=813110&year=2022&details=813110
+  extra_naics_code <- str_replace(subset$primary_naics_code, "813110", "") %>% unique() %>%
+    (\(x) { str_flatten(x, collapse = ", ") }) ()
+  
+  # Some entries report different years established, even though they are 
+  # associated with the same address. We will retain these differing year values 
+  # for reference.
+  year_est <- subset$year_established %>% unique() %>%
+    (\(x) { x[!is.na(x)] }) () %>% sort() %>%
+    (\(y) { str_flatten(y, collapse = ", ") }) ()
+  
+  # Fill in empty year established lines with None listed".
+  if (length(year_est) == 0) {
+    year_est <- "None listed"
+  }
+  
+  # --------------------
+  # Rebuild the dataframe and remove erroneous reduplicates
+  
+  # Define the starting structure of the metadata that will be used to build the
+  # new dataframe that collapses reduplicates.
+  seed <- data.frame("abi" = unique(subset$abi), "year_established" = year_est,
+                     "primary_naics_code" = 813110, "extra_naics_code" = extra_naics_code,
+                     "naics8_descriptions" = "Religious Organizations")
+  
+  # Stepwise collapse the duplicates.
+  build <- NULL
+  for (j in 1:length(match)) {
+    # Pull out rows that are affiliated with similar addresses.
+    change_these <- sapply(match[[j]], function(x) str_split(x, ", ")[[1]][1]) %>% as.vector() %>%
+      (\(y) { map_lgl(subset$address_line_1, ~ any(str_detect(.x, y))) }) ()
+    
+    # Sum over the openings.
+    dates <- sapply(subset[change_these, 11:31], function(x) sum(x, na.rm = TRUE)) %>%
+      (\(x) { as.data.frame(t(x)) }) ()
+    
+    # Test how similar the longitude and latitude are.
+    negligible_change <- 0.002  # Change in degrees (~222 meters or 728 feet)
+    
+    lonLat_test <- abs(max(subset[change_these, ]$longitude) - min(subset[change_these, ]$longitude)) < negligible_change &
+      abs(max(subset[change_these, ]$latitude) - min(subset[change_these, ]$latitude)) < negligible_change
+    
+    build <- rbind(build, cbind(
+      # Use the ABI as the first column.
+      seed[, 1, drop = FALSE],
+      # Without validating the correct address with the USPS, we'll arbitrarily
+      # choose the first entry. Format the address over different columns.
+      str_split(match[[j]][1], ", ") %>% unlist() %>%
+        (\(x) { as.data.frame(t(x)) }) () %>%
+        `colnames<-`(c("address_line_1", "city", "state", "zipcode")),
+      # Store the compiled address string.
+      as.data.frame(match[[j]][1]) %>% `colnames<-`(c("compiled_address")),
+      # Add the longitudes and latitude values. Add an indicator if the
+      # longitude or latitude were not similar.
+      as.data.frame(lonLat_test) %>% `colnames<-`(c("lonLat_test")),
+      as.data.frame(mean(subset[change_these, ]$latitude)) %>% `colnames<-`(c("latitude")),
+      as.data.frame(mean(subset[change_these, ]$longitude)) %>% `colnames<-`(c("longitude")),
+      # Add the rest of the metadata.
+      seed[, -1, drop = FALSE],
+      # Finally, add the summed dates.
+      dates
+    ))
+  }
+  
+  # Store 'build' in the list.
+  finish_build[[i]] <- build
+  
+  # Print the for loop's progress.
+  setTxtProgressBar(pb, i)
+}
+#})
+
+# Combine all data tables in the list into one data table.
+finish_build <- rbindlist(finish_build, use.names = TRUE, fill = TRUE)
+
+# Commit results.
+write.csv(finish_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B_1_11.12.2025.csv")
+
+
+# Read in previously generated results.
+finish_build <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B_1_11.12.2025.csv", 
+                         col_types = cols(...1 = col_skip())) %>% as.data.frame()
+
+```
+
+
 
 ## Step #2 Results
 
