@@ -42,6 +42,15 @@
 ##    6. count_sublists: For each ABI element, compare the number of sublists 
 ##       in $exact vs $similar and return a boolean indicating whether they are 
 ##       the same length.
+## 
+##    7. check_duplicates_unique_info: Within each address group, checks whether 
+##       rows are duplicated based on the specified columns (typically 
+##       year-related fields). Adds:
+##          - `has_duplicates`: TRUE if any duplicates exist in the group (by 
+##            `cols_to_convert`)
+##          - `is_unique`: NA if the group has only one row; otherwise TRUE for 
+##            the first occurrence and FALSE for duplicate occurrences (by 
+##            `cols_to_convert`)
 
 
 ## ----------------------------------------------------------------
@@ -273,6 +282,38 @@ count_sublists <- function(main_list) {
 
 
 
+check_duplicates_unique_info <- function(df, cols_to_convert) {
+  #' @description
+  #' Within each address group, checks whether rows are duplicated based on the
+  #' specified columns (typically year-related fields). Adds:
+  #' - `has_duplicates`: TRUE if any duplicates exist in the group (by `cols_to_convert`)
+  #' - `is_unique`: NA if the group has only one row; otherwise TRUE for the first
+  #'   occurrence and FALSE for duplicate occurrences (by `cols_to_convert`)
+  #'
+  #' @param df A data frame (or tibble), typically already grouped (e.g., by address).
+  #' @param cols_to_convert Character vector of column names used to detect duplicates.
+  #'
+  #' @return The input `df` with added `has_duplicates` and `is_unique` columns.
+  #' @examples
+  #' # df %>% group_by(address) %>% check_duplicates_unique_info(c("year_built", "year_reno"))
+  
+  df %>%
+    mutate(
+      # "has_duplicates" column is TRUE if there are any duplicates in the year
+      # columns within each address group.
+      has_duplicates = any(duplicated(across(all_of(cols_to_convert)))),
+      
+      # "is_unique" column is set based on duplication of the year columns within
+      # each address group.
+      is_unique = case_when(
+        # If there is only one entry for an address, set "is_unique" to NA.
+        n() == 1 ~ as.logical(NA),
+        
+        # Otherwise, mark non-duplicate entries as TRUE and duplicates as FALSE.
+        TRUE ~ !duplicated(across(all_of(cols_to_convert)))
+      )
+    )
+}
 
 
 

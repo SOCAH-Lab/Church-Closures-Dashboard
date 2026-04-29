@@ -785,7 +785,7 @@ church_long[524, 1:3]
 #     negligible_change <- 0.002  # Change in degrees (~222 meters or 728 feet)
 #     
 #     lon_test <- abs(subset$longitude[others] - subset$longitude[po_box])
-#     lat_test <- abs(subset$latitude [others] - subset$latitude [po_box])
+#     lat_test <- abs(subset$latitude[others] - subset$latitude[po_box])
 #     lonLat_test <- lon_test < negligible_change & lat_test < negligible_change
 #     
 #     # Compile the results.

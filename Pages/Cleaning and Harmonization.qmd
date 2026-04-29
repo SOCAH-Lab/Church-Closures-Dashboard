@@ -54,7 +54,7 @@ The data cleaning and validation goals are to:
 To achieve this, the following stepwise procedure is outlined.
 
 :::{style="padding-left: 4.7rem; text-indent: -4.7rem"}
-**Step #1:** Consolidate similar addresses by applying stringdist() to build a graph of connected components based on string similarity, then use Depth-First Search (DFS) to aggregate nearest-neighbor address variants. From each resulting cluster, randomly select one representative address to carry forward. For addresses that failed the longitude/latitude similarity check, retain only the distinct address versions associated with a given business, keeping those validated in **Step #2**.
+**Step #1:** Consolidate similar addresses by applying `stringdist()` to build a graph of connected components based on string similarity, then use Depth-First Search (DFS) to aggregate nearest-neighbor address variants. From each resulting cluster, randomly select one representative address to carry forward. For addresses that failed the longitude/latitude similarity check, retain only the distinct address versions associated with a given business, keeping those validated in **Step #2**.
 
 **Step #2:** Validate each address against a reliable reference database, such as the [USPS Address 3.0](https://developers.usps.com/addressesv3) API, and retain whichever variant is confirmed as valid, or substitute it with the standardized suggestion returned by the database.
 
@@ -322,15 +322,11 @@ Overall, processing a large data frame using the `data.table` class proved to be
 
 ## Step #1 Results
 
-::: {.callout-tip}
-# In Progress
-:::
-
 Data evaluation ([Review](Review.html)) revealed that most reduplicated entries arise from either new addresses added within the observation period or typographical errors. To resolve this, `stringdist()` and Depth-First Search (DFS) are used to cluster similar address variants, with one address randomly selected from each group to carry forward.
 
 While manual adjudication would be required to guarantee that the retained address is a verified street address, the approach described here incorporates a Boolean quality check to flag potentially incorrect combinations of similar but distinct addresses. This check evaluates the maximum change in geographic coordinates (longitude and latitude) to ensure that retained address variants are either near-identical or exact matches.
 
-For reference, one degree of longitude is approximately 69 miles (111 kilometers), while one degree of latitude varies based on proximity to the equator, averaging approximately 54 miles (87 kilometers) across the contiguous United States. The length of a typical U.S. city block also varies, with common estimates ranging from 100 to 200 meters. Based on these benchmarks, a deviation exceeding 0.002 degrees in either longitude or latitude — approximately 222 meters — is used as the threshold for flagging significant geographic discrepancy.
+For reference, one degree of longitude is approximately 69 miles (111 kilometers), while one degree of latitude varies based on proximity to the equator, averaging approximately 54 miles (87 kilometers) across the contiguous United States. The length of a typical U.S. city block also varies, with common estimates ranging from 100 to 200 meters. Based on these benchmarks, a deviation exceeding 0.002 degrees in either longitude or latitude ($\approx$ 222 meters) is used as the threshold for flagging significant geographic discrepancy.
 
 ```{r}
 #| eval: false
@@ -455,6 +451,564 @@ finish_build <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/S
 
 ```
 
+
+### Verify No Duplicates Got Added
+
+Some address entries may have been grouped multiple times or mistakenly added as duplicates by the previous function. This likely occurred in the "build" section, where `address_line_1` matched unique, similar addresses that differed in other aspects like `state`, `city`, or `zipcode.`
+
+We use the custom function `check_all_counts_0_or_1()` to identify and extract these instances by performing a column-wise sum over each date of entry and verifying that counts are either zero or one.
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Show the code"
+
+# Count the number of unique ABIs where duplicates were detected.
+total_groups <- finish_build %>% group_by(abi) %>% n_groups()
+
+# Initialize progress bar
+pb <- progress_bar$new(
+  format = "  processing [:bar] :percent eta: :eta",
+  total = total_groups,
+  clear = FALSE, width = 60
+)
+
+test_no_dup <- finish_build %>%
+  # Group the data by ABI to be processed separately.
+  group_by(abi) %>%
+  # Apply the custom function 'check_all_counts_0_or_1' with progress tracking to each group.
+  group_modify(~ process_with_progress(pb, .x, check_all_counts_0_or_1)) %>%
+  # Remove the grouping to return to an ungrouped data frame.
+  ungroup() %>%
+  # Convert the grouped data back to a standard data frame.
+  as.data.frame()
+
+# Commit results.
+write.csv(test_no_dup, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B1_04.22.2026.csv")
+```
+
+
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+# Results copied from "Clean Raw Data_Step 1.R" file ~ line 419
+data.frame(c("TRUE", "FALSE"), c(97.35, 2.65)) %>% `colnames<-`(NULL) %>% `rownames<-`(NULL)
+```
+
+Approximately 2.6% of the ABIs examined had issues that resulted in the introduction of duplications where there were none.
+
+### Explore the Nature of Duplications Added
+
+Since duplicates were erroneously introduced by the function, we sought to further investigate how they arose. The similar address collapsing algorithm may assign addresses that are actually similar to different clusters, artificially generating duplicate records. Because address accuracy has not yet been validated, we wanted to determine whether the information within these duplicates is identical. If so, one instance could be removed, simplifying the resolution process. If not, this may suggest that the algorithm detected a previously unaccounted-for inconsistency.
+
+The reduplication function marks the first occurrence as duplicated = `FALSE` and all subsequent occurrences of the same record as duplicated = `TRUE`. If our assumption that duplicates stem from slightly different address representations of otherwise identical records is correct, we would expect an equal number of `TRUE` and `FALSE` values in the `is_unique` field. However, this does not appear to be the case.
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Show the code"
+
+## --------------------
+## SUBSECTION B2: Explore the Nature of Duplications
+
+# Initialize progress bar
+pb <- txtProgressBar(min = 0, max = nrow(finish_build[finish_build$abi %in% dup_added, ]), style = 3)
+
+new_info <- mutate_with_progress(
+  # Subset the data to include only ABIs with new duplicates.
+  df = finish_build[finish_build$abi %in% dup_added, ],
+  # Specify the columns to check for duplications.
+  cols_to_convert = grep("^20", names(finish_build), value = TRUE),
+  # Define the columns to group by.
+  grouping_cols = c("abi", "address_line_1"),
+  # Custom function to check for duplicates and set 'is_unique'.
+  conversion_func = check_duplicates_unique_info,
+  # Progress bar to visually track the conversion process.
+  pb = pb
+)
+
+isolate_easy_duplicates <- new_info %>%
+  # Group the data by ABI to be processed separately.
+  group_by(abi) %>%
+  # Summarize the counts of TRUE and FALSE in "is_unique", ignoring NA's.
+  summarize(
+    count_TRUE = sum(is_unique, na.rm = TRUE),
+    count_FALSE = sum(!is_unique, na.rm = TRUE)
+  ) %>%
+  # Remove the grouping to return to an ungrouped data frame.
+  ungroup()
+```
+
+```{r}
+#| echo: false
+
+tab <- structure(
+  c(8074, 0, 612, 0,
+    0, 6527, 6, 7,
+    0, 44, 30, 0),
+  dim = c(4, 3),
+  dimnames = list(`TRUE` = as.character(0:3), `FALSE` = as.character(0:2))
+)
+
+tab
+```
+
+Entries with balanced or `FALSE`-majority results (up to 2 `TRUE` and 2 `FALSE`, or 1 `TRUE` and 2 `FALSE`) are not expected to contain anomalies, and the majority of entries fall into these categories. For thoroughness, we can examine entries where an unequal number or no duplicates was identified.
+
+Among businesses with more duplicates, all duplicates share the same state, while each duplicate lists a unique city. For entries that include an `address_line_1`, the address is identical across all duplicates, with 12 entries lacking an `address_line_1` altogether. Zip codes vary across duplicates, where some businesses share the same zip code across all duplicate records, while others do not.
+
+Among businesses with less or no duplicates, they suggest that the similar address clustering algorithm did not fully consolidate related addresses; some addresses were correctly grouped into the same cluster, while others were not. Based on this, we can reasonably assume that duplicate entries sharing the same `address_line_1` represent the same business and should be treated as a single record. Note that this verification was performed manually, and only a subset of results was inspected.
+
+```{r}
+#| eval: false
+
+more_true <- isolate_easy_duplicates %>%
+  filter((count_TRUE == 2 & count_FALSE <= 1) | (count_TRUE == 3 & count_FALSE <= 2)) %>%
+  pull(abi)
+
+# Example of how individual outcomes were examined.
+new_info %>% filter(abi %in% more_true[45]) %>% as.data.frame()
+church_wide %>% filter(abi %in% more_true[45]) %>% as.data.frame()
+```
+
+From these outcomes, it is apparent that some similar addresses were not clustered, thereby avoiding the duplication error and being retained with different information. While complete deduplication of all similar addresses is not a requirement for this analysis, there may be an opportunity to further collapse similar addresses once they have been validated against a reference. Addresses that were not clustered but represent the same location may ultimately be associated with the same suggested address upon validation.
+
+Because some `address_line_1` entries were left blank, we can examine the distribution of longitude and latitude degree differences for these entries and compare them against entries where an address was provided. This analysis is restricted to ABIs where more duplicates than expected were detected, though the insights are generalizable to the overall expected geolocation accuracy across the dataset.
+
+
+```{r}
+#| echo: false
+
+# Table 1
+tbl1 <- data.frame(
+  Stat      = c("Min.", "1st Qu.", "Median", "Mean", "3rd Qu.", "Max."),
+  Longitude = c(0.0009400, 0.0305615, 0.1386900, 0.2523987, 0.1901250, 3.2524900),
+  Latitude  = c(0.0059600, 0.0310300, 0.0944600, 0.1854619, 0.1649600, 1.0835800),
+  check.names = FALSE
+) %>% `names<-`(c("", "Longitude", "Latitude"))
+
+# Table 2
+tbl2 <- data.frame(
+  Stat      = c("Min.", "1st Qu.", "Median", "Mean", "3rd Qu.", "Max."),
+  Longitude = c(0.1492200, 0.2589375, 0.6445750, 0.9893000, 1.3749375, 2.5188300),
+  Latitude  = c(0.0037800, 0.0638700, 0.4594750, 0.4548877, 0.8504927, 0.8968210),
+  check.names = FALSE
+) %>% `names<-`(c("", "Longitude", "Latitude"))
+```
+
+
+:::{.columns}
+::: {.column width="50%"}
+
+<u>Has an `address_line_1`</u>
+
+```{r}
+#| echo: false
+print(tbl1, row.names = FALSE)
+```
+
+::: 
+::: {.column width="50%"}
+
+<u>No `address_line_1` Listed</u>
+
+```{r}
+#| echo: false
+print(tbl2, row.names = FALSE)
+```
+
+::: 
+:::
+
+The span of geolocation is similar between businesses with and without an `address_line_1`, though entries lacking an `address_line_1` show a slightly higher geolocation variance on average. Of the 12 entries that failed the geolocation test, none appear to have a clearly defined address, making it difficult to confidently determine whether they represent the same or distinct locations. As a result, these entries are considered unverifiable and will be flagged for exclusion from the final, cleaned dataset.
+
+### Similar Addresses: Geolocation Discrepancies
+
+The function above includes a quality check to flag combinations of addresses that appear similar based on the `stringdist()` function and the DFS algorithm, but are associated with different longitude and latitude locations (greater than a 0.002-degree difference). Although we have not yet validated the geolocation data, particularly given the discrepancies identified with PO Boxes, this check provides a reasonable assurance when combining addresses that might be separated due to typographical errors.
+
+Approximately 15\% of the entries ($\approx$ 120K entries) failed this test, and less than 1\% failed to complete the test. All entries that failed the geolocation test have `NA` values in both the longitude and latitude fields of the address. We can keep these for now, and remove any that do not match with the geolocation referential database. When inspecting a few examples, we see that some of these might be correctly identified similar addresses and the provided longitude and latitude have some error range. This is consistent with results observed in the previous section.
+
+To get a sense of how many entries share the exact same `address_line_1`, the number of clusters generated under two conditions will be compared: one using relaxed string similarity settings at the same threshold as above, and one requiring an exact match.
+
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Show the code"
+
+## --------------------
+## SUBSECTION B3: Similar Addresses: Geolocation Discrepancies
+
+original_addresses <- church_wide %>%
+  filter(abi %in% not_same$abi) %>%
+  mutate(compiled_address = paste(address_line_1, city, state, zipcode, sep = ", "))
+
+# Initialize the base R text progress bar
+total_abis <- original_addresses %>% distinct(abi) %>% nrow()
+pb <- txtProgressBar(min = 0, max = total_abis, style = 3)
+
+# Process each ABI group separately and update the progress bar
+count_addresses <- original_addresses %>%
+  group_by(abi) %>%
+  group_split() %>%
+  map2(1:total_abis, ~process_with_progress_txt(pb, .x, process_abi_group, .y)) %>%
+  `names<-`(original_addresses %>% distinct(abi) %>% pull())
+
+address_counts <- count_sublists(count_addresses) %>%
+  mutate(abi = as.numeric(abi))
+```
+
+Almost two-third of the failed records involve addresses that are exact duplicates. For these, we will override the test result and mark them as passed. The remaining records will be split back into separate entries and re-evaluated after address validation. Once address validation is complete, the following handling steps will be implemented:
+
+- All records validate to distinct addresses: keep them as separate entries.
+- Multiple records validate to the same address: override the longitude/latitude test and merge them into a single record using the validated address and the average of their latitude/longitude values.
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Show the code"
+
+## ----------------------------------------------------------------
+## PART C: Resolving Failed Geolocation Tests via Expansion
+
+# The earlier algorithm randomly selected one address to represent each cluster
+# of similar addresses. In some cases, exact duplicate addresses may still remain
+# and can be further collapsed; these are processed accordingly, with their
+# average geolocation retained.
+
+search_space <- finish_build %>% # Isolate ABIs that need to be expanded
+  filter(abi %in% names(count_addresses) & same_num_clusters == FALSE) %>%
+  pull(abi) %>%
+  unique()
+
+# --------------------
+# Manual override for specific cases.
+
+# Some addresses are known to yield unfavorable string matches. This section
+# applies a manual override to handle them explicitly.
+
+count_addresses[names(count_addresses) %in% search_space[299]][[1]][["similar"]] <- 
+  count_addresses[names(count_addresses) %in% search_space[299]][[1]][["exact"]] %>%
+  (\(x) c(list(c(x[[1]], x[[2]])), x[c(3, 4)]))()
+
+# --------------------
+# Continue with the expanding exact addresses.
+
+supplement_build <- vector("list", length(search_space))  # Initialize an empty list
+pb = txtProgressBar(min = 0, max = length(search_space), style = 3)  # Initialize progress bar
+
+for (i in 1:length(search_space)) {
+  # Expand only unique addresses that failed the longitude/latitude test,
+  # excluding any ABIs approved for a longitude/latitude test override.
+  keep_entries <- finish_build %>%
+    filter(abi %in% search_space[i] & lonLat_test == TRUE) %>%
+    mutate(same_num_clusters = as.character(same_num_clusters))
+  
+  expand_out <- finish_build %>%
+    filter(abi %in% search_space[i] & lonLat_test == FALSE) %>%
+    pull(compiled_address)
+  
+  # Apply the duplication override value to all expanded values so that
+  # the result is retained.
+  override_dup_value <- finish_build %>%
+    filter(abi %in% search_space[i] & lonLat_test == FALSE) %>%
+    pull(override_duplicate)
+  
+  # Save the pattern used to match similar addresses. Addresses with a failed
+  # longitude/latitude test will be collapsed to exact matches only.
+  collapse_pattern <- count_addresses[names(count_addresses) %in% search_space[i]][[1]][["similar"]]
+  
+  # Vector of clusters containing the addresses being expanded.
+  expand_out <- str_replace(expand_out, "None Given", "NA")
+  matches    <- lapply(collapse_pattern, function(x) str_detect(str_c(expand_out, collapse = "|"), x) %>% any()) %>% unlist()
+  
+  # Subset entries that require exact address matching instead of similar matching.
+  subset <- original_addresses %>%
+    filter(abi %in% search_space[i] & compiled_address %in% unlist(collapse_pattern[matches]))
+  
+  
+  # --------------------
+  # Match addresses that are similar for compression.
+  
+  # Fill in empty address lines with "None Given".
+  if (any(is.na(subset$address_line_1))) {
+    subset[is.na(subset$address_line_1), "address_line_1"] <- "None Given"
+  }
+  
+  # Make the entire address elements into one string.
+  compile_address <- subset$compiled_address
+  
+  # Use the support function find_similar_addresses() to compare the addresses
+  # and assign them into groups based on exact similarity.
+  if (length(compile_address) == 0) {
+    stop("compile_address has length 0; cannot determine match.")
+  } else if (length(compile_address) == 1) {
+    match <- compile_address
+  } else { # length > 1
+    match <- find_similar_addresses(as.character(compile_address), threshold = 0)
+  }
+  
+  
+  # --------------------
+  # Reconcile metadata with mismatched outcomes within assigned groups.
+  
+  # Retain the metadata stored from the first attempt at collapsing addresses.
+  extra_naics_code <- finish_build %>% filter(abi %in% search_space[i]) %>% pull(extra_naics_code) %>% .[1]
+  year_est         <- finish_build %>% filter(abi %in% search_space[i]) %>% pull(year_established) %>% .[1]
+  
+  # --------------------
+  # Rebuild the dataframe and remove erroneous reduplicates
+  
+  # Define the starting structure of the metadata that will be used to build the
+  # new dataframe that collapses reduplicates.
+  seed <- data.frame("abi" = unique(subset$abi), "year_established" = year_est,
+                     "primary_naics_code" = 813110, "extra_naics_code" = extra_naics_code,
+                     "naics8_descriptions" = "Religious Organizations")
+  
+  # Stepwise collapse the duplicates.
+  build <- NULL
+  for (j in 1:length(match)) {
+    # Pull out rows that are affiliated with the same addresses.
+    change_these <- match[[j]] %>% as.vector() %>%
+      (\(y) { map_lgl(subset$compiled_address, ~ str_detect(.x, regex(paste0("^", str_trim(y), "(,|$)"), ignore_case = TRUE))) })()
+    
+    # Sum over the openings.
+    dates <- sapply(subset[change_these, 11:31], function(x) sum(x, na.rm = TRUE)) %>%
+      (\(x) { as.data.frame(t(x)) }) ()
+    
+    # Test how similar the longitude and latitude are.
+    negligible_change <- 0.002  # Change in degrees (~222 meters or 728 feet)
+    
+    lonLat_test <- if (nrow(subset[change_these, ]) == 1) {
+      NA
+    } else {
+      abs(max(subset[change_these, ]$longitude) - min(subset[change_these, ]$longitude)) < negligible_change &
+        abs(max(subset[change_these, ]$latitude)  - min(subset[change_these, ]$latitude))  < negligible_change
+    }
+    
+    build <- rbind(build, cbind(
+      # Use the ABI as the first column.
+      seed[, 1, drop = FALSE],
+      # Without validating the correct address with the USPS, we'll arbitrarily
+      # choose the first entry. Format the address over different columns.
+      str_split(match[[j]][1], ", ") %>% unlist() %>%
+        (\(x) { as.data.frame(t(x)) }) () %>%
+        `colnames<-`(c("address_line_1", "city", "state", "zipcode")),
+      # Store the compiled address string.
+      as.data.frame(match[[j]][1]) %>% `colnames<-`(c("compiled_address")),
+      # Add the longitudes and latitude values. Add an indicator if the
+      # longitude or latitude were not similar.
+      as.data.frame(lonLat_test) %>% `colnames<-`(c("lonLat_test")),
+      as.data.frame(mean(subset[change_these, ]$latitude)) %>% `colnames<-`(c("latitude")),
+      as.data.frame(mean(subset[change_these, ]$longitude)) %>% `colnames<-`(c("longitude")),
+      # Add the rest of the metadata.
+      seed[, -1, drop = FALSE],
+      # Finally, add the summed dates.
+      dates,
+      data.frame("override_duplicate" = override_dup_value)
+    ))
+  }
+  
+  # Store 'build' in the list.
+  supplement_build[[i]] <- build %>%
+    mutate(
+      zipcode = as.double(zipcode),
+      same_num_clusters = "Expanded"
+    ) %>%
+    bind_rows(keep_entries)
+  
+  # Print the for loop's progress.
+  setTxtProgressBar(pb, i)
+}
+
+# Combine all data tables in the list into one data table.
+supplement_build <- rbindlist(supplement_build, use.names = TRUE, fill = TRUE)
+
+# Commit results.
+write.csv(supplement_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection C1_04.27.2026.csv")
+
+
+# Read in previously generated results.
+expanded <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection C1_04.27.2026.csv", 
+                     col_types = cols(...1 = col_skip())) %>% as.data.frame()
+
+
+## --------------------
+## SUBSECTION C1: Combine All Results
+
+# Verify that all ABI marked for expansion were processed.
+expand_these <- filter(finish_build, same_num_clusters == FALSE) %>% pull(abi)
+all(expanded$abi %in% expand_these) & all(expand_these %in% expanded$abi)
+
+# Combine the expanded version back into the main dataset.
+df_duplicates <- bind_rows(
+  finish_build %>%
+    # Exclude ABI that were expanded in this section.
+    filter(!(abi %in% expanded$abi)) %>%
+    mutate(same_num_clusters = as.character(same_num_clusters)),
+  expanded %>%
+    mutate(same_num_clusters = as.character(same_num_clusters))
+)
+
+# Verify that all ABI have been accounted for.
+all(df_duplicates$abi %in% finish_build$abi) & all(finish_build$abi %in% df_duplicates$abi)
+
+```
+
+### Final Notes
+
+In the raw dataset, approximately 2.6\% of businesses had no physical address recorded (i.e., `address_line_1 == NA` or `address_line_1 == "None Given"`). The geolocation associated with these entries is unlikely to reflect the true location of the business, and the correct location cannot be reliably determined without address information. Consequently, all businesses with a missing or unspecified physical address are excluded from the analysis.
+
+Table showing the number of entries and businesses without a physical address:
+
+```{r}
+#| echo: false
+
+tab <- data.frame(
+  `Total Entries` = 25373,
+  `Total Perc.` = 0.98,
+  `Businesses` = 24810,
+  `ABI Perc.` = 2.6,
+  check.names = FALSE
+)
+
+print(tab, row.names = FALSE)
+```
+
+
+After this, no significant modifications were made to the final dataset. Minor adjustments included standardizing column variable formatting and sorting rows by descending ABI, with addresses within each ABI ordered chronologically from oldest to most recent. ZIP codes fewer than five digits in length were padded with leading and/or trailing zeros as appropriate: four-digit ZIP codes received a leading zero, and three-digit ZIP codes received both a leading and a trailing zero.
+
+Inclusion and exclusion expectations for ABIs were verified to confirm that no business entries were unexpectedly missing or added. After this process, businesses with detected duplicates were reduced by approximately 60\%, impacting 60\% of the raw dataset, and the total combined dataset was reduced by approximately 53\% relative to its raw form.
+
+As noted in previous sections, some records that could potentially be collapsed, such as those with same `address_line_1` but different `city`, ere retained as separate entries until address verification is completed. It is also worth noting that during the collapsing of similar addresses, discrepancies of up to 3 degrees in longitude and 1 degree in latitude were observed, underscoring the importance of verifying the geolocation of all entries.
+
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Show the code"
+
+## ----------------------------------------------------------------
+## PART D: Cleaning for Saving the Result
+
+# Save the part of the raw data where there are no duplicates.
+no_duplicates <- church_wide %>% 
+  (\(x) { x[x$abi %!in% duplicates_detected$abi, ] }) () %>% 
+  `rownames<-`(NULL)
+
+
+## --------------------
+## SUBSECTION D1: Add Missing Columns
+
+# The deduplicated records will be merged back with the portion of the dataset
+# that contained no duplicates. Before merging, the columns of each subset are
+# compared to identify and resolve any discrepancies.
+colnames(df_duplicates) %>% .[. %!in% colnames(no_duplicates)]
+colnames(no_duplicates) %>% .[. %!in% colnames(df_duplicates)]
+
+# Add the missing components by unique ABI.
+no_duplicates <- no_duplicates %>%
+  group_by(abi) %>%
+  mutate(compiled_address = str_c(address_line_1, city, state, zipcode, sep = ", "),
+         lonLat_test = NA,
+         # Extract the extra numerics added to the end of the NAICS code.
+         extra_naics_code = str_replace(primary_naics_code, "813110", "") %>% unique() %>%
+           (\(x) { str_flatten(x, collapse = ", ") }) (),
+         override_duplicate = NA,
+         same_num_clusters = NA,
+         primary_naics_code = 813110,
+         naics8_descriptions = "Religious Organizations") %>%
+  ungroup() %>%
+  select(colnames(df_duplicates)) %>%
+  as.data.frame()
+
+
+## --------------------
+## SUBSECTION D2: Merge Duplicate and Singular Record Datasets
+
+# Inspect column classes to ensure they correspond
+cbind(as.data.frame(sapply(no_duplicates, class)), as.data.frame(sapply(df_duplicates, class)))
+
+no_duplicates <- no_duplicates %>%
+  mutate(zipcode = as.character(zipcode), year_established = as.character(year_established),
+         same_num_clusters = as.character(same_num_clusters))
+
+df_duplicates <- df_duplicates %>%
+  mutate(zipcode = as.character(zipcode))
+
+# Add the duplicated and singlet datasets together again.
+step_1 <- bind_rows(no_duplicates, df_duplicates)
+
+
+## --------------------
+## SUBSECTION D3: Remove Businesses with No Recorded Physical Address
+
+# Review how many entries this effects
+step_1 %>%
+  filter(is.na(address_line_1) | address_line_1 %in% "None Given") %>%
+  summarise(
+    "Total Entries" = n(),
+    "Total Perc." = round(`Total Entries`/nrow(church_wide)*100, digits = 2),
+    "Businesses" = n_distinct(abi),
+    "ABI Perc." = round(Businesses/length(unique(church_wide$abi))*100, digits = 2)
+  )
+
+no_address_abi <- step_1 %>%
+  filter(is.na(address_line_1) | address_line_1 %in% "None Given") %>%
+  pull(abi) %>%
+  unique()
+
+# Remove businesses that at one point did not list a physical address.
+step_1 <- step_1 %>%
+  filter(abi %!in% no_address_abi)
+
+
+## --------------------
+## SUBSECTION D4: Organize and Save the Results
+
+# Now we do some formatting to finish this step.
+step_1 <- step_1 %>%
+  # Sort the rows by descending ABI.
+  arrange(abi) %>%
+  # Some ZIP codes are incorrectly formatted due to a missing leading or trailing
+  # zero, resulting in codes that are fewer than five digits. To standardize these,
+  # we pad them to five digits as follows: four-digit ZIP codes receive a leading
+  # zero, and three-digit ZIP codes receive both a leading and a trailing zero.
+  #
+  # Note: These corrections are provisional. Address validation will be performed
+  # later to verify and, where necessary, correct this information.
+  mutate(zipcode = gsub("\\b(\\d{4})\\b", "0\\1", zipcode)) %>%
+  mutate(zipcode = gsub("\\b(\\d{3})\\b", "0\\10", zipcode)) %>%
+  # Search the dates columns for which year that entry first has a 1.
+  mutate(First_One_Year = pmap_chr(select(., -colnames(step_1)[1:10]), find_first_one)) %>%
+  # Rename the newly added column entries so the "X" added is removed.
+  rename_with(~ sub("^X", "", .), starts_with("X")) %>%
+  # Now we sort the rows so that the oldest address comes before the more
+  # recent addresses.
+  group_by(abi) %>%
+  arrange(First_One_Year, .by_group = TRUE) %>%
+  ungroup() %>%
+  # Remove the column used for organizing.
+  select(-First_One_Year) %>%
+  as.data.frame()
+
+# Most ZIP codes are the expected five digits in length. However, a small number
+# have an anomalous length of one digit, which cannot be reliably padded to a
+# valid five-digit ZIP code. These entries are replaced with "00000".
+str_length(step_1$zipcode) %>% table()
+step_1[str_length(step_1$zipcode) %in% 1, "zipcode"] <- "00000"
+
+# Some entries have NA values where a zero should be recorded. These are
+# replaced with zero accordingly.
+step_1 <- mutate(step_1, across(all_of(names(step_1)[14:34]), ~ coalesce(.x, 0)))
+
+# Commit results.
+write.csv(step_1, file = "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 01_Completed Result_04.29.2029.csv")
+
+```
 
 
 ## Step #2 Results

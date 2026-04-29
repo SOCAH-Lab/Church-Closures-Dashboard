@@ -96,6 +96,9 @@ It appears that there may be several entries containing reduplicated information
 #| code-fold: true
 #| code-summary: "Show the code"
 
+## ----------------------------------------------------------------
+## AMERICAN BUSINESS IDENTIFIER (ABI) REDUPLICATES
+
 search_space <- church_wide$abi[duplicated(church_wide$abi)] %>% unique()
 
 # Add a progress bar to show where the function is in the for loop.
@@ -340,6 +343,9 @@ The metadata fields batched together included: `year_established`, `state`, `cit
 #| code-fold: true
 #| code-summary: "Show the code"
 
+## --------------------
+## Identify Source of Reduplicated Entries
+
 # Load in the pre-produced test results for evaluation.
 result <- read_csv("Data/Results/KEEP LOCAL/From Explore the Raw Data/ABI Duplicates Test_05.16.2025.csv", 
                    col_types = cols(...1 = col_skip())) %>% as.data.frame()
@@ -455,6 +461,9 @@ This analysis separates by unique ABI but not unique address, as the focus is on
 #| eval: false
 #| code-fold: true
 #| code-summary: "Show the code"
+
+## --------------------
+## Source of Reduplicated Entries - Assumptions #2
 
 # Load in the pre-produced test results for evaluation.
 result2 <- read_csv("Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same_04.10.2026.csv", 
@@ -749,6 +758,9 @@ The full extent of this issue warrants further assessment.
 #| eval: false
 #| code-fold: true
 #| code-summary: "Show the code"
+
+## ----------------------------------------------------------------
+## ASSUMPTION TO REMOVE PO BOX'S
 
 search_space <- church_wide[str_which(church_wide$address_line_1, "(?i)PO Box|P O Box"), "abi"] %>% 
   unique() # Isolate ABIs that filed under a PO Box at one point
