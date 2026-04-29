@@ -37,7 +37,7 @@ The ultimate goal of this project is to produce a reasonably cleaned, concise, a
 
 Without further information from the data distributor, the level of accuracy that can be assumed for the geolocation associated with each address cannot be guaranteed. It is therefore advisable to validate all unique addresses, with particular attention to PO Box entries, which are known to have incorrect geolocations associated with them.
 
-The geolocation associated with each PO Box will be used to estimate the physical address — representing the location of community impact — associated with those years of filing. If a PO Box is not reasonably near any listed physical address, it will be treated as the closest approximation to the actual business location. If it is near multiple physical addresses that are in close proximity to one another, it will be associated with the nearest listed physical address.
+The geolocation associated with each PO Box will be used to estimate the physical address, representing the location of community impact, associated with those years of filing. If a PO Box is not reasonably near any listed physical address, it will be treated as the closest approximation to the actual business location. If it is near multiple physical addresses that are in close proximity to one another, it will be associated with the nearest listed physical address.
 
 The data cleaning and validation goals are to:
 
@@ -54,7 +54,7 @@ The data cleaning and validation goals are to:
 To achieve this, the following stepwise procedure is outlined.
 
 :::{style="padding-left: 4.7rem; text-indent: -4.7rem"}
-**Step #1:** Consolidate similar addresses by applying `stringdist()` to build a graph of connected components based on string similarity, then use Depth-First Search (DFS) to aggregate nearest-neighbor address variants. From each resulting cluster, randomly select one representative address to carry forward. For addresses that failed the longitude/latitude similarity check, retain only the distinct address versions associated with a given business, keeping those validated in **Step #2**.
+**Step #1:** Consolidate similar addresses by applying `stringdist()` to build a graph of connected components based on string similarity, then use Depth-First Search (DFS) to aggregate nearest-neighbor address variants. From each resulting cluster, randomly select one representative address to carry forward. For addresses that failed the longitude/latitude similarity check, retain only the distinct address versions associated with a given business.
 
 **Step #2:** Validate each address against a reliable reference database, such as the [USPS Address 3.0](https://developers.usps.com/addressesv3) API, and retain whichever variant is confirmed as valid, or substitute it with the standardized suggestion returned by the database.
 
@@ -81,6 +81,8 @@ The review process was initiated for the Google Maps API given its anticipated c
 
 
 ## Code Optimization
+
+Selected code excerpts are provided below. The complete code used to generate this report can be found in [Code/Clean Raw Data_Step 1.R](https://github.com/ysph-dsde/church-closures/blob/main/Code/Clean%20Raw%20Data_Step%201.R).
 
 During the initial development of this process, from late July through the first prototype unveiling on June 18<sup>th</sup>, 2025, priority was placed on rapidly processing the raw data and establishing a viable workflow, rather than on optimization. As a result, many steps were slow to execute, and only a portion of the data could be fully processed in time for the prototype presentation.
 
@@ -321,6 +323,8 @@ Overall, processing a large data frame using the `data.table` class proved to be
 
 
 ## Step #1 Results
+
+Selected code excerpts are provided below. The complete code used to generate this report can be found in [Code/Clean Raw Data_Step 1.R](https://github.com/ysph-dsde/church-closures/blob/main/Code/Clean%20Raw%20Data_Step%201.R).
 
 Data evaluation ([Review](Review.html)) revealed that most reduplicated entries arise from either new addresses added within the observation period or typographical errors. To resolve this, `stringdist()` and Depth-First Search (DFS) are used to cluster similar address variants, with one address randomly selected from each group to carry forward.
 

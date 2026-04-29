@@ -1,14 +1,27 @@
 ## ----------------------------------------------------------------
-## NEED TITLE HERE
+## Consolidate reduplicate records caused by minor address typographical variations.
 ##
-## Authors: Shelby Golden, M.S., Data Scientist for the Yale School of Public
-##          Health's Data Science and Data Equity group
-##
+##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025
-## Last Modified: Nov 27th, 2026
+## Date Modified: April 29th, 2026
 ## 
-## Description: 
-## 
+## Description: During review of the raw data, it was identified that multiple
+##              records are associated with the same address, attributed to
+##              minor typographical inconsistencies in address entry rather
+##              than representing genuinely distinct locations.
+##
+##              To address this, a string-clustering algorithm is applied to
+##              group similar address strings together. Records within each
+##              cluster are then consolidated into a single entry, such that
+##              each row in the resulting dataset represents a unique address.
+##
+##              Following this process, the performance of the algorithm is
+##              evaluated by examining the maximum difference in geolocation
+##              coordinates reported across all collapsed entries. Special
+##              cases are closely inspected and relevant resolutions proposed.
+##              Prior to saving the final result, a comprehensive review was
+##              conducted to confirm that all expected business entries were
+##              retained and assess the algorithms performance.
 ## 
 ## Sections:
 ##    - SET UP THE ENVIRONMENT

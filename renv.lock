@@ -1,6 +1,6 @@
 {
   "R": {
-    "Version": "4.5.1",
+    "Version": "4.5.2",
     "Repositories": [
       {
         "Name": "CRAN",
@@ -584,18 +584,6 @@
       "NeedsCompilation": "no",
       "Repository": "CRAN"
     },
-    "combinat": {
-      "Package": "combinat",
-      "Version": "0.0-8",
-      "Source": "Repository",
-      "Title": "combinatorics utilities",
-      "Author": "Scott Chasalow",
-      "Maintainer": "Vince Carey <stvjc@channing.harvard.edu>",
-      "Description": "routines for combinatorics",
-      "License": "GPL-2",
-      "Repository": "CRAN",
-      "Encoding": "UTF-8"
-    },
     "cpp11": {
       "Package": "cpp11",
       "Version": "0.5.2",
@@ -740,49 +728,6 @@
       "Author": "Tyson Barrett [aut, cre] (ORCID: <https://orcid.org/0000-0002-2137-1391>), Matt Dowle [aut], Arun Srinivasan [aut], Jan Gorecki [aut], Michael Chirico [aut] (ORCID: <https://orcid.org/0000-0003-0787-087X>), Toby Hocking [aut] (ORCID: <https://orcid.org/0000-0002-3146-0865>), Benjamin Schwendinger [aut] (ORCID: <https://orcid.org/0000-0003-3315-8114>), Ivan Krylov [aut] (ORCID: <https://orcid.org/0000-0002-0172-3812>), Pasha Stetsenko [ctb], Tom Short [ctb], Steve Lianoglou [ctb], Eduard Antonyan [ctb], Markus Bonsch [ctb], Hugh Parsonage [ctb], Scott Ritchie [ctb], Kun Ren [ctb], Xianying Tan [ctb], Rick Saporta [ctb], Otto Seiskari [ctb], Xianghui Dong [ctb], Michel Lang [ctb], Watal Iwasaki [ctb], Seth Wenchel [ctb], Karl Broman [ctb], Tobias Schmidt [ctb], David Arenburg [ctb], Ethan Smith [ctb], Francois Cocquemas [ctb], Matthieu Gomez [ctb], Philippe Chataignon [ctb], Nello Blaser [ctb], Dmitry Selivanov [ctb], Andrey Riabushenko [ctb], Cheng Lee [ctb], Declan Groves [ctb], Daniel Possenriede [ctb], Felipe Parages [ctb], Denes Toth [ctb], Mus Yaramaz-David [ctb], Ayappan Perumal [ctb], James Sams [ctb], Martin Morgan [ctb], Michael Quinn [ctb], @javrucebo [ctb], @marc-outins [ctb], Roy Storey [ctb], Manish Saraswat [ctb], Morgan Jacob [ctb], Michael Schubmehl [ctb], Davis Vaughan [ctb], Leonardo Silvestri [ctb], Jim Hester [ctb], Anthony Damico [ctb], Sebastian Freundt [ctb], David Simons [ctb], Elliott Sales de Andrade [ctb], Cole Miller [ctb], Jens Peder Meldgaard [ctb], Vaclav Tlapak [ctb], Kevin Ushey [ctb], Dirk Eddelbuettel [ctb], Tony Fischetti [ctb], Ofek Shilon [ctb], Vadim Khotilovich [ctb], Hadley Wickham [ctb], Bennet Becker [ctb], Kyle Haynes [ctb], Boniface Christian Kamgang [ctb], Olivier Delmarcell [ctb], Josh O'Brien [ctb], Dereck de Mezquita [ctb], Michael Czekanski [ctb], Dmitry Shemetov [ctb], Nitish Jha [ctb], Joshua Wu [ctb], Iago Giné-Vázquez [ctb], Anirban Chetia [ctb], Doris Amoakohene [ctb], Angel Feliz [ctb], Michael Young [ctb], Mark Seeto [ctb], Philippe Grosjean [ctb], Vincent Runge [ctb], Christian Wia [ctb], Elise Maigné [ctb], Vincent Rocher [ctb], Vijay Lulla [ctb], Aljaž Sluga [ctb], Bill Evans [ctb]",
       "Maintainer": "Tyson Barrett <t.barrett88@gmail.com>",
       "Repository": "RSPM"
-    },
-    "dbscan": {
-      "Package": "dbscan",
-      "Version": "1.2.3",
-      "Source": "Repository",
-      "Title": "Density-Based Spatial Clustering of Applications with Noise (DBSCAN) and Related Algorithms",
-      "Date": "2025-08-20",
-      "Authors@R": "c( person(\"Michael\", \"Hahsler\", email = \"mhahsler@lyle.smu.edu\",  role = c(\"aut\", \"cre\", \"cph\"), comment = c(ORCID = \"0000-0003-2716-1405\")), person(\"Matthew\", \"Piekenbrock\", role = c(\"aut\", \"cph\")), person(\"Sunil\", \"Arya\", role = c(\"ctb\", \"cph\")), person(\"David\", \"Mount\", role = c(\"ctb\", \"cph\")), person(\"Claudia\", \"Malzer\", role = \"ctb\") )",
-      "Description": "A fast reimplementation of several density-based algorithms of the DBSCAN family. Includes the clustering algorithms DBSCAN (density-based spatial clustering of applications with noise) and HDBSCAN (hierarchical DBSCAN), the ordering algorithm OPTICS (ordering points to identify the clustering structure), shared nearest neighbor clustering, and the outlier detection algorithms LOF (local outlier factor) and GLOSH (global-local outlier score from hierarchies). The implementations use the kd-tree data structure (from library ANN) for faster k-nearest neighbor search. An R interface to fast kNN and fixed-radius NN search is also provided.  Hahsler, Piekenbrock and Doran (2019) <doi:10.18637/jss.v091.i01>.",
-      "License": "GPL (>= 2)",
-      "URL": "https://github.com/mhahsler/dbscan",
-      "BugReports": "https://github.com/mhahsler/dbscan/issues",
-      "Depends": [
-        "R (>= 3.2.0)"
-      ],
-      "Imports": [
-        "generics",
-        "graphics",
-        "Rcpp (>= 1.0.0)",
-        "stats"
-      ],
-      "Suggests": [
-        "dendextend",
-        "fpc",
-        "igraph",
-        "knitr",
-        "microbenchmark",
-        "rmarkdown",
-        "testthat (>= 3.0.0)",
-        "tibble"
-      ],
-      "LinkingTo": [
-        "Rcpp"
-      ],
-      "VignetteBuilder": "knitr",
-      "Config/testthat/edition": "3",
-      "Copyright": "ANN library is copyright by University of Maryland, Sunil Arya and David Mount. All other code is copyright by Michael Hahsler and Matthew Piekenbrock.",
-      "Encoding": "UTF-8",
-      "RoxygenNote": "7.3.2",
-      "NeedsCompilation": "yes",
-      "Author": "Michael Hahsler [aut, cre, cph] (ORCID: <https://orcid.org/0000-0003-2716-1405>), Matthew Piekenbrock [aut, cph], Sunil Arya [ctb, cph], David Mount [ctb, cph], Claudia Malzer [ctb]",
-      "Maintainer": "Michael Hahsler <mhahsler@lyle.smu.edu>",
-      "Repository": "CRAN"
     },
     "digest": {
       "Package": "digest",
@@ -1173,58 +1118,6 @@
       "NeedsCompilation": "no",
       "Author": "Hadley Wickham [aut, cre] (ORCID: <https://orcid.org/0000-0003-4757-117X>), Max Kuhn [aut], Davis Vaughan [aut], Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
       "Maintainer": "Hadley Wickham <hadley@posit.co>",
-      "Repository": "CRAN"
-    },
-    "ggforce": {
-      "Package": "ggforce",
-      "Version": "0.5.0",
-      "Source": "Repository",
-      "Type": "Package",
-      "Title": "Accelerating 'ggplot2'",
-      "Authors@R": "c(person(given = \"Thomas Lin\", family = \"Pedersen\", role = c(\"cre\", \"aut\"), email = \"thomasp85@gmail.com\", comment = c(ORCID = \"0000-0002-5147-4711\")), person(\"RStudio\", role = \"cph\"))",
-      "Maintainer": "Thomas Lin Pedersen <thomasp85@gmail.com>",
-      "Description": "The aim of 'ggplot2' is to aid in visual data investigations. This focus has led to a lack of facilities for composing specialised plots. 'ggforce' aims to be a collection of mainly new stats and geoms that fills this gap. All additional functionality is aimed to come through the official extension system so using 'ggforce' should be a stable experience.",
-      "URL": "https://ggforce.data-imaginist.com, https://github.com/thomasp85/ggforce",
-      "BugReports": "https://github.com/thomasp85/ggforce/issues",
-      "License": "MIT + file LICENSE",
-      "Encoding": "UTF-8",
-      "Depends": [
-        "ggplot2 (>= 3.5.0)",
-        "R (>= 3.3.0)"
-      ],
-      "Imports": [
-        "grid",
-        "scales",
-        "MASS",
-        "tweenr (>= 0.1.5)",
-        "gtable",
-        "rlang",
-        "polyclip",
-        "stats",
-        "grDevices",
-        "tidyselect",
-        "withr",
-        "utils",
-        "lifecycle",
-        "cli",
-        "vctrs",
-        "systemfonts"
-      ],
-      "RoxygenNote": "7.3.2",
-      "LinkingTo": [
-        "cpp11"
-      ],
-      "Suggests": [
-        "sessioninfo",
-        "deldir",
-        "latex2exp",
-        "reshape2",
-        "units (>= 0.8.0)",
-        "covr"
-      ],
-      "Collate": "'aaa.R' 'shape.R' 'arc_bar.R' 'arc.R' 'autodensity.R' 'autohistogram.R' 'autopoint.R' 'bezier.R' 'bspline.R' 'bspline_closed.R' 'circle.R' 'concaveman.R' 'cpp11.R' 'diagonal.R' 'diagonal_wide.R' 'ellipse.R' 'errorbar.R' 'facet_grid_paginate.R' 'facet_matrix.R' 'facet_row.R' 'facet_stereo.R' 'facet_wrap_paginate.R' 'facet_zoom.R' 'ggforce-package.R' 'ggproto-classes.R' 'interpolate.R' 'labeller.R' 'link.R' 'mark_circle.R' 'mark_ellipse.R' 'mark_hull.R' 'mark_label.R' 'mark_rect.R' 'parallel_sets.R' 'position-jitternormal.R' 'position_auto.R' 'position_floatstack.R' 'regon.R' 'scale-depth.R' 'scale-unit.R' 'sina.R' 'spiro.R' 'themes.R' 'trans.R' 'trans_linear.R' 'utilities.R' 'voronoi.R' 'zzz.R'",
-      "NeedsCompilation": "yes",
-      "Author": "Thomas Lin Pedersen [cre, aut] (ORCID: <https://orcid.org/0000-0002-5147-4711>), RStudio [cph]",
       "Repository": "CRAN"
     },
     "ggplot2": {
@@ -2078,35 +1971,6 @@
       "Maintainer": "Henrik Bengtsson <henrikb@braju.com>",
       "Repository": "CRAN"
     },
-    "pbapply": {
-      "Package": "pbapply",
-      "Version": "1.7-4",
-      "Source": "Repository",
-      "Type": "Package",
-      "Title": "Adding Progress Bar to '*apply' Functions",
-      "Date": "2025-07-19",
-      "Authors@R": "c(person(given = \"Peter\", family = \"Solymos\", comment = c(ORCID = \"0000-0001-7337-1740\"), role = c(\"aut\", \"cre\"), email = \"psolymos@gmail.com\"), person(given = \"Zygmunt\", family = \"Zawadzki\", role = \"aut\", email = \"zygmunt@zstat.pl\"), person(given = \"Henrik\",  family = \"Bengtsson\",  role = \"ctb\", email = \"henrikb@braju.com\"), person(\"R Core Team\", role = c(\"cph\", \"ctb\")))",
-      "Maintainer": "Peter Solymos <psolymos@gmail.com>",
-      "Description": "A lightweight package that adds progress bar to vectorized R functions ('*apply'). The implementation can easily be added to functions where showing the progress is useful (e.g. bootstrap). The type and style of the progress bar (with percentages or remaining time) can be set through options. Supports several parallel processing backends including mirai and future.",
-      "Depends": [
-        "R (>= 3.2.0)"
-      ],
-      "Imports": [
-        "parallel"
-      ],
-      "Suggests": [
-        "shiny",
-        "future",
-        "future.apply"
-      ],
-      "License": "GPL (>= 2)",
-      "URL": "https://github.com/psolymos/pbapply, https://peter.solymos.org/pbapply/",
-      "BugReports": "https://github.com/psolymos/pbapply/issues",
-      "NeedsCompilation": "no",
-      "Author": "Peter Solymos [aut, cre] (ORCID: <https://orcid.org/0000-0001-7337-1740>), Zygmunt Zawadzki [aut], Henrik Bengtsson [ctb], R Core Team [cph, ctb]",
-      "Repository": "CRAN",
-      "Encoding": "UTF-8"
-    },
     "pillar": {
       "Package": "pillar",
       "Version": "1.11.1",
@@ -2187,28 +2051,6 @@
       "Encoding": "UTF-8",
       "NeedsCompilation": "no",
       "Repository": "CRAN"
-    },
-    "polyclip": {
-      "Package": "polyclip",
-      "Version": "1.10-7",
-      "Source": "Repository",
-      "Date": "2024-07-23",
-      "Title": "Polygon Clipping",
-      "Authors@R": "c(person(\"Angus\", \"Johnson\", role = \"aut\",  comment=\"C++ original, http://www.angusj.com/delphi/clipper.php\"), person(\"Adrian\", \"Baddeley\", role = c(\"aut\", \"trl\", \"cre\"), email = \"Adrian.Baddeley@curtin.edu.au\"), person(\"Kurt\", \"Hornik\", role = \"ctb\"), person(c(\"Brian\", \"D.\"), \"Ripley\", role = \"ctb\"), person(\"Elliott\", \"Sales de Andrade\", role=\"ctb\"), person(\"Paul\", \"Murrell\", role = \"ctb\"), person(\"Ege\", \"Rubak\", role=\"ctb\"), person(\"Mark\", \"Padgham\", role=\"ctb\"))",
-      "Maintainer": "Adrian Baddeley <Adrian.Baddeley@curtin.edu.au>",
-      "Depends": [
-        "R (>= 3.5.0)"
-      ],
-      "Description": "R port of Angus Johnson's open source library 'Clipper'. Performs polygon clipping operations (intersection, union, set minus, set difference) for polygonal regions of arbitrary complexity, including holes. Computes offset polygons (spatial buffer zones, morphological dilations, Minkowski dilations) for polygonal regions and polygonal lines. Computes Minkowski Sum of general polygons. There is a function for removing self-intersections from polygon data.",
-      "License": "BSL",
-      "URL": "https://www.angusj.com, https://sourceforge.net/projects/polyclipping, https://github.com/baddstats/polyclip",
-      "BugReports": "https://github.com/baddstats/polyclip/issues",
-      "ByteCompile": "true",
-      "Note": "built from Clipper C++ version 6.4.0",
-      "NeedsCompilation": "yes",
-      "Author": "Angus Johnson [aut] (C++ original, http://www.angusj.com/delphi/clipper.php), Adrian Baddeley [aut, trl, cre], Kurt Hornik [ctb], Brian D. Ripley [ctb], Elliott Sales de Andrade [ctb], Paul Murrell [ctb], Ege Rubak [ctb], Mark Padgham [ctb]",
-      "Repository": "CRAN",
-      "Encoding": "UTF-8"
     },
     "prettyunits": {
       "Package": "prettyunits",
@@ -2623,91 +2465,6 @@
       "Maintainer": "Yihui Xie <xie@yihui.name>",
       "Repository": "CRAN"
     },
-    "rprojroot": {
-      "Package": "rprojroot",
-      "Version": "2.1.1",
-      "Source": "Repository",
-      "Title": "Finding Files in Project Subdirectories",
-      "Authors@R": "person(given = \"Kirill\", family = \"M\\u00fcller\", role = c(\"aut\", \"cre\"), email = \"kirill@cynkra.com\", comment = c(ORCID = \"0000-0002-1416-3412\"))",
-      "Description": "Robust, reliable and flexible paths to files below a project root. The 'root' of a project is defined as a directory that matches a certain criterion, e.g., it contains a certain regular file.",
-      "License": "MIT + file LICENSE",
-      "URL": "https://rprojroot.r-lib.org/, https://github.com/r-lib/rprojroot",
-      "BugReports": "https://github.com/r-lib/rprojroot/issues",
-      "Depends": [
-        "R (>= 3.0.0)"
-      ],
-      "Suggests": [
-        "covr",
-        "knitr",
-        "lifecycle",
-        "rlang",
-        "rmarkdown",
-        "testthat (>= 3.2.0)",
-        "withr"
-      ],
-      "VignetteBuilder": "knitr",
-      "Config/testthat/edition": "3",
-      "Encoding": "UTF-8",
-      "RoxygenNote": "7.3.2.9000",
-      "Config/autostyle/scope": "line_breaks",
-      "Config/autostyle/strict": "true",
-      "Config/Needs/website": "tidyverse/tidytemplate",
-      "NeedsCompilation": "no",
-      "Author": "Kirill Müller [aut, cre] (ORCID: <https://orcid.org/0000-0002-1416-3412>)",
-      "Maintainer": "Kirill Müller <kirill@cynkra.com>",
-      "Repository": "CRAN"
-    },
-    "rvest": {
-      "Package": "rvest",
-      "Version": "1.0.5",
-      "Source": "Repository",
-      "Title": "Easily Harvest (Scrape) Web Pages",
-      "Authors@R": "c( person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = c(\"aut\", \"cre\")), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"), comment = c(ROR = \"03wc8by49\")) )",
-      "Description": "Wrappers around the 'xml2' and 'httr' packages to make it easy to download, then manipulate, HTML and XML.",
-      "License": "MIT + file LICENSE",
-      "URL": "https://rvest.tidyverse.org/, https://github.com/tidyverse/rvest",
-      "BugReports": "https://github.com/tidyverse/rvest/issues",
-      "Depends": [
-        "R (>= 4.1)"
-      ],
-      "Imports": [
-        "cli",
-        "glue",
-        "httr (>= 0.5)",
-        "lifecycle (>= 1.0.3)",
-        "magrittr",
-        "rlang (>= 1.1.0)",
-        "selectr",
-        "tibble",
-        "xml2 (>= 1.4.0)"
-      ],
-      "Suggests": [
-        "chromote",
-        "covr",
-        "knitr",
-        "purrr",
-        "R6",
-        "readr",
-        "repurrrsive",
-        "rmarkdown",
-        "spelling",
-        "stringi (>= 0.3.1)",
-        "testthat (>= 3.0.2)",
-        "tidyr",
-        "webfakes"
-      ],
-      "VignetteBuilder": "knitr",
-      "Config/Needs/website": "tidyverse/tidytemplate",
-      "Config/testthat/edition": "3",
-      "Config/testthat/parallel": "true",
-      "Encoding": "UTF-8",
-      "Language": "en-US",
-      "RoxygenNote": "7.3.2",
-      "NeedsCompilation": "no",
-      "Author": "Hadley Wickham [aut, cre], Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
-      "Maintainer": "Hadley Wickham <hadley@posit.co>",
-      "Repository": "CRAN"
-    },
     "s2": {
       "Package": "s2",
       "Version": "1.1.9",
@@ -2823,37 +2580,6 @@
       "Author": "Hadley Wickham [aut], Thomas Lin Pedersen [cre, aut] (<https://orcid.org/0000-0002-5147-4711>), Dana Seidel [aut], Posit Software, PBC [cph, fnd] (03wc8by49)",
       "Maintainer": "Thomas Lin Pedersen <thomas.pedersen@posit.co>",
       "Repository": "CRAN"
-    },
-    "selectr": {
-      "Package": "selectr",
-      "Version": "0.4-2",
-      "Source": "Repository",
-      "Type": "Package",
-      "Title": "Translate CSS Selectors to XPath Expressions",
-      "Date": "2019-11-20",
-      "Authors@R": "c(person(\"Simon\", \"Potter\", role = c(\"aut\", \"trl\", \"cre\"), email = \"simon@sjp.co.nz\"), person(\"Simon\", \"Sapin\", role = \"aut\"), person(\"Ian\", \"Bicking\", role = \"aut\"))",
-      "License": "BSD_3_clause + file LICENCE",
-      "Depends": [
-        "R (>= 3.0)"
-      ],
-      "Imports": [
-        "methods",
-        "stringr",
-        "R6"
-      ],
-      "Suggests": [
-        "testthat",
-        "XML",
-        "xml2"
-      ],
-      "URL": "https://sjp.co.nz/projects/selectr",
-      "BugReports": "https://github.com/sjp/selectr/issues",
-      "Description": "Translates a CSS3 selector into an equivalent XPath expression. This allows us to use CSS selectors when working with the XML package as it can only evaluate XPath expressions. Also provided are convenience functions useful for using CSS selectors on XML nodes. This package is a port of the Python package 'cssselect' (<https://cssselect.readthedocs.io/>).",
-      "NeedsCompilation": "no",
-      "Author": "Simon Potter [aut, trl, cre], Simon Sapin [aut], Ian Bicking [aut]",
-      "Maintainer": "Simon Potter <simon@sjp.co.nz>",
-      "Repository": "CRAN",
-      "Encoding": "UTF-8"
     },
     "sf": {
       "Package": "sf",
@@ -3062,54 +2788,6 @@
       "Maintainer": "Jeroen Ooms <jeroenooms@gmail.com>",
       "Repository": "CRAN"
     },
-    "systemfonts": {
-      "Package": "systemfonts",
-      "Version": "1.3.1",
-      "Source": "Repository",
-      "Type": "Package",
-      "Title": "System Native Font Finding",
-      "Authors@R": "c( person(\"Thomas Lin\", \"Pedersen\", , \"thomas.pedersen@posit.co\", role = c(\"aut\", \"cre\"), comment = c(ORCID = \"0000-0002-5147-4711\")), person(\"Jeroen\", \"Ooms\", , \"jeroen@berkeley.edu\", role = \"aut\", comment = c(ORCID = \"0000-0002-4035-0289\")), person(\"Devon\", \"Govett\", role = \"aut\", comment = \"Author of font-manager\"), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"), comment = c(ROR = \"03wc8by49\")) )",
-      "Description": "Provides system native access to the font catalogue. As font handling varies between systems it is difficult to correctly locate installed fonts across different operating systems. The 'systemfonts' package provides bindings to the native libraries on Windows, macOS and Linux for finding font files that can then be used further by e.g. graphic devices. The main use is intended to be from compiled code but 'systemfonts' also provides access from R.",
-      "License": "MIT + file LICENSE",
-      "URL": "https://github.com/r-lib/systemfonts, https://systemfonts.r-lib.org",
-      "BugReports": "https://github.com/r-lib/systemfonts/issues",
-      "Depends": [
-        "R (>= 3.2.0)"
-      ],
-      "Imports": [
-        "base64enc",
-        "grid",
-        "jsonlite",
-        "lifecycle",
-        "tools",
-        "utils"
-      ],
-      "Suggests": [
-        "covr",
-        "farver",
-        "ggplot2",
-        "graphics",
-        "knitr",
-        "ragg",
-        "rmarkdown",
-        "svglite",
-        "testthat (>= 2.1.0)"
-      ],
-      "LinkingTo": [
-        "cpp11 (>= 0.2.1)"
-      ],
-      "VignetteBuilder": "knitr",
-      "Config/build/compilation-database": "true",
-      "Config/Needs/website": "tidyverse/tidytemplate",
-      "Config/usethis/last-upkeep": "2025-04-23",
-      "Encoding": "UTF-8",
-      "RoxygenNote": "7.3.2",
-      "SystemRequirements": "fontconfig, freetype2",
-      "NeedsCompilation": "yes",
-      "Author": "Thomas Lin Pedersen [aut, cre] (ORCID: <https://orcid.org/0000-0002-5147-4711>), Jeroen Ooms [aut] (ORCID: <https://orcid.org/0000-0002-4035-0289>), Devon Govett [aut] (Author of font-manager), Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
-      "Maintainer": "Thomas Lin Pedersen <thomas.pedersen@posit.co>",
-      "Repository": "CRAN"
-    },
     "tibble": {
       "Package": "tibble",
       "Version": "3.3.0",
@@ -3172,54 +2850,6 @@
       "NeedsCompilation": "yes",
       "Author": "Kirill Müller [aut, cre] (ORCID: <https://orcid.org/0000-0002-1416-3412>), Hadley Wickham [aut], Romain Francois [ctb], Jennifer Bryan [ctb], RStudio [cph, fnd]",
       "Maintainer": "Kirill Müller <kirill@cynkra.com>",
-      "Repository": "CRAN"
-    },
-    "tidycensus": {
-      "Package": "tidycensus",
-      "Version": "1.7.3",
-      "Source": "Repository",
-      "Type": "Package",
-      "Title": "Load US Census Boundary and Attribute Data as 'tidyverse' and 'sf'-Ready Data Frames",
-      "Authors@R": "c( person(given = \"Kyle\", family = \"Walker\", email=\"kyle@walker-data.com\", role=c(\"aut\", \"cre\")), person(given = \"Matt\", family = \"Herman\", email = \"mfherman@gmail.com\", role = \"aut\"), person(given = \"Kris\", family = \"Eberwein\", email = \"eberwein@knights.ucf.edu\", role = \"ctb\"))",
-      "Date": "2025-07-24",
-      "URL": "https://walker-data.com/tidycensus/",
-      "BugReports": "https://github.com/walkerke/tidycensus/issues",
-      "Description": "An integrated R interface to several United States Census Bureau  APIs (<https://www.census.gov/data/developers/data-sets.html>) and the US Census Bureau's  geographic boundary files. Allows R users to return Census and ACS data as  tidyverse-ready data frames, and optionally returns a list-column with feature geometry for mapping  and spatial analysis.",
-      "License": "MIT + file LICENSE",
-      "Encoding": "UTF-8",
-      "LazyData": "true",
-      "Depends": [
-        "R (>= 3.3.0)"
-      ],
-      "Imports": [
-        "httr",
-        "sf",
-        "dplyr (>= 1.0.0)",
-        "tigris",
-        "stringr",
-        "jsonlite (>= 1.5.0)",
-        "purrr",
-        "rvest",
-        "tidyr (>= 1.0.0)",
-        "rappdirs",
-        "readr",
-        "xml2",
-        "units",
-        "utils",
-        "rlang",
-        "crayon",
-        "tidyselect"
-      ],
-      "Suggests": [
-        "ggplot2",
-        "survey",
-        "srvyr",
-        "terra"
-      ],
-      "RoxygenNote": "7.3.2",
-      "NeedsCompilation": "no",
-      "Author": "Kyle Walker [aut, cre], Matt Herman [aut], Kris Eberwein [ctb]",
-      "Maintainer": "Kyle Walker <kyle@walker-data.com>",
       "Repository": "CRAN"
     },
     "tidyr": {
@@ -3411,40 +3041,6 @@
       "Maintainer": "Yihui Xie <xie@yihui.name>",
       "Repository": "CRAN"
     },
-    "tweenr": {
-      "Package": "tweenr",
-      "Version": "2.0.3",
-      "Source": "Repository",
-      "Type": "Package",
-      "Title": "Interpolate Data for Smooth Animations",
-      "Authors@R": "c(person(given = \"Thomas Lin\", family = \"Pedersen\", role = c(\"aut\", \"cre\"), email = \"thomasp85@gmail.com\", comment = c(ORCID = \"0000-0002-5147-4711\")))",
-      "Maintainer": "Thomas Lin Pedersen <thomasp85@gmail.com>",
-      "Description": "In order to create smooth animation between states of data, tweening is necessary. This package provides a range of functions for creating tweened data that can be used as basis for animation. Furthermore  it adds a number of vectorized interpolaters for common R data  types such as numeric, date and colour.",
-      "URL": "https://github.com/thomasp85/tweenr",
-      "BugReports": "https://github.com/thomasp85/tweenr/issues",
-      "License": "MIT + file LICENSE",
-      "Encoding": "UTF-8",
-      "Depends": [
-        "R (>= 3.2.0)"
-      ],
-      "Imports": [
-        "farver",
-        "magrittr",
-        "rlang",
-        "vctrs"
-      ],
-      "LinkingTo": [
-        "cpp11 (>= 0.4.2)"
-      ],
-      "RoxygenNote": "7.2.3",
-      "Suggests": [
-        "testthat",
-        "covr"
-      ],
-      "NeedsCompilation": "yes",
-      "Author": "Thomas Lin Pedersen [aut, cre] (<https://orcid.org/0000-0002-5147-4711>)",
-      "Repository": "CRAN"
-    },
     "tzdb": {
       "Package": "tzdb",
       "Version": "0.5.0",
@@ -3517,81 +3113,6 @@
       "NeedsCompilation": "yes",
       "Author": "Edzer Pebesma [aut, cre] (ORCID: <https://orcid.org/0000-0001-8049-7069>), Thomas Mailund [aut], Tomasz Kalinowski [aut], James Hiebert [ctb], Iñaki Ucar [aut] (ORCID: <https://orcid.org/0000-0001-6403-5550>), Thomas Lin Pedersen [ctb]",
       "Maintainer": "Edzer Pebesma <edzer.pebesma@uni-muenster.de>",
-      "Repository": "CRAN"
-    },
-    "usmap": {
-      "Package": "usmap",
-      "Version": "1.0.0",
-      "Source": "Repository",
-      "Title": "US Maps Including Alaska and Hawaii",
-      "Description": "Obtain United States map data frames of varying region types (e.g. county, state). The map data frames include Alaska and Hawaii conveniently placed to the bottom left, as they appear in most maps of the US. Convenience functions for plotting choropleths, visualizing spatial data, and working with FIPS codes are also provided.",
-      "Authors@R": "person(\"Paolo\", \"Di Lorenzo\", email = \"paolo@dilorenzo.org\", role = c(\"aut\", \"cph\", \"cre\"))",
-      "Depends": [
-        "R (>= 3.5.0)"
-      ],
-      "License": "GPL (>= 3)",
-      "Encoding": "UTF-8",
-      "Language": "en-US",
-      "LazyData": "true",
-      "URL": "https://usmap.dev",
-      "BugReports": "https://github.com/pdil/usmap/issues",
-      "Imports": [
-        "rlang",
-        "usmapdata (>= 1.0.0)"
-      ],
-      "Suggests": [
-        "covr",
-        "ggplot2 (>= 3.5.0)",
-        "ggrepel",
-        "knitr",
-        "proto",
-        "rmarkdown",
-        "scales",
-        "sf",
-        "spelling",
-        "testthat (>= 3.0.0)",
-        "vdiffr",
-        "withr"
-      ],
-      "RoxygenNote": "7.3.2",
-      "VignetteBuilder": "knitr",
-      "Config/testthat/edition": "3",
-      "NeedsCompilation": "no",
-      "Author": "Paolo Di Lorenzo [aut, cph, cre]",
-      "Maintainer": "Paolo Di Lorenzo <paolo@dilorenzo.org>",
-      "Repository": "CRAN"
-    },
-    "usmapdata": {
-      "Package": "usmapdata",
-      "Version": "1.0.0",
-      "Source": "Repository",
-      "Title": "Mapping Data for 'usmap' Package",
-      "Description": "Provides a container for data used by the 'usmap' package. The data used by 'usmap' has been extracted into this package so that the file size of the 'usmap' package can be reduced greatly. The data in this package will be updated roughly once per year as new map data files are provided by the US Census Bureau.",
-      "Authors@R": "person(\"Paolo\", \"Di Lorenzo\", email = \"paolo@dilorenzo.org\", role = c(\"aut\", \"cre\"))",
-      "Depends": [
-        "R (>= 3.5.0)"
-      ],
-      "License": "GPL (>= 3)",
-      "Encoding": "UTF-8",
-      "Language": "en-US",
-      "URL": "https://usmap.dev",
-      "BugReports": "https://github.com/pdil/usmapdata/issues",
-      "Imports": [
-        "rlang",
-        "sf"
-      ],
-      "Suggests": [
-        "covr",
-        "dplyr",
-        "spelling",
-        "testthat (>= 3.0.0)",
-        "withr"
-      ],
-      "RoxygenNote": "7.3.2",
-      "Config/testthat/edition": "3",
-      "NeedsCompilation": "no",
-      "Author": "Paolo Di Lorenzo [aut, cre]",
-      "Maintainer": "Paolo Di Lorenzo <paolo@dilorenzo.org>",
       "Repository": "CRAN"
     },
     "utf8": {
@@ -3902,46 +3423,6 @@
       "NeedsCompilation": "yes",
       "Author": "Yihui Xie [aut, cre, cph] (ORCID: <https://orcid.org/0000-0003-0645-5666>, URL: https://yihui.org), Wush Wu [ctb], Daijiang Li [ctb], Xianying Tan [ctb], Salim Brüggemann [ctb] (ORCID: <https://orcid.org/0000-0002-5329-5987>), Christophe Dervieux [ctb]",
       "Maintainer": "Yihui Xie <xie@yihui.name>",
-      "Repository": "CRAN"
-    },
-    "xml2": {
-      "Package": "xml2",
-      "Version": "1.4.1",
-      "Source": "Repository",
-      "Title": "Parse XML",
-      "Authors@R": "c( person(\"Hadley\", \"Wickham\", role = \"aut\"), person(\"Jim\", \"Hester\", role = \"aut\"), person(\"Jeroen\", \"Ooms\", email = \"jeroenooms@gmail.com\", role = c(\"aut\", \"cre\")), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\")), person(\"R Foundation\", role = \"ctb\", comment = \"Copy of R-project homepage cached as example\") )",
-      "Description": "Bindings to 'libxml2' for working with XML data using a simple,  consistent interface based on 'XPath' expressions. Also supports XML schema validation; for 'XSLT' transformations see the 'xslt' package.",
-      "License": "MIT + file LICENSE",
-      "URL": "https://xml2.r-lib.org, https://r-lib.r-universe.dev/xml2",
-      "BugReports": "https://github.com/r-lib/xml2/issues",
-      "Depends": [
-        "R (>= 3.6.0)"
-      ],
-      "Imports": [
-        "cli",
-        "methods",
-        "rlang (>= 1.1.0)"
-      ],
-      "Suggests": [
-        "covr",
-        "curl",
-        "httr",
-        "knitr",
-        "mockery",
-        "rmarkdown",
-        "testthat (>= 3.2.0)",
-        "xslt"
-      ],
-      "VignetteBuilder": "knitr",
-      "Config/Needs/website": "tidyverse/tidytemplate",
-      "Encoding": "UTF-8",
-      "RoxygenNote": "7.3.3",
-      "SystemRequirements": "libxml2: libxml2-dev (deb), libxml2-devel (rpm)",
-      "Collate": "'S4.R' 'as_list.R' 'xml_parse.R' 'as_xml_document.R' 'classes.R' 'format.R' 'import-standalone-obj-type.R' 'import-standalone-purrr.R' 'import-standalone-types-check.R' 'init.R' 'nodeset_apply.R' 'paths.R' 'utils.R' 'xml2-package.R' 'xml_attr.R' 'xml_children.R' 'xml_document.R' 'xml_find.R' 'xml_missing.R' 'xml_modify.R' 'xml_name.R' 'xml_namespaces.R' 'xml_node.R' 'xml_nodeset.R' 'xml_path.R' 'xml_schema.R' 'xml_serialize.R' 'xml_structure.R' 'xml_text.R' 'xml_type.R' 'xml_url.R' 'xml_write.R' 'zzz.R'",
-      "Config/testthat/edition": "3",
-      "NeedsCompilation": "yes",
-      "Author": "Hadley Wickham [aut], Jim Hester [aut], Jeroen Ooms [aut, cre], Posit Software, PBC [cph, fnd], R Foundation [ctb] (Copy of R-project homepage cached as example)",
-      "Maintainer": "Jeroen Ooms <jeroenooms@gmail.com>",
       "Repository": "CRAN"
     },
     "yaml": {
