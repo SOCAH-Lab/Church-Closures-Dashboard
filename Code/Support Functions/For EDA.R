@@ -196,6 +196,9 @@ build_zip_city_lookup <- function(uscities_df) {
   #'   If a ZIP appears for multiple cities in the source, the function keeps the
   #'   **first** encountered mapping due to `distinct(zip, .keep_all = TRUE)`.
   #'
+  #' @source 
+  #' https://simplemaps.com/data/us-cities
+  #'
   #' @details
   #' The Simplemaps `zips` field can contain many ZIPs per city. This function
   #' "unnests" that field into one ZIP per row via `tidyr::separate_rows()`, then

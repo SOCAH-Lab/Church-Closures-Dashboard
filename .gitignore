@@ -12,16 +12,17 @@
 .RData
 
 # --------------------
-# Files and file types to ignore; not sensitive.
+# Files and file types to ignore but are not sensitive
 
 /.quarto/
 /docs/
 /_site/
 sites_libs/
-*.pptx
+**/*.pptx
+**/*.quarto_ipynb
 
 # --------------------
-# The location for all the sensitive data that is individual level.
+# The location for all the sensitive data that is individual level
 
 Code/KEEP LOCAL/
 Data/Raw/KEEP LOCAL/
@@ -45,4 +46,3 @@ Data/Results/KEEP LOCAL/
 # provided in scripts where an API key is loaded.
 
 .Renviron
-**/*.quarto_ipynb
