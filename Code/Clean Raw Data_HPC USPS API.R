@@ -42,9 +42,13 @@ suppressPackageStartupMessages({
   library("progress")         # Progress bars
 })
 
-# Load in the functions
-source("./General.R")
-source("./For Step 2.R")
+# # Load in the functions in the HPC
+# source("./General.R")
+# source("./For Step 2.R")
+
+# Load in the functions locally
+source("./Code/Support Functions/General.R")
+source("./Code/Support Functions/For Step 2.R")
 
 # Define the "not in" operation
 "%!in%" <- function(x,y)!("%in%"(x,y))
@@ -55,11 +59,18 @@ source("./For Step 2.R")
 ## ----------------------------------------------------------------
 ## LOAD IN THE DATA
 
-# Load in the pre-produced test results for evaluation.
-step_1 <- read_csv("./Step 01_HPC Subset_05.01.2026.csv",
+# # Load in the previous step in the HPC
+# step_1 <- read_csv("./Step 01_HPC Subset_05.01.2026.csv",
+#                    col_types = cols(...1 = col_skip())) %>% as.data.frame()
+# 
+# uscities_df <- read_csv("./simplemaps_uscities_basicv1.90/uscities.csv") %>% as.data.frame()
+# zip_city_lookup <- build_zip_city_lookup(uscities_df)
+
+# Load in the previous step locally
+step_1 <- read_csv("Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 01_Completed Result_04.29.2026.csv",
                    col_types = cols(...1 = col_skip())) %>% as.data.frame()
 
-uscities_df <- read_csv("./simplemaps_uscities_basicv1.90/uscities.csv") %>% as.data.frame()
+uscities_df <- read_csv("Data/Raw/simplemaps_uscities_basicv1.90/uscities.csv") %>% as.data.frame()
 zip_city_lookup <- build_zip_city_lookup(uscities_df)
 
 
@@ -110,29 +121,29 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 # Each index was processed in a separate session and compiled in
 # "Clean Raw Data_Step 2.R".
 
-# 1:42000 <-- completed HPC
-# 42001:84000 <-- completed HPC
-# 84001:126000 <-- completed local
-# 126001:168000 <-- completed local
-# 168001:210000 <-- completed local
-# 210001:252000 <-- completed HPC
-# 252001:294000 <-- completed HPC
-# 294001:336000 <-- completed local
-# 336001:378000 <-- completed local
-# 378001:420000 <-- completed local
-# 420001:462000 <-- completed local
-# 462001:504000 <-- completed local
-# 504001:546000 <-- completed local
-# 546001:588000 <-- completed local
-# 588001:630000 <-- completed local
-# 630001:672000 <-- completed local
-# 672001:714000 <-- completed HPC
-# 714001:756000 <-- completed local
-# 756001:798000 <-- completed local
+# 1:42000 <-- completed
+# 42001:84000 <-- completed
+# 84001:126000 <-- completed
+# 126001:168000 <-- completed
+# 168001:210000 <-- completed
+# 210001:252000 <-- completed
+# 252001:294000 <-- completed
+# 294001:336000 <-- completed
+# 336001:378000 <-- completed
+# 378001:420000 <-- completed
+# 420001:462000 <-- completed
+# 462001:504000 <-- completed
+# 504001:546000 <-- completed
+# 546001:588000 <-- completed
+# 588001:630000 <-- completed
+# 630001:672000 <-- completed
+# 672001:714000 <-- completed
+# 714001:756000 <-- completed
+# 756001:798000 <-- completed
 # 798001:840000 <-- in progress
 # 840001:882000 <-- in progress
-# 882001:924000
-# 924001:966000
+# 882001:924000 <-- in progress
+# 924001:966000 <-- in progress
 # 966001:1008000
 # 1008001:1050000
 # 1050001:1092000
@@ -144,16 +155,24 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 ## --------------------
 ## SUBSECTION A3: Script to Validate Addresses
 
+# While verifying the addresses, we want to add the address line 2, zip code
+# 4-digit extension, and a boolean to verify that the address has been verified.
+step_1 <- step_1 %>%
+  mutate(address_line_2 = "", address_verified = NA, zipcode_ext = "") %>%
+  relocate(address_line_2, .after = address_line_1) %>%
+  relocate(zipcode_ext, .after = zipcode) %>%
+  relocate(address_verified, .after = compiled_address) %>%
+  `rownames<-`(NULL)
 
+step_1 <- rownames_to_column(step_1, var = "rowname")
 
-
-# Load the USPS API Keys.
+# Load the USPS API Keys
 Sys.getenv("R_ENVIRON_USER")
 consumer_key <- Sys.getenv("USPS_CONSUMER_KEY", unset = "<UNSET>")
 consumer_secret <- Sys.getenv("USPS_CONSUMER_SECRET", unset = "<UNSET>")
 
 # Set index
-index = 672001:714000
+index = 840001:882000
 
 # Add a progress bar to show where the function is in the for loop.
 pb = txtProgressBar(min = min(index), max = max(index), style = 3)
@@ -261,9 +280,14 @@ step_1_out <- step_1[min(index):max(index), ] |>
     }, character(1))
   ))
 
-# Commit results
+# # Commit results in the HPC
+# write.csv(as.data.frame(step_1_out), 
+#           str_c("./Results/Step 2_USPS Output_", index[1], " to ", index[length(index)], ".csv"), 
+#           row.names = FALSE)
+
+# Commit results locally
 write.csv(as.data.frame(step_1_out), 
-          str_c("./Results/Step 2_USPS Output_", index[1], " to ", index[length(index)], ".csv"), 
+          str_c("Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2/Step 2_USPS Output_", index[1], " to ", index[length(index)], ".csv"),
           row.names = FALSE)
 
 

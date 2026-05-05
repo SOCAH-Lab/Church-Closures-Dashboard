@@ -1,28 +1,82 @@
 ## ----------------------------------------------------------------
+## Validate the address and finish resolving duplications.
 ## 
-##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025
-## Date Modified: April 29th, 2026
+## Date Modified: May 4th, 2026
 ## 
-## Description: During review of the raw data, it was identified that multiple
-##              records are associated with the same address, attributed to
-##              minor typographical inconsistencies in address entry rather
-##              than representing genuinely distinct locations.
-##
-##              To address this, a string-clustering algorithm is applied to
-##              group similar address strings together. Records within each
-##              cluster are then consolidated into a single entry, such that
-##              each row in the resulting dataset represents a unique address.
-##
-##              Following this process, the performance of the algorithm is
-##              evaluated by examining the maximum difference in geolocation
-##              coordinates reported across all collapsed entries. Special
-##              cases are closely inspected and relevant resolutions proposed.
-##              Prior to saving the final result, a comprehensive review was
-##              conducted to confirm that all expected business entries were
-##              retained and assess the algorithms performance.
+## Description: In the previous data processing and cleaning step, erroneous
+##              duplicate addresses were consolidated into single records,
+##              reducing the dataset by approximately half. During that step
+##              and the initial review, it was observed that some individual
+##              addresses may not be valid. Additionally, the algorithm
+##              randomly selected one address from a set of similar entries
+##              to carry forward. Verifying these addresses is considered
+##              best practice and is particularly important for the subsequent
+##              step, in which geolocation will be validated using the
+##              confirmed addresses.
 ## 
+##              Some notable special cases:
+## 
+##              1. Some consolidated records failed the geolocation similarity
+##                 quality check (QC). Among these, certain records were
+##                 determined to represent the same address and their QC
+##                 results were manually overridden. Others were reverted to
+##                 their original raw format pending further address
+##                 validation. Records confirmed to share the same valid
+##                 address will be consolidated, while those that cannot be
+##                 validated or do not resolve to the same address will
+##                 remain separate.
+## 
+##              2. Some addresses were assigned to different similarity
+##                 clusters, introducing duplicate open/closed records that
+##                 were not present prior to running the algorithm. In these
+##                 cases, the same address_line_1 value was shared across
+##                 records, but metadata such as city or zip code differed.
+##                 Geolocation values also differed despite the identical
+##                 address_line_1. Following address validation, these records
+##                 will be consolidated into a single entry using the valid
+##                 address, if matched.
+## 
+## USPS API Keys:
+## To query the USPS database, a client key and secret must be configured to
+## generate an OAuth token for database access. These credentials CANNOT be
+## shared and must remain private to each user. They should be kept untracked
+## by Git and stored locally, and must never be published to GitHub.
+## 
+## Follow the steps below to set up your credentials and environment.
+## 
+## 1. Register for a USPS developer account by following the "Getting Started"
+##    instructions on the USPS Developer Portal:
+##    https://developers.usps.com/
+## 
+## 2. In the "Apps" section of the developer portal, create a new app to
+##    generate your personal API credentials. Be sure to include a project
+##    description. This will provide two credentials: a "Consumer Key" and a
+##    "Consumer Secret".
+## 
+##    As noted above, these credentials must NOT be hard-coded into the script.
+##    They must remain private to each user.
+## 
+## 3. In the project root directory, create a ".Renviron" file if one does not
+##    already exist. Add your credentials as shown below, with no extra spaces
+##    or hidden characters:
+## 
+##       USPS_CONSUMER_KEY="your_consumer_key"
+##       USPS_CONSUMER_SECRET="your_consumer_secret"
+## 
+##    These variables will be loaded in the script below using sys.getenv().
+## 
+## 4. Ensure that the ".Renviron" file is listed in your ".gitignore" file and
+##    is not being tracked by Git.
+## 
+## NOTE: If you experience issues loading your environment variables, run the
+##       following code to explicitly set the ".Renviron" file location using
+##       rprojroot:
+## 
+##       rprojroot::find_rstudio_root_file()
+##       readRenviron(rprojroot::find_rstudio_root_file(".Renviron"))
+##  
 ## Sections:
 ##    - SET UP THE ENVIRONMENT
 ##    - LOAD IN THE DATA
@@ -30,22 +84,6 @@
 ##    - PART A: Enhancing Function Performance and Efficiency
 ##        * SUBSECTION A1: Optimizing Data Subsetting
 ##        * SUBSECTION A2: Optimizing Data Combination
-##
-##    - PART B: Standardize and Merge Similar Addresses
-##        * SUBSECTION B1: Verify No Duplicates Got Added
-##        * SUBSECTION B2: Explore the Nature of Duplications
-##        * Subsection B3: Similar Addresses: Geolocation Discrepancies
-## 
-##    - PART C: Resolving Failed Geolocation Tests via Expansion and Overrides
-##        * SUBSECTION C1: Combine All Results
-## 
-##    - PART D: Cleaning for Saving the Result
-##        * SUBSECTION D1: Add Missing Columns
-##        * SUBSECTION D2: Merge Duplicate and Singular Record Datasets
-##        * SUBSECTION D3: Remove Businesses with No Recorded Physical Address
-##        * SUBSECTION D4: Organize and Save the Results
-## 
-##    - PART E: Assess Overall Performance
 
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
@@ -111,15 +149,8 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 
 
 ## ----------------------------------------------------------------
-## STEP 2: VALIDATE ADDRESSES
+## PART A: 
 
-# In the second step of cleaning and validating the church_wide dataset, we
-# get the USPS preferred address. The previous step did not have a mechanism
-# to check for address correctness when different variations were provided.
-# As noted, in the subsection above, it also did not catch address that
-# are similar but their longitude and latitude listing were dissimilar,
-# suggesting it is a different address.
-# 
 # Using the API's where erroneous duplicated addresses were compressed,
 # and their longitutde and latitude are similar, we now query the USPS
 # Address 3.0 API to get the preferred address. 
@@ -134,46 +165,40 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 #       line 2, but we do not worry about this designation. Either one or the
 #       other is suitable. This can be changed in later iterations if need be.
 
+# 1:42000 <-- completed
+# 42001:84000 <-- need to redo
+# 84001:126000 <-- completed
+# 126001:168000 <-- completed
+# 168001:210000 <-- completed
+# 210001:252000 <-- completed
+# 252001:294000 <-- completed
+# 294001:336000 <-- completed
+# 336001:378000 <-- completed
+# 378001:420000 <-- completed
+# 420001:462000 <-- completed
+# 462001:504000 <-- completed
+# 504001:546000 <-- completed
+# 546001:588000 <-- completed
+# 588001:630000 <-- completed
+# 630001:672000 <-- completed
+# 672001:714000 <-- completed
+# 714001:756000 <-- completed
+# 756001:798000 <-- completed
+# 798001:840000 <-- in progress
+# 840001:882000 <-- in progress
+# 882001:924000 <-- in progress
+# 924001:966000 <-- in progress
+# 966001:1008000
+# 1008001:1050000
+# 1050001:1092000
+# 1092001:1134000
+# 1134001:1176000
+# 1176001:1210975
 
-# To query the USPS database, you need to setup your client key and secret
-# to generate and OAuth Token that will access their database. These credentials
-# CANNOT be shared, and must be therefore kept untracked by git, local (not
-# published on GitHub), and each user must have their own credentials.
-# 
-# Directions to setting up your credentials and environment are listed below.
-# 
-# 1. Follow the "Getting Started" directions in the USPS GitHub page to register
-#    for a USPS developer account: https://developers.usps.com/
-# 
-# 2. Under the "App" webpage of the developer webportal, create a new app to 
-#    generate your personal API credentials. Make sure to add the project 
-#    description. This will give you two credentials: "Consumer Key and" 
-#    "Consumer Secret".
-#    
-#    As stated above, these should NOT be hard coded into the script as they
-#    should be kept private to each user.
-# 
-# 3. In the root directory for the project, create a ".Renviron" if you do not
-#    already have one. Add your credentials with no extra spaces or hidden 
-#    characters in parenthesis, as shown below.
-# 
-#       USPS_CONSUMER_KEY="your_consumer_key"
-#       USPS_CONSUMER_SECRET="your_consumer_secret"
-# 
-#    These will then be loaded using the code below with Sys.getenv().
-# 
-# 4. Ensure that the ".Renviron" file is included in your ".gitignore", and
-#    that it does not show up for git tracking.
-#     
-# NOTE: If you are having trouble loading your environment variables, then
-#       run the following code from rprojroot to explicitly set the location:
-# 
-#       rprojroot::find_rstudio_root_file()
-#       readRenviron(rprojroot::find_rstudio_root_file(".Renviron"))
 
-consumer_key <- Sys.getenv("USPS_CONSUMER_KEY")
-consumer_secret <- Sys.getenv("USPS_CONSUMER_SECRET")
 
+## --------------------
+## SUBSECTION A1: 
 
 # While verifying the addresses, we want to add the address line 2, zip code
 # 4-digit extension, and a boolean to verify that the address has been verified.
@@ -194,210 +219,91 @@ step_1_subset <- step_1 %>%
 
 write.csv(step_1_subset, file = "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 01_HPC Subset_05.01.2026.csv")
 
-# The following code will calculate this, but it takes a while to run. The
-# results have also been saved so you can skip the function and load in those
-# pre-produced results.
 
-# 875 per 5 minutes
-(875*48)
-round((nrow(step_1)/42000), digits = 2)
-nrow(step_1)/25
+## --------------------
+## SUBSECTION A2: Compile the Results
 
-# 1:42000 <-- completed HPC
-# 42001:84000 <-- completed HPC
-# 84001:126000 <-- completed local
-# 126001:168000 <-- completed local
-# 168001:210000 <-- completed local
-# 210001:252000 <-- completed HPC
-# 252001:294000 <-- completed HPC
-# 294001:336000 <-- completed local
-# 336001:378000 <-- completed local
-# 378001:420000 <-- completed local
-# 420001:462000 <-- completed local
-# 462001:504000 <-- completed local
-# 504001:546000 <-- completed local
-# 546001:588000 <-- completed local
-# 588001:630000 <-- in progress
-# 630001:672000 <-- completed local
-# 672001:714000 <-- completed HPC
-# 714001:756000 <-- in progress
-# 756001:798000 <-- in progress
-# 798001:840000
-# 840001:882000
-# 882001:924000
-# 924001:966000
-# 966001:1008000
-# 1008001:1050000
-# 1050001:1092000
-# 1092001:1134000
-# 1134001:1176000
-# 1176001:1210975
+processed_indices <- c(
+  "1 to 42000", "42001 to 84000", "84001 to 126000", "126001 to 168000",
+  "168001 to 210000", "210001 to 252000", "252001 to 294000", "294001 to 336000",
+  "336001 to 378000", "378001 to 420000", "420001 to 462000", "462001 to 504000",
+  "504001 to 546000", "546001 to 588000", "588001 to 630000", "630001 to 672000",
+  "672001 to 714000", "714001 to 756000", "756001 to 798000", "798001 to 840000",
+  "840001 to 882000", "882001 to 924000", "924001 to 966000", "966001 to 1008000",
+  "1008001 to 1050000", "1050001 to 1092000", "1092001 to 1134000", 
+  "1134001 to 1176000", "1176001 to 1210975"
+)
+
+dir_path <- "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2"
+
+files <- file.path(dir_path, paste0("Step 2_USPS Output_", processed_indices[3:7], ".csv"))
+
+# Import all the data frames
+dfs <- lapply(files, read_csv, show_col_types = FALSE) %>%
+  `names<-`(processed_indices[3:7])
+
+# Confirm the range recorded is within the index
+lapply(dfs, dim)
+
+# Correct the range associated with 
+#dfs[[1]] <- dfs[[1]] %>% .[1:42000, ]
 
 
-# Set index
-index = 714001:756000
+# 
+expected <- str_squish(names(dfs)) %>%
+  tibble(
+    start = as.integer(str_extract(x, "^\\d+")),
+    end   = as.integer(str_extract(x, "\\d+$"))
+  ) %>%
+  mutate(expected_range = names(dfs)) %>%
+  select(expected_range, expected_start = start, expected_end = end)
 
-# Add a progress bar to show where the function is in the for loop.
-pb = txtProgressBar(min = min(index), max = max(index), style = 3)
+results <- imap_dfr(dfs, function(dat, nm) {
+  exp <- expected %>% filter(expected_range == nm)
+  dat %>%
+    transmute(
+      file_range = nm,
+      rowname,
+      within_expected = rowname >= exp$expected_start & rowname <= exp$expected_end
+    )
+})
 
-for (i in min(index):max(index)) {
-  # 1) Pull the i-th row into variables used by validate_usps_address()
-  address1 <- step_1$address_line_1[i]
-  address2 <- ""
-  city     <- step_1$city[i]
-  state    <- step_1$state[i]
+table(results$within_expected, useNA = "ifany")
+nrow(results)/42000
+
+
+# 
+tab <- lapply(dfs, \(x) table(x$address_verified, useNA = "ifany"))
+
+out <- do.call(rbind, lapply(names(tab), function(nm) {
+  tt <- tab[[nm]]
+  nms <- names(tt)
+  iNA <- which(is.na(nms))
   
-  # Split ZIP into ZIP5 and ZIP+4 (blank if missing)
-  zip5 <- str_extract(step_1$zipcode[i], "^[0-9]+") %>% ifelse(is.na(.) || . == "", "", .)
-  zip4 <- str_extract(step_1$zipcode[i], "(?<=-)[0-9]+") %>% ifelse(is.na(.) || . == "", "", .)
-  
-  # 2) Attempt #1: Validate using the original inputs
-  suppressWarnings({
-    usps_validated <- validate_usps_address(consumer_key, consumer_secret, address1, address2 = "", city, state, zip5, zip4 = "")
-  })
-  
-  # 3) Attempt #2: If no match, assess/correct city (try ZIP5 orientations), then retry
-  if (all(dim(usps_validated) == 0)) {
-    
-    zip5_raw <- zip5 %>% ifelse(is.na(.) || . == "", "", .)
-    zip5_raw <- ifelse(nzchar(zip5_raw), str_pad(zip5_raw, width = 5, side = "left", pad = "0"), "")
-    
-    # Leading/trailing zeros were stripped prior to receiving the raw data.
-    # Some ZIP-to-city sources treat those edge zeros differently, so we test 
-    # multiple orientations by "sliding" the same count of edge zeros between 
-    # the front and back of the ZIP (still 5 digits).
-    zip5_candidates <- make_zip5_candidates(zip5_raw)
-    
-    # Try candidates until one returns a city (then stop); otherwise do nothing
-    for (z in zip5_candidates) {
-      query_result <- get_city_info(z, zip_city_lookup)
-      
-      if (!str_detect(query_result, "No Matches")) {
-        city <- query_result
-        zip5 <- z
-        
-        suppressWarnings({
-          usps_validated <- validate_usps_address(consumer_key, consumer_secret, address1, address2 = address2, city, state, zip5, zip4 = zip4
-          )
-        })
-        
-        # Stop after the first candidate that yields a city
-        break
-      }
-    }
-  }
-  
-  # 4) Attempt #3: if still no match, swap address lines, then retry
-  if (all(dim(usps_validated) == 0)) {
-    # Move address_line_1 into address2 and leave address1 blank
-    address1 <- ""
-    address2 <- step_1$address_line_1[i]
-    
-    suppressWarnings({
-      usps_validated <- validate_usps_address(consumer_key, consumer_secret, address1, address2 = "", city, state, zip5, zip4 = "")
-    })
-  }
-  
-  # 5) Save results back into step_1 (single write block)
-  if (all(dim(usps_validated) == 0)) {
-    
-    # Nothing matched after all attempts
-    step_1$compiled_address[i] <- "No address match found"
-    step_1$address_verified[i] <- FALSE
-    
-  } else {
-    
-    # Overwrite fields with USPS-preferred formatting
-    step_1$address_line_1[i] <- usps_validated[, "address_line_1"]
-    step_1$address_line_2[i] <- usps_validated[, "address_line_2"]
-    step_1$city[i]           <- usps_validated[, "city"]
-    step_1$state[i]          <- usps_validated[, "state"]
-    step_1$zipcode[i]        <- usps_validated[, "zipcode"]
-    step_1$zipcode_ext[i]    <- usps_validated[, "zipcode_ext"]
-    
-    # Mark as verified
-    step_1$address_verified[i] <- TRUE
-    
-    # Build a single printable address string: "line1, line2, city, state ZIP-EXT"
-    step_1$compiled_address[i] <- str_c(
-      str_flatten(na.omit(unlist(usps_validated[1:4])), collapse = ", "),
-      str_flatten(na.omit(unlist(usps_validated[5:6])), collapse = "-"),
-      sep = " "
-    ) %>%
-      str_trim() %>%
-      str_remove("-$") %>%
-      str_remove("\\s*$")
-  }
-  
-  # Print the for loop's progress.
-  setTxtProgressBar(pb, i)
-}
-
-# Convert list-format columns to character type
-step_1_out <- step_1[min(index):max(index), ] |>
-  dplyr::mutate(dplyr::across(
-    where(is.list),
-    ~ vapply(.x, function(el) {
-      if (is.null(el) || (length(el) == 0)) return(NA_character_)
-      paste(as.character(unlist(el, recursive = TRUE, use.names = FALSE)), collapse = "; ")
-    }, character(1))
-  ))
-
-# Commit results
-write.csv(as.data.frame(step_1_out), 
-          str_c("Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2/Step 2_USPS Output_", index[1], " to ", index[length(index)], ".csv"),
-          row.names = FALSE)
+  data.frame(
+    Range = nm,
+    `FALSE` = as.integer(if ("FALSE" %in% nms) tt[["FALSE"]] else 0),
+    `TRUE`  = as.integer(if ("TRUE"  %in% nms) tt[["TRUE"]]  else 0),
+    `NA`    = as.integer(if (length(iNA)) tt[iNA] else 0),
+    row.names = NULL,
+    check.names = FALSE
+  )
+}))
 
 
-# Below is a series of checks and logs that were used to progressively save
-# the Step 2 results. The script takes over a week to run on a normal device
-# with four computing cores.
-# 
-# # Inspect the last-processed ABI and which index the process got stopped at.
-# same[same$address_verified %in% NA, ] %>% head()
-# which(same$address_verified %in% NA) %>% head()
-# 
-# same[888674:888676, ]
-# 
-# # Saving Log:
-# # Rows 1:20902, saved 6:30pm 5/22
-# # Rows 1:199032, saved 10:51am 5/23
-# # Rows 1:207465, saved 1:44pm 5/23
-# # Rows 1:236604, saved 10:49pm 5/23
-# # Rows 1:353483, saved 7:23pm 5/24
-# # Rows 1:444497, saved 12:50am 5/26
-# # Rows 1:494863, saved 7:50am 5/26
-# # Rows 1:515924, saved 11:08am 5/26
-# # Rows 1:582922, saved 11:21pm 5/26
-# # Rows 1:674016, saved 2:02pm 5/27
-# # Rows 1:690472, saved 4:51pm 5/27
-# # Rows 1:694696, saved 8:01pm 5/28
-# # Rows 1:735471, saved 9:42pm 5/28
-# # Rows 1:756901, saved 9:22am 5/29
-# # Rows 1:817927, saved 7:53pm 5/29
-# # The process completed June 1st, but for some reason the results did not
-# # save properly. The needed to be rerun starting from index = 817928.
-# # Rows 1:817927, saved 10:00am 6/5
-# # Rows 1:852775, saved 11:00am 6/5
-# # Completed 7/1
-# step_2 <- same
-# 
-# # Confirm adding to the previous set and no NA's.
-# all(unique(step_2$abi) %in% unique(same$abi))
-# which(step_2$address_verified %in% NA)
-# 
-# # Commit results.
-# write_csv(step_2, "data/Raw KEEP LOCAL/Cleaning Wide Format Steps/Step 02_Church Wide_Convert to Preferred USPS Address_COMPLETED_06.07.2025.csv.gz")
-#
-# # If the environment crashes, replace the progress saved in step_2 to the same
-# # variable.
-# same <- bind_rows(step_2, same[same$abi %!in% step_2$abi, ])
-# 
-# 
-# same[same$abi %in% step_2$abi, "address_verified"] %>% table()
-# sum(is.na(same[same$abi %in% step_2$abi, "address_verified"]))
-# 
-# same[same$abi %in% step_2$abi & is.na(same$address_verified), ]
+
+## --------------------
+## SUBSECTION A3: Assess the Algorithms Performance
+
+# If the environment crashes, replace the progress saved in step_2 to the same
+# variable.
+same <- bind_rows(step_2, same[same$abi %!in% step_2$abi, ])
+
+
+same[same$abi %in% step_2$abi, "address_verified"] %>% table()
+sum(is.na(same[same$abi %in% step_2$abi, "address_verified"]))
+
+same[same$abi %in% step_2$abi & is.na(same$address_verified), ]
 
 
 # Load in the pre-produced test results for evaluation.
