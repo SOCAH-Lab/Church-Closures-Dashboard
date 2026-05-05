@@ -1,0 +1,38 @@
+/* css styles */
+
+.footer-items li {
+    margin: 0;
+    padding: 0;
+}
+
+.nav-item a {
+    margin: 0;
+    padding: 5px;
+    display: inline-block;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+}
+
+.nav-item i {
+    margin-right: 5px;
+}
+
+.navbar-nav .nav-item {
+    margin: 0;
+    padding: 0;
+}
+
+.navbar-nav .nav-link {
+    padding: 10px 15px; /* Adjust these values as needed */
+}
+
+.navbar-nav .nav-item .menu-text {
+    margin: 0;
+}
+
+b, strong {
+    font-weight: 1000 !important;
+}

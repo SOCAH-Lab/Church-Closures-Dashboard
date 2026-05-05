@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Cleaning and Validation – Church Closures Dashboard</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<link href="../Images/DSDE-Social-Media-Profile.png" rel="icon" type="image/png">
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-97bfe6499e261bad1e14faa831bf6b4a.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Church Closures Dashboard</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../Pages/Review.html"> 
+<span class="menu-text">Review</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link active" href="../Pages/Cleaning and Harmonization.html" aria-current="page"> 
+<span class="menu-text">Preparation</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../Pages/Metric Calculation.html"> 
+<span class="menu-text">Metrics</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="https://ysph.yale.edu/public-health-research-and-practice/research-centers-and-initiatives/public-health-data-science-and-data-equity/contact-us/" target="_blank"> 
+<span class="menu-text">Contact</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#analysis-outline" id="toc-analysis-outline" class="nav-link active" data-scroll-target="#analysis-outline">Analysis Outline</a></li>
+  <li><a href="#code-optimization" id="toc-code-optimization" class="nav-link" data-scroll-target="#code-optimization">Code Optimization</a></li>
+  <li><a href="#step-1-results" id="toc-step-1-results" class="nav-link" data-scroll-target="#step-1-results">Step #1 Results</a>
+  <ul class="collapse">
+  <li><a href="#verify-no-duplicates-got-added" id="toc-verify-no-duplicates-got-added" class="nav-link" data-scroll-target="#verify-no-duplicates-got-added">Verify No Duplicates Got Added</a></li>
+  <li><a href="#explore-the-nature-of-duplications-added" id="toc-explore-the-nature-of-duplications-added" class="nav-link" data-scroll-target="#explore-the-nature-of-duplications-added">Explore the Nature of Duplications Added</a></li>
+  <li><a href="#similar-addresses-geolocation-discrepancies" id="toc-similar-addresses-geolocation-discrepancies" class="nav-link" data-scroll-target="#similar-addresses-geolocation-discrepancies">Similar Addresses: Geolocation Discrepancies</a></li>
+  <li><a href="#final-notes" id="toc-final-notes" class="nav-link" data-scroll-target="#final-notes">Final Notes</a></li>
+  </ul></li>
+  <li><a href="#step-2-results" id="toc-step-2-results" class="nav-link" data-scroll-target="#step-2-results">Step #2 Results</a></li>
+  <li><a href="#step-3-results" id="toc-step-3-results" class="nav-link" data-scroll-target="#step-3-results">Step #3 Results</a></li>
+  <li><a href="#step-4-results" id="toc-step-4-results" class="nav-link" data-scroll-target="#step-4-results">Step #4 Results</a></li>
+  <li><a href="#step-5-results" id="toc-step-5-results" class="nav-link" data-scroll-target="#step-5-results">Step #5 Results</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Cleaning and Harmonization.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Cleaning and Validation</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><small>Last Updated: April 29<sup>th</sup>, 2026</small></p>
+<p>The ultimate goal of this project is to produce a reasonably cleaned, concise, and validated form of the raw data suitable for dynamic visualization to the census tract level across three decennial periods. As noted in the <a href="Review.html">Review</a> section, inconsistencies between addresses arise from typographical errors. A substantial portion of the various errors detected were among entries that utilized a PO Box at some point during the filing period.</p>
+<p>Without further information from the data distributor, the level of accuracy that can be assumed for the geolocation associated with each address cannot be guaranteed. It is therefore advisable to validate all unique addresses, with particular attention to PO Box entries, which are known to have incorrect geolocations associated with them.</p>
+<p>The geolocation associated with each PO Box will be used to estimate the physical address, representing the location of community impact, associated with those years of filing. If a PO Box is not reasonably near any listed physical address, it will be treated as the closest approximation to the actual business location. If it is near multiple physical addresses that are in close proximity to one another, it will be associated with the nearest listed physical address.</p>
+<p>The data cleaning and validation goals are to:</p>
+<ul>
+<li><p>Reduce redundancy by consolidating separately listed addresses that result from typographical errors into a single entry.</p></li>
+<li><p>Validate addresses where possible and annotate the dataset with the resulting confidence/accuracy level.</p></li>
+<li><p>Validate each record’s associated geolocation where possible and annotate the dataset with the resulting confidence/accuracy level.</p></li>
+<li><p>Use available geolocations to assign each record to its corresponding census tract and county for the 2000, 2010, and 2020 decennial years.</p></li>
+</ul>
+<section id="analysis-outline" class="level2">
+<h2 class="anchored" data-anchor-id="analysis-outline">Analysis Outline</h2>
+<p>To achieve this, the following stepwise procedure is outlined.</p>
+<div style="padding-left: 4.7rem; text-indent: -4.7rem">
+<p><strong>Step #1:</strong> Consolidate similar addresses by applying <code>stringdist()</code> to build a graph of connected components based on string similarity, then use Depth-First Search (DFS) to aggregate nearest-neighbor address variants. From each resulting cluster, randomly select one representative address to carry forward. For addresses that failed the longitude/latitude similarity check, retain only the distinct address versions associated with a given business.</p>
+<p><strong>Step #2:</strong> Validate each address against a reliable reference database, such as the <a href="https://developers.usps.com/addressesv3">USPS Address 3.0</a> API, and retain whichever variant is confirmed as valid, or substitute it with the standardized suggestion returned by the database.</p>
+<p><strong>Step #3:</strong> Validate the longitude and latitude associated with an address using the <a href="https://geocoding.geo.census.gov/geocoder/">US Census Bureau’s Geocoder</a> API.</p>
+<p><strong>Step #4:</strong> Associate a PO Box with a physical addresses and identify moves based on longitude/latitude nearness.</p>
+<p><strong>Step #5:</strong> Using the street address (and for PO Boxes, the associated street address defined in the previous step) add the census tract and county for the 2000, 2010, and 2020 decennial years also using the US Census Bureau’s Geocoder API. This will improve accuracy when calculating metrics over different decennial years and mitigate map projection mismatching.</p>
+</div>
+<div class="callout callout-style-default callout-caution callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Caution</span>Validation Sources
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>In addition to the resources referenced above, the following candidate databases were considered for validating the listed physical addresses and geolocations:</p>
+<ul>
+<li>Environmental Systems Research Institute, Inc.&nbsp;(Esri) StreetMap Premium and the local version available to Yale affiliates</li>
+<li>Google Maps API</li>
+</ul>
+<p>These sources were ultimately not used due to a combination of limiting factors. Under the applicable Data Use Agreements (DUAs), it was necessary to confirm that no API usage would violate the terms of those agreements. The USPS and U.S. Census Bureau APIs were approved following coordination with the relevant security review processes; however, accessing the Esri online database or Google Maps API required additional review.</p>
+<p>The review process was initiated for the Google Maps API given its anticipated capacity to efficiently validate addresses and geolocation. However, the review extended beyond the project timeline, rendering those resources inaccessible. Additionally, Esri requires manual adjudication of alternative address suggestions, which would have been prohibitively time-intensive. Researchers from the <a href="https://geospatial.yale.edu/">Yale Center for Geospatial Solutions (YCGS)</a> further noted that the online Esri resource is more current and robust than its locally hosted counterpart, suggesting that the local version would offer little advantage over the USPS Address 3.0 database in terms of address validation quality.</p>
+</div>
+</div>
+</section>
+<section id="code-optimization" class="level2">
+<h2 class="anchored" data-anchor-id="code-optimization">Code Optimization</h2>
+<p>Selected code excerpts are provided below. The complete code used to generate this report can be found in <a href="https://github.com/ysph-dsde/church-closures/blob/main/Code/Clean%20Raw%20Data_Step%201.R">Code/Clean Raw Data_Step 1.R</a>.</p>
+<p>During the initial development of this process, from late July through the first prototype unveiling on June 18<sup>th</sup>, 2025, priority was placed on rapidly processing the raw data and establishing a viable workflow, rather than on optimization. As a result, many steps were slow to execute, and only a portion of the data could be fully processed in time for the prototype presentation.</p>
+<p>Following the symposium, it was determined that running the pipeline on Yale’s High Performance Computing (HPC) infrastructure could reduce processing time. Consultation with researchers at the <a href="https://research.computing.yale.edu/">Yale Center for Research Computing (YCRC)</a> surfaced two critical considerations:</p>
+<ol type="1">
+<li><p><strong>Script Efficiency:</strong> Processing scripts must be optimized prior to deployment. This is necessary both for the responsible use of shared computational resources and because the HPC is unlikely to compensate for inefficient code.</p></li>
+<li><p><strong>API Constraints:</strong> Workflow steps dependent on external API calls are bounded by those services’ rate limits and response latencies. These bottlenecks are not addressable through parallelization.</p></li>
+</ol>
+<p>Functions with long local runtimes, even when parallelized with the <code>future.apply</code> package, were profiled using <code>profvis</code>, a tool for identifying where R spends the most time during execution. This analysis revealed two operations as primary contributors to inflation of the overall processing time: subsetting data and combining data by rows (row-binding).</p>
+<p>To address these bottlenecks, three approaches were benchmarked: base R, the <code>tidyverse</code>, and <code>data.table</code>. Within each approach, specific strategies were also compared, for example, <code>dplyr::filter()</code> vs.&nbsp;<code>dplyr::semi_join()</code> for subsetting, and <code>data.table::rbindlist()</code> applied within a loop vs.&nbsp;after loop completion for row-binding.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="do">## ----------------------------------------------------------------</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="do">## PART A: Enhancing Function Performance and Efficiency</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Different methods were compared to enhance function speed and scalability, </span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># identifying the most efficient approaches for both local computations and </span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># high-performance computing (HPC) environments.</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># The `profvis` package was used to pinpoint code sections that consume the </span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># most memory and execution time. The `profvis` function is commented out </span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># around the optimized code sections.</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>search_space <span class="ot">&lt;-</span> duplicates_detected<span class="sc">$</span>abi</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="do">## --------------------</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="do">## SUBSECTION A1: Optimizing Data Subsetting</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert the 'church_wide' data frame to a data.table for efficient data manipulation</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>church_wide_dt <span class="ot">&lt;-</span> <span class="fu">as.data.table</span>(church_wide)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Benchmark different methods of subsetting the data frame</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>mb <span class="ot">&lt;-</span> <span class="fu">microbenchmark</span>(</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Method 1: Using base R subsetting with %in%</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">baseR =</span> { subset_base <span class="ot">&lt;-</span> church_wide[church_wide<span class="sc">$</span>abi <span class="sc">%in%</span> search_space[<span class="dv">1</span>],] },</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Method 2: Using dplyr's filter function with %in%</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">dplyr_in =</span> { subset_dplyr <span class="ot">&lt;-</span> church_wide <span class="sc">%&gt;%</span> <span class="fu">filter</span>(abi <span class="sc">%in%</span> search_space[<span class="dv">1</span>]) },</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Method 3: Using dplyr's semi_join function for efficient subsetting</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>  <span class="at">dplyr_join =</span> { subset_dplyr_join <span class="ot">&lt;-</span> church_wide <span class="sc">%&gt;%</span> <span class="fu">semi_join</span>(<span class="fu">data.frame</span>(<span class="at">abi =</span> search_space[<span class="dv">1</span>]), <span class="at">by =</span> <span class="st">"abi"</span>) },</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Method 4: Using data.table's efficient subsetting with %in%</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>  <span class="at">data.table =</span> { subset_dt <span class="ot">&lt;-</span> church_wide_dt[abi <span class="sc">%in%</span> search_space[<span class="dv">1</span>]] },</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Number of times to evaluate each expression</span></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>  <span class="at">times =</span> <span class="dv">100</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a><span class="do">## --------------------</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a><span class="do">## SUBSECTION A2: Optimizing Data Combination</span></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a large sample dataset for testing</span></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="fl">1e5</span></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>church_wide_test <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">abi =</span> <span class="fu">sample</span>(letters, n, <span class="at">replace =</span> <span class="cn">TRUE</span>), <span class="at">value =</span> <span class="fu">rnorm</span>(n))</span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>search_space <span class="ot">&lt;-</span> <span class="fu">sample</span>(letters, <span class="dv">10</span>)</span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a><span class="co"># Dummy 'build' data frame for simulation purposes</span></span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>build <span class="ot">&lt;-</span> church_wide_test[<span class="dv">1</span><span class="sc">:</span><span class="dv">1000</span>, ]</span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="co"># Method 1: Base R rbind in a loop</span></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>base_rbind <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>  finish_build <span class="ot">&lt;-</span> <span class="fu">data.frame</span>()</span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(search_space)) {</span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>    finish_build <span class="ot">&lt;-</span> <span class="fu">rbind</span>(finish_build, build)</span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(finish_build)</span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a><span class="co"># Method 2: dplyr bind_rows in a loop</span></span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>dplyr_bind_rows <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>  finish_build <span class="ot">&lt;-</span> <span class="fu">tibble</span>()</span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(search_space)) {</span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>    finish_build <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(finish_build, build)</span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(finish_build)</span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a><span class="co"># Method 3: data.table rbindlist in a loop</span></span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>data_table_rbindlist <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>  finish_build <span class="ot">&lt;-</span> <span class="fu">data.table</span>()</span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(search_space)) {</span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>    finish_build <span class="ot">&lt;-</span> <span class="fu">rbindlist</span>(<span class="fu">list</span>(finish_build, build), <span class="at">use.names =</span> <span class="cn">TRUE</span>, <span class="at">fill =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(finish_build)</span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a><span class="co"># Method 4: Accumulate in a list and do.call rbind once</span></span>
+<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a>accumulate_list <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
+<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a>  result_list <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="st">"list"</span>, <span class="fu">length</span>(search_space))</span>
+<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(search_space)) {</span>
+<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a>    result_list[[i]] <span class="ot">&lt;-</span> build</span>
+<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="fu">do.call</span>(rbind, result_list))</span>
+<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a><span class="co"># Method 5: Accumulate in a list and data.table rbindlist once</span></span>
+<span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a>data_table_accumulate_list <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
+<span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a>  result_list <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="st">"list"</span>, <span class="fu">length</span>(search_space))</span>
+<span id="cb1-90"><a href="#cb1-90" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(search_space)) {</span>
+<span id="cb1-91"><a href="#cb1-91" aria-hidden="true" tabindex="-1"></a>    result_list[[i]] <span class="ot">&lt;-</span> build</span>
+<span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb1-93"><a href="#cb1-93" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="fu">rbindlist</span>(result_list, <span class="at">use.names =</span> <span class="cn">TRUE</span>, <span class="at">fill =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb1-94"><a href="#cb1-94" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-95"><a href="#cb1-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-96"><a href="#cb1-96" aria-hidden="true" tabindex="-1"></a><span class="co"># Benchmark the different methods</span></span>
+<span id="cb1-97"><a href="#cb1-97" aria-hidden="true" tabindex="-1"></a>mb <span class="ot">&lt;-</span> <span class="fu">microbenchmark</span>(</span>
+<span id="cb1-98"><a href="#cb1-98" aria-hidden="true" tabindex="-1"></a>  <span class="at">base_rbind =</span> <span class="fu">base_rbind</span>(),</span>
+<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a>  <span class="at">dplyr_bind_rows =</span> <span class="fu">dplyr_bind_rows</span>(),</span>
+<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a>  <span class="at">data_table_rbindlist =</span> <span class="fu">data_table_rbindlist</span>(),</span>
+<span id="cb1-101"><a href="#cb1-101" aria-hidden="true" tabindex="-1"></a>  <span class="at">accumulate_list =</span> <span class="fu">accumulate_list</span>(),</span>
+<span id="cb1-102"><a href="#cb1-102" aria-hidden="true" tabindex="-1"></a>  <span class="at">data_table_accumulate_list =</span> <span class="fu">data_table_accumulate_list</span>(),</span>
+<span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a>  <span class="at">times =</span> <span class="dv">10</span></span>
+<span id="cb1-104"><a href="#cb1-104" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <u>Optimizing Data Subsetting</u></p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Cleaning-and-Harmonization_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <u>Optimizing Data Row-Binding</u></p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Cleaning-and-Harmonization_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</div>
+</div>
+<p>Overall, processing a large data frame using the <code>data.table</code> class proved to be the most computationally efficient approach. Additionally, applying <code>data.table::rbindlist()</code> after a loop was found to be more efficient than base R’s <code>do.call()</code>, while sequentially applying <code>data.table::rbindlist()</code> within a loop yielded comparable results to the latter.</p>
+</section>
+<section id="step-1-results" class="level2">
+<h2 class="anchored" data-anchor-id="step-1-results">Step #1 Results</h2>
+<p>Selected code excerpts are provided below. The complete code used to generate this report can be found in <a href="https://github.com/ysph-dsde/church-closures/blob/main/Code/Clean%20Raw%20Data_Step%201.R">Code/Clean Raw Data_Step 1.R</a>.</p>
+<p>Data evaluation (<a href="Review.html">Review</a>) revealed that most reduplicated entries arise from either new addresses added within the observation period or typographical errors. To resolve this, <code>stringdist()</code> and Depth-First Search (DFS) are used to cluster similar address variants, with one address randomly selected from each group to carry forward.</p>
+<p>While manual adjudication would be required to guarantee that the retained address is a verified street address, the approach described here incorporates a Boolean quality check to flag potentially incorrect combinations of similar but distinct addresses. This check evaluates the maximum change in geographic coordinates (longitude and latitude) to ensure that retained address variants are either near-identical or exact matches.</p>
+<p>For reference, one degree of longitude is approximately 69 miles (111 kilometers), while one degree of latitude varies based on proximity to the equator, averaging approximately 54 miles (87 kilometers) across the contiguous United States. The length of a typical U.S. city block also varies, with common estimates ranging from 100 to 200 meters. Based on these benchmarks, a deviation exceeding 0.002 degrees in either longitude or latitude (<span class="math inline">\(\approx\)</span> 222 meters) is used as the threshold for flagging significant geographic discrepancy.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>search_space <span class="ot">&lt;-</span> duplicates_detected<span class="sc">$</span>abi  <span class="co"># Isolate ABIs that were reduplicated</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>church_wide_dt <span class="ot">&lt;-</span> <span class="fu">as.data.table</span>(church_wide)  <span class="co"># Convert for efficient data manipulation</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>finish_build <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="st">"list"</span>, <span class="fu">length</span>(search_space))  <span class="co"># Initialize an empty list</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>pb <span class="ot">=</span> <span class="fu">txtProgressBar</span>(<span class="at">min =</span> <span class="dv">0</span>, <span class="at">max =</span> <span class="fu">length</span>(search_space), <span class="at">style =</span> <span class="dv">3</span>)  <span class="co"># Initialize progress bar</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co">#profvis({</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(search_space)) {</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Subset to show only the entries associated with one reduplicated ABI.</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  subset <span class="ot">&lt;-</span> church_wide_dt[abi <span class="sc">%in%</span> search_space[i]]</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --------------------</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Match addresses that are similar for compression.</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Fill in empty address lines with "None Given".</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">any</span>(<span class="fu">is.na</span>(subset<span class="sc">$</span>address_line_1))) {</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    subset[<span class="fu">is.na</span>(subset<span class="sc">$</span>address_line_1), <span class="st">"address_line_1"</span>] <span class="ot">&lt;-</span> <span class="st">"None Given"</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Make the entire address elements into one string.</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>  compile_address <span class="ot">&lt;-</span> <span class="fu">str_c</span>(subset<span class="sc">$</span>address_line_1, subset<span class="sc">$</span>city, subset<span class="sc">$</span>state, subset<span class="sc">$</span>zipcode, <span class="at">sep =</span> <span class="st">", "</span>)</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Use the support function find_similar_addresses() to compare the addresses</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>  <span class="co"># and assign them into groups based on degree of similarity.</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>  match <span class="ot">&lt;-</span> <span class="fu">find_similar_addresses</span>(<span class="fu">as.character</span>(compile_address))</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --------------------</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Reconcile metadata with mismatched outcomes within assigned groups.</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>  <span class="co"># The North American Industry Classification System (NAICS) code for </span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Religious Organizations is 813110. Any additional characters beyond the </span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>  <span class="co"># six-digit code do not have a defined meaning in NAICS and may represent </span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>  <span class="co"># something else. We will retain these additional values for reference.</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>  <span class="co">#</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Source: https://www.census.gov/naics/?input=813110&amp;year=2022&amp;details=813110</span></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>  extra_naics_code <span class="ot">&lt;-</span> <span class="fu">str_replace</span>(subset<span class="sc">$</span>primary_naics_code, <span class="st">"813110"</span>, <span class="st">""</span>) <span class="sc">%&gt;%</span> <span class="fu">unique</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>    (\(x) { <span class="fu">str_flatten</span>(x, <span class="at">collapse =</span> <span class="st">", "</span>) }) ()</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Some entries report different years established, even though they are </span></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>  <span class="co"># associated with the same address. We will retain these differing year values </span></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>  <span class="co"># for reference.</span></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>  year_est <span class="ot">&lt;-</span> subset<span class="sc">$</span>year_established <span class="sc">%&gt;%</span> <span class="fu">unique</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>    (\(x) { x[<span class="sc">!</span><span class="fu">is.na</span>(x)] }) () <span class="sc">%&gt;%</span> <span class="fu">sort</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>    (\(y) { <span class="fu">str_flatten</span>(y, <span class="at">collapse =</span> <span class="st">", "</span>) }) ()</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Fill in empty year established lines with None listed".</span></span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(year_est) <span class="sc">==</span> <span class="dv">0</span>) {</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>    year_est <span class="ot">&lt;-</span> <span class="st">"None listed"</span></span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --------------------</span></span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Rebuild the dataframe and remove erroneous reduplicates</span></span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Define the starting structure of the metadata that will be used to build the</span></span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>  <span class="co"># new dataframe that collapses reduplicates.</span></span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>  seed <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="st">"abi"</span> <span class="ot">=</span> <span class="fu">unique</span>(subset<span class="sc">$</span>abi), <span class="st">"year_established"</span> <span class="ot">=</span> year_est,</span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>                     <span class="st">"primary_naics_code"</span> <span class="ot">=</span> <span class="dv">813110</span>, <span class="st">"extra_naics_code"</span> <span class="ot">=</span> extra_naics_code,</span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>                     <span class="st">"naics8_descriptions"</span> <span class="ot">=</span> <span class="st">"Religious Organizations"</span>)</span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Stepwise collapse the duplicates.</span></span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>  build <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(match)) {</span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Pull out rows that are affiliated with similar addresses.</span></span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>    change_these <span class="ot">&lt;-</span> <span class="fu">sapply</span>(match[[j]], <span class="cf">function</span>(x) <span class="fu">str_split</span>(x, <span class="st">", "</span>)[[<span class="dv">1</span>]][<span class="dv">1</span>]) <span class="sc">%&gt;%</span> <span class="fu">as.vector</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>      (\(y) { <span class="fu">map_lgl</span>(subset<span class="sc">$</span>address_line_1, <span class="sc">~</span> <span class="fu">any</span>(<span class="fu">str_detect</span>(.x, y))) }) ()</span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Sum over the openings.</span></span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a>    dates <span class="ot">&lt;-</span> <span class="fu">sapply</span>(subset[change_these, <span class="dv">11</span><span class="sc">:</span><span class="dv">31</span>], <span class="cf">function</span>(x) <span class="fu">sum</span>(x, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a>      (\(x) { <span class="fu">as.data.frame</span>(<span class="fu">t</span>(x)) }) ()</span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Test how similar the longitude and latitude are.</span></span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a>    negligible_change <span class="ot">&lt;-</span> <span class="fl">0.002</span>  <span class="co"># Change in degrees (~222 meters or 728 feet)</span></span>
+<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a>    lonLat_test <span class="ot">&lt;-</span> <span class="fu">abs</span>(<span class="fu">max</span>(subset[change_these, ]<span class="sc">$</span>longitude) <span class="sc">-</span> <span class="fu">min</span>(subset[change_these, ]<span class="sc">$</span>longitude)) <span class="sc">&lt;</span> negligible_change <span class="sc">&amp;</span></span>
+<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a>      <span class="fu">abs</span>(<span class="fu">max</span>(subset[change_these, ]<span class="sc">$</span>latitude) <span class="sc">-</span> <span class="fu">min</span>(subset[change_these, ]<span class="sc">$</span>latitude)) <span class="sc">&lt;</span> negligible_change</span>
+<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a>    build <span class="ot">&lt;-</span> <span class="fu">rbind</span>(build, <span class="fu">cbind</span>(</span>
+<span id="cb2-77"><a href="#cb2-77" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Use the ABI as the first column.</span></span>
+<span id="cb2-78"><a href="#cb2-78" aria-hidden="true" tabindex="-1"></a>      seed[, <span class="dv">1</span>, <span class="at">drop =</span> <span class="cn">FALSE</span>],</span>
+<span id="cb2-79"><a href="#cb2-79" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Without validating the correct address with the USPS, we'll arbitrarily</span></span>
+<span id="cb2-80"><a href="#cb2-80" aria-hidden="true" tabindex="-1"></a>      <span class="co"># choose the first entry. Format the address over different columns.</span></span>
+<span id="cb2-81"><a href="#cb2-81" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_split</span>(match[[j]][<span class="dv">1</span>], <span class="st">", "</span>) <span class="sc">%&gt;%</span> <span class="fu">unlist</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb2-82"><a href="#cb2-82" aria-hidden="true" tabindex="-1"></a>        (\(x) { <span class="fu">as.data.frame</span>(<span class="fu">t</span>(x)) }) () <span class="sc">%&gt;%</span></span>
+<span id="cb2-83"><a href="#cb2-83" aria-hidden="true" tabindex="-1"></a>        <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"address_line_1"</span>, <span class="st">"city"</span>, <span class="st">"state"</span>, <span class="st">"zipcode"</span>)),</span>
+<span id="cb2-84"><a href="#cb2-84" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Store the compiled address string.</span></span>
+<span id="cb2-85"><a href="#cb2-85" aria-hidden="true" tabindex="-1"></a>      <span class="fu">as.data.frame</span>(match[[j]][<span class="dv">1</span>]) <span class="sc">%&gt;%</span> <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"compiled_address"</span>)),</span>
+<span id="cb2-86"><a href="#cb2-86" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Add the longitudes and latitude values. Add an indicator if the</span></span>
+<span id="cb2-87"><a href="#cb2-87" aria-hidden="true" tabindex="-1"></a>      <span class="co"># longitude or latitude were not similar.</span></span>
+<span id="cb2-88"><a href="#cb2-88" aria-hidden="true" tabindex="-1"></a>      <span class="fu">as.data.frame</span>(lonLat_test) <span class="sc">%&gt;%</span> <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"lonLat_test"</span>)),</span>
+<span id="cb2-89"><a href="#cb2-89" aria-hidden="true" tabindex="-1"></a>      <span class="fu">as.data.frame</span>(<span class="fu">mean</span>(subset[change_these, ]<span class="sc">$</span>latitude)) <span class="sc">%&gt;%</span> <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"latitude"</span>)),</span>
+<span id="cb2-90"><a href="#cb2-90" aria-hidden="true" tabindex="-1"></a>      <span class="fu">as.data.frame</span>(<span class="fu">mean</span>(subset[change_these, ]<span class="sc">$</span>longitude)) <span class="sc">%&gt;%</span> <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"longitude"</span>)),</span>
+<span id="cb2-91"><a href="#cb2-91" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Add the rest of the metadata.</span></span>
+<span id="cb2-92"><a href="#cb2-92" aria-hidden="true" tabindex="-1"></a>      seed[, <span class="sc">-</span><span class="dv">1</span>, <span class="at">drop =</span> <span class="cn">FALSE</span>],</span>
+<span id="cb2-93"><a href="#cb2-93" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Finally, add the summed dates.</span></span>
+<span id="cb2-94"><a href="#cb2-94" aria-hidden="true" tabindex="-1"></a>      dates</span>
+<span id="cb2-95"><a href="#cb2-95" aria-hidden="true" tabindex="-1"></a>    ))</span>
+<span id="cb2-96"><a href="#cb2-96" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb2-97"><a href="#cb2-97" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-98"><a href="#cb2-98" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Store 'build' in the list.</span></span>
+<span id="cb2-99"><a href="#cb2-99" aria-hidden="true" tabindex="-1"></a>  finish_build[[i]] <span class="ot">&lt;-</span> build</span>
+<span id="cb2-100"><a href="#cb2-100" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-101"><a href="#cb2-101" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Print the for loop's progress.</span></span>
+<span id="cb2-102"><a href="#cb2-102" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setTxtProgressBar</span>(pb, i)</span>
+<span id="cb2-103"><a href="#cb2-103" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-104"><a href="#cb2-104" aria-hidden="true" tabindex="-1"></a><span class="co">#})</span></span>
+<span id="cb2-105"><a href="#cb2-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-106"><a href="#cb2-106" aria-hidden="true" tabindex="-1"></a><span class="co"># Combine all data tables in the list into one data table.</span></span>
+<span id="cb2-107"><a href="#cb2-107" aria-hidden="true" tabindex="-1"></a>finish_build <span class="ot">&lt;-</span> <span class="fu">rbindlist</span>(finish_build, <span class="at">use.names =</span> <span class="cn">TRUE</span>, <span class="at">fill =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-108"><a href="#cb2-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-109"><a href="#cb2-109" aria-hidden="true" tabindex="-1"></a><span class="co"># Commit results.</span></span>
+<span id="cb2-110"><a href="#cb2-110" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(finish_build, <span class="at">file =</span> <span class="st">"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B_1_11.12.2025.csv"</span>)</span>
+<span id="cb2-111"><a href="#cb2-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-112"><a href="#cb2-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-113"><a href="#cb2-113" aria-hidden="true" tabindex="-1"></a><span class="co"># Read in previously generated results.</span></span>
+<span id="cb2-114"><a href="#cb2-114" aria-hidden="true" tabindex="-1"></a>finish_build <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B_1_11.12.2025.csv"</span>, </span>
+<span id="cb2-115"><a href="#cb2-115" aria-hidden="true" tabindex="-1"></a>                         <span class="at">col_types =</span> <span class="fu">cols</span>(<span class="at">...1 =</span> <span class="fu">col_skip</span>())) <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<section id="verify-no-duplicates-got-added" class="level3">
+<h3 class="anchored" data-anchor-id="verify-no-duplicates-got-added">Verify No Duplicates Got Added</h3>
+<p>Some address entries may have been grouped multiple times or mistakenly added as duplicates by the previous function. This likely occurred in the “build” section, where <code>address_line_1</code> matched unique, similar addresses that differed in other aspects like <code>state</code>, <code>city</code>, or <code>zipcode.</code></p>
+<p>We use the custom function <code>check_all_counts_0_or_1()</code> to identify and extract these instances by performing a column-wise sum over each date of entry and verifying that counts are either zero or one.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Count the number of unique ABIs where duplicates were detected.</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>total_groups <span class="ot">&lt;-</span> finish_build <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(abi) <span class="sc">%&gt;%</span> <span class="fu">n_groups</span>()</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize progress bar</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>pb <span class="ot">&lt;-</span> progress_bar<span class="sc">$</span><span class="fu">new</span>(</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">format =</span> <span class="st">"  processing [:bar] :percent eta: :eta"</span>,</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">total =</span> total_groups,</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">clear =</span> <span class="cn">FALSE</span>, <span class="at">width =</span> <span class="dv">60</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>test_no_dup <span class="ot">&lt;-</span> finish_build <span class="sc">%&gt;%</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Group the data by ABI to be processed separately.</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(abi) <span class="sc">%&gt;%</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Apply the custom function 'check_all_counts_0_or_1' with progress tracking to each group.</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_modify</span>(<span class="sc">~</span> <span class="fu">process_with_progress</span>(pb, .x, check_all_counts_0_or_1)) <span class="sc">%&gt;%</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Remove the grouping to return to an ungrouped data frame.</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Convert the grouped data back to a standard data frame.</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>()</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Commit results.</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(test_no_dup, <span class="at">file =</span> <span class="st">"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B1_04.22.2026.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>             
+1  TRUE 97.35
+2 FALSE  2.65</code></pre>
+</div>
+</div>
+<p>Approximately 2.6% of the ABIs examined had issues that resulted in the introduction of duplications where there were none.</p>
+</section>
+<section id="explore-the-nature-of-duplications-added" class="level3">
+<h3 class="anchored" data-anchor-id="explore-the-nature-of-duplications-added">Explore the Nature of Duplications Added</h3>
+<p>Since duplicates were erroneously introduced by the function, we sought to further investigate how they arose. The similar address collapsing algorithm may assign addresses that are actually similar to different clusters, artificially generating duplicate records. Because address accuracy has not yet been validated, we wanted to determine whether the information within these duplicates is identical. If so, one instance could be removed, simplifying the resolution process. If not, this may suggest that the algorithm detected a previously unaccounted-for inconsistency.</p>
+<p>The reduplication function marks the first occurrence as duplicated = <code>FALSE</code> and all subsequent occurrences of the same record as duplicated = <code>TRUE</code>. If our assumption that duplicates stem from slightly different address representations of otherwise identical records is correct, we would expect an equal number of <code>TRUE</code> and <code>FALSE</code> values in the <code>is_unique</code> field. However, this does not appear to be the case.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="do">## --------------------</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="do">## SUBSECTION B2: Explore the Nature of Duplications</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize progress bar</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>pb <span class="ot">&lt;-</span> <span class="fu">txtProgressBar</span>(<span class="at">min =</span> <span class="dv">0</span>, <span class="at">max =</span> <span class="fu">nrow</span>(finish_build[finish_build<span class="sc">$</span>abi <span class="sc">%in%</span> dup_added, ]), <span class="at">style =</span> <span class="dv">3</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>new_info <span class="ot">&lt;-</span> <span class="fu">mutate_with_progress</span>(</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Subset the data to include only ABIs with new duplicates.</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">df =</span> finish_build[finish_build<span class="sc">$</span>abi <span class="sc">%in%</span> dup_added, ],</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Specify the columns to check for duplications.</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">cols_to_convert =</span> <span class="fu">grep</span>(<span class="st">"^20"</span>, <span class="fu">names</span>(finish_build), <span class="at">value =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Define the columns to group by.</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">grouping_cols =</span> <span class="fu">c</span>(<span class="st">"abi"</span>, <span class="st">"address_line_1"</span>),</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Custom function to check for duplicates and set 'is_unique'.</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">conversion_func =</span> check_duplicates_unique_info,</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Progress bar to visually track the conversion process.</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">pb =</span> pb</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>isolate_easy_duplicates <span class="ot">&lt;-</span> new_info <span class="sc">%&gt;%</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Group the data by ABI to be processed separately.</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(abi) <span class="sc">%&gt;%</span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Summarize the counts of TRUE and FALSE in "is_unique", ignoring NA's.</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">count_TRUE =</span> <span class="fu">sum</span>(is_unique, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">count_FALSE =</span> <span class="fu">sum</span>(<span class="sc">!</span>is_unique, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Remove the grouping to return to an ungrouped data frame.</span></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>    FALSE
+TRUE    0    1  2
+   0 8074    0  0
+   1    0 6527 44
+   2  612    6 30
+   3    0    7  0</code></pre>
+</div>
+</div>
+<p>Entries with balanced or <code>FALSE</code>-majority results (up to 2 <code>TRUE</code> and 2 <code>FALSE</code>, or 1 <code>TRUE</code> and 2 <code>FALSE</code>) are not expected to contain anomalies, and the majority of entries fall into these categories. For thoroughness, we can examine entries where an unequal number or no duplicates was identified.</p>
+<p>Among businesses with more duplicates, all duplicates share the same state, while each duplicate lists a unique city. For entries that include an <code>address_line_1</code>, the address is identical across all duplicates, with 12 entries lacking an <code>address_line_1</code> altogether. Zip codes vary across duplicates, where some businesses share the same zip code across all duplicate records, while others do not.</p>
+<p>Among businesses with less or no duplicates, they suggest that the similar address clustering algorithm did not fully consolidate related addresses; some addresses were correctly grouped into the same cluster, while others were not. Based on this, we can reasonably assume that duplicate entries sharing the same <code>address_line_1</code> represent the same business and should be treated as a single record. Note that this verification was performed manually, and only a subset of results was inspected.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>more_true <span class="ot">&lt;-</span> isolate_easy_duplicates <span class="sc">%&gt;%</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>((count_TRUE <span class="sc">==</span> <span class="dv">2</span> <span class="sc">&amp;</span> count_FALSE <span class="sc">&lt;=</span> <span class="dv">1</span>) <span class="sc">|</span> (count_TRUE <span class="sc">==</span> <span class="dv">3</span> <span class="sc">&amp;</span> count_FALSE <span class="sc">&lt;=</span> <span class="dv">2</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(abi)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Example of how individual outcomes were examined.</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>new_info <span class="sc">%&gt;%</span> <span class="fu">filter</span>(abi <span class="sc">%in%</span> more_true[<span class="dv">45</span>]) <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>()</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>church_wide <span class="sc">%&gt;%</span> <span class="fu">filter</span>(abi <span class="sc">%in%</span> more_true[<span class="dv">45</span>]) <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>From these outcomes, it is apparent that some similar addresses were not clustered, thereby avoiding the duplication error and being retained with different information. While complete deduplication of all similar addresses is not a requirement for this analysis, there may be an opportunity to further collapse similar addresses once they have been validated against a reference. Addresses that were not clustered but represent the same location may ultimately be associated with the same suggested address upon validation.</p>
+<p>Because some <code>address_line_1</code> entries were left blank, we can examine the distribution of longitude and latitude degree differences for these entries and compare them against entries where an address was provided. This analysis is restricted to ABIs where more duplicates than expected were detected, though the insights are generalizable to the overall expected geolocation accuracy across the dataset.</p>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><u>Has an <code>address_line_1</code></u></p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>         Longitude  Latitude
+    Min. 0.0009400 0.0059600
+ 1st Qu. 0.0305615 0.0310300
+  Median 0.1386900 0.0944600
+    Mean 0.2523987 0.1854619
+ 3rd Qu. 0.1901250 0.1649600
+    Max. 3.2524900 1.0835800</code></pre>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<p><u>No <code>address_line_1</code> Listed</u></p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>         Longitude  Latitude
+    Min. 0.1492200 0.0037800
+ 1st Qu. 0.2589375 0.0638700
+  Median 0.6445750 0.4594750
+    Mean 0.9893000 0.4548877
+ 3rd Qu. 1.3749375 0.8504927
+    Max. 2.5188300 0.8968210</code></pre>
+</div>
+</div>
+</div>
+</div>
+<p>The span of geolocation is similar between businesses with and without an <code>address_line_1</code>, though entries lacking an <code>address_line_1</code> show a slightly higher geolocation variance on average. Of the 12 entries that failed the geolocation test, none appear to have a clearly defined address, making it difficult to confidently determine whether they represent the same or distinct locations. As a result, these entries are considered unverifiable and will be flagged for exclusion from the final, cleaned dataset.</p>
+</section>
+<section id="similar-addresses-geolocation-discrepancies" class="level3">
+<h3 class="anchored" data-anchor-id="similar-addresses-geolocation-discrepancies">Similar Addresses: Geolocation Discrepancies</h3>
+<p>The function above includes a quality check to flag combinations of addresses that appear similar based on the <code>stringdist()</code> function and the DFS algorithm, but are associated with different longitude and latitude locations (greater than a 0.002-degree difference). Although we have not yet validated the geolocation data, particularly given the discrepancies identified with PO Boxes, this check provides a reasonable assurance when combining addresses that might be separated due to typographical errors.</p>
+<p>Approximately 15% of the entries (<span class="math inline">\(\approx\)</span> 120K entries) failed this test, and less than 1% failed to complete the test. All entries that failed the geolocation test have <code>NA</code> values in both the longitude and latitude fields of the address. We can keep these for now, and remove any that do not match with the geolocation referential database. When inspecting a few examples, we see that some of these might be correctly identified similar addresses and the provided longitude and latitude have some error range. This is consistent with results observed in the previous section.</p>
+<p>To get a sense of how many entries share the exact same <code>address_line_1</code>, the number of clusters generated under two conditions will be compared: one using relaxed string similarity settings at the same threshold as above, and one requiring an exact match.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="do">## --------------------</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="do">## SUBSECTION B3: Similar Addresses: Geolocation Discrepancies</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>original_addresses <span class="ot">&lt;-</span> church_wide <span class="sc">%&gt;%</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(abi <span class="sc">%in%</span> not_same<span class="sc">$</span>abi) <span class="sc">%&gt;%</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">compiled_address =</span> <span class="fu">paste</span>(address_line_1, city, state, zipcode, <span class="at">sep =</span> <span class="st">", "</span>))</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialize the base R text progress bar</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>total_abis <span class="ot">&lt;-</span> original_addresses <span class="sc">%&gt;%</span> <span class="fu">distinct</span>(abi) <span class="sc">%&gt;%</span> <span class="fu">nrow</span>()</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>pb <span class="ot">&lt;-</span> <span class="fu">txtProgressBar</span>(<span class="at">min =</span> <span class="dv">0</span>, <span class="at">max =</span> total_abis, <span class="at">style =</span> <span class="dv">3</span>)</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Process each ABI group separately and update the progress bar</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>count_addresses <span class="ot">&lt;-</span> original_addresses <span class="sc">%&gt;%</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(abi) <span class="sc">%&gt;%</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_split</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">map2</span>(<span class="dv">1</span><span class="sc">:</span>total_abis, <span class="sc">~</span><span class="fu">process_with_progress_txt</span>(pb, .x, process_abi_group, .y)) <span class="sc">%&gt;%</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">names&lt;-</span><span class="st">`</span>(original_addresses <span class="sc">%&gt;%</span> <span class="fu">distinct</span>(abi) <span class="sc">%&gt;%</span> <span class="fu">pull</span>())</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>address_counts <span class="ot">&lt;-</span> <span class="fu">count_sublists</span>(count_addresses) <span class="sc">%&gt;%</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">abi =</span> <span class="fu">as.numeric</span>(abi))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>Almost two-third of the failed records involve addresses that are exact duplicates. For these, we will override the test result and mark them as passed. The remaining records will be split back into separate entries and re-evaluated after address validation. Once address validation is complete, the following handling steps will be implemented:</p>
+<ul>
+<li>All records validate to distinct addresses: keep them as separate entries.</li>
+<li>Multiple records validate to the same address: override the longitude/latitude test and merge them into a single record using the validated address and the average of their latitude/longitude values.</li>
+</ul>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="do">## ----------------------------------------------------------------</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="do">## PART C: Resolving Failed Geolocation Tests via Expansion</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co"># The earlier algorithm randomly selected one address to represent each cluster</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="co"># of similar addresses. In some cases, exact duplicate addresses may still remain</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co"># and can be further collapsed; these are processed accordingly, with their</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="co"># average geolocation retained.</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>search_space <span class="ot">&lt;-</span> finish_build <span class="sc">%&gt;%</span> <span class="co"># Isolate ABIs that need to be expanded</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(abi <span class="sc">%in%</span> <span class="fu">names</span>(count_addresses) <span class="sc">&amp;</span> same_num_clusters <span class="sc">==</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(abi) <span class="sc">%&gt;%</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unique</span>()</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="co"># --------------------</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Manual override for specific cases.</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Some addresses are known to yield unfavorable string matches. This section</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="co"># applies a manual override to handle them explicitly.</span></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>count_addresses[<span class="fu">names</span>(count_addresses) <span class="sc">%in%</span> search_space[<span class="dv">299</span>]][[<span class="dv">1</span>]][[<span class="st">"similar"</span>]] <span class="ot">&lt;-</span> </span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>  count_addresses[<span class="fu">names</span>(count_addresses) <span class="sc">%in%</span> search_space[<span class="dv">299</span>]][[<span class="dv">1</span>]][[<span class="st">"exact"</span>]] <span class="sc">%&gt;%</span></span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>  (\(x) <span class="fu">c</span>(<span class="fu">list</span>(<span class="fu">c</span>(x[[<span class="dv">1</span>]], x[[<span class="dv">2</span>]])), x[<span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">4</span>)]))()</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a><span class="co"># --------------------</span></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Continue with the expanding exact addresses.</span></span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>supplement_build <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="st">"list"</span>, <span class="fu">length</span>(search_space))  <span class="co"># Initialize an empty list</span></span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>pb <span class="ot">=</span> <span class="fu">txtProgressBar</span>(<span class="at">min =</span> <span class="dv">0</span>, <span class="at">max =</span> <span class="fu">length</span>(search_space), <span class="at">style =</span> <span class="dv">3</span>)  <span class="co"># Initialize progress bar</span></span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(search_space)) {</span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Expand only unique addresses that failed the longitude/latitude test,</span></span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>  <span class="co"># excluding any ABIs approved for a longitude/latitude test override.</span></span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>  keep_entries <span class="ot">&lt;-</span> finish_build <span class="sc">%&gt;%</span></span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(abi <span class="sc">%in%</span> search_space[i] <span class="sc">&amp;</span> lonLat_test <span class="sc">==</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">same_num_clusters =</span> <span class="fu">as.character</span>(same_num_clusters))</span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>  expand_out <span class="ot">&lt;-</span> finish_build <span class="sc">%&gt;%</span></span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(abi <span class="sc">%in%</span> search_space[i] <span class="sc">&amp;</span> lonLat_test <span class="sc">==</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pull</span>(compiled_address)</span>
+<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Apply the duplication override value to all expanded values so that</span></span>
+<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a>  <span class="co"># the result is retained.</span></span>
+<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a>  override_dup_value <span class="ot">&lt;-</span> finish_build <span class="sc">%&gt;%</span></span>
+<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(abi <span class="sc">%in%</span> search_space[i] <span class="sc">&amp;</span> lonLat_test <span class="sc">==</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pull</span>(override_duplicate)</span>
+<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Save the pattern used to match similar addresses. Addresses with a failed</span></span>
+<span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a>  <span class="co"># longitude/latitude test will be collapsed to exact matches only.</span></span>
+<span id="cb11-49"><a href="#cb11-49" aria-hidden="true" tabindex="-1"></a>  collapse_pattern <span class="ot">&lt;-</span> count_addresses[<span class="fu">names</span>(count_addresses) <span class="sc">%in%</span> search_space[i]][[<span class="dv">1</span>]][[<span class="st">"similar"</span>]]</span>
+<span id="cb11-50"><a href="#cb11-50" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-51"><a href="#cb11-51" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Vector of clusters containing the addresses being expanded.</span></span>
+<span id="cb11-52"><a href="#cb11-52" aria-hidden="true" tabindex="-1"></a>  expand_out <span class="ot">&lt;-</span> <span class="fu">str_replace</span>(expand_out, <span class="st">"None Given"</span>, <span class="st">"NA"</span>)</span>
+<span id="cb11-53"><a href="#cb11-53" aria-hidden="true" tabindex="-1"></a>  matches    <span class="ot">&lt;-</span> <span class="fu">lapply</span>(collapse_pattern, <span class="cf">function</span>(x) <span class="fu">str_detect</span>(<span class="fu">str_c</span>(expand_out, <span class="at">collapse =</span> <span class="st">"|"</span>), x) <span class="sc">%&gt;%</span> <span class="fu">any</span>()) <span class="sc">%&gt;%</span> <span class="fu">unlist</span>()</span>
+<span id="cb11-54"><a href="#cb11-54" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-55"><a href="#cb11-55" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Subset entries that require exact address matching instead of similar matching.</span></span>
+<span id="cb11-56"><a href="#cb11-56" aria-hidden="true" tabindex="-1"></a>  subset <span class="ot">&lt;-</span> original_addresses <span class="sc">%&gt;%</span></span>
+<span id="cb11-57"><a href="#cb11-57" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(abi <span class="sc">%in%</span> search_space[i] <span class="sc">&amp;</span> compiled_address <span class="sc">%in%</span> <span class="fu">unlist</span>(collapse_pattern[matches]))</span>
+<span id="cb11-58"><a href="#cb11-58" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-59"><a href="#cb11-59" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-60"><a href="#cb11-60" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --------------------</span></span>
+<span id="cb11-61"><a href="#cb11-61" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Match addresses that are similar for compression.</span></span>
+<span id="cb11-62"><a href="#cb11-62" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-63"><a href="#cb11-63" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Fill in empty address lines with "None Given".</span></span>
+<span id="cb11-64"><a href="#cb11-64" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">any</span>(<span class="fu">is.na</span>(subset<span class="sc">$</span>address_line_1))) {</span>
+<span id="cb11-65"><a href="#cb11-65" aria-hidden="true" tabindex="-1"></a>    subset[<span class="fu">is.na</span>(subset<span class="sc">$</span>address_line_1), <span class="st">"address_line_1"</span>] <span class="ot">&lt;-</span> <span class="st">"None Given"</span></span>
+<span id="cb11-66"><a href="#cb11-66" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb11-67"><a href="#cb11-67" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-68"><a href="#cb11-68" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Make the entire address elements into one string.</span></span>
+<span id="cb11-69"><a href="#cb11-69" aria-hidden="true" tabindex="-1"></a>  compile_address <span class="ot">&lt;-</span> subset<span class="sc">$</span>compiled_address</span>
+<span id="cb11-70"><a href="#cb11-70" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-71"><a href="#cb11-71" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Use the support function find_similar_addresses() to compare the addresses</span></span>
+<span id="cb11-72"><a href="#cb11-72" aria-hidden="true" tabindex="-1"></a>  <span class="co"># and assign them into groups based on exact similarity.</span></span>
+<span id="cb11-73"><a href="#cb11-73" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(compile_address) <span class="sc">==</span> <span class="dv">0</span>) {</span>
+<span id="cb11-74"><a href="#cb11-74" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">"compile_address has length 0; cannot determine match."</span>)</span>
+<span id="cb11-75"><a href="#cb11-75" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> <span class="cf">if</span> (<span class="fu">length</span>(compile_address) <span class="sc">==</span> <span class="dv">1</span>) {</span>
+<span id="cb11-76"><a href="#cb11-76" aria-hidden="true" tabindex="-1"></a>    match <span class="ot">&lt;-</span> compile_address</span>
+<span id="cb11-77"><a href="#cb11-77" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> { <span class="co"># length &gt; 1</span></span>
+<span id="cb11-78"><a href="#cb11-78" aria-hidden="true" tabindex="-1"></a>    match <span class="ot">&lt;-</span> <span class="fu">find_similar_addresses</span>(<span class="fu">as.character</span>(compile_address), <span class="at">threshold =</span> <span class="dv">0</span>)</span>
+<span id="cb11-79"><a href="#cb11-79" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb11-80"><a href="#cb11-80" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-81"><a href="#cb11-81" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-82"><a href="#cb11-82" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --------------------</span></span>
+<span id="cb11-83"><a href="#cb11-83" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Reconcile metadata with mismatched outcomes within assigned groups.</span></span>
+<span id="cb11-84"><a href="#cb11-84" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-85"><a href="#cb11-85" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Retain the metadata stored from the first attempt at collapsing addresses.</span></span>
+<span id="cb11-86"><a href="#cb11-86" aria-hidden="true" tabindex="-1"></a>  extra_naics_code <span class="ot">&lt;-</span> finish_build <span class="sc">%&gt;%</span> <span class="fu">filter</span>(abi <span class="sc">%in%</span> search_space[i]) <span class="sc">%&gt;%</span> <span class="fu">pull</span>(extra_naics_code) <span class="sc">%&gt;%</span> .[<span class="dv">1</span>]</span>
+<span id="cb11-87"><a href="#cb11-87" aria-hidden="true" tabindex="-1"></a>  year_est         <span class="ot">&lt;-</span> finish_build <span class="sc">%&gt;%</span> <span class="fu">filter</span>(abi <span class="sc">%in%</span> search_space[i]) <span class="sc">%&gt;%</span> <span class="fu">pull</span>(year_established) <span class="sc">%&gt;%</span> .[<span class="dv">1</span>]</span>
+<span id="cb11-88"><a href="#cb11-88" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-89"><a href="#cb11-89" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --------------------</span></span>
+<span id="cb11-90"><a href="#cb11-90" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Rebuild the dataframe and remove erroneous reduplicates</span></span>
+<span id="cb11-91"><a href="#cb11-91" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-92"><a href="#cb11-92" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Define the starting structure of the metadata that will be used to build the</span></span>
+<span id="cb11-93"><a href="#cb11-93" aria-hidden="true" tabindex="-1"></a>  <span class="co"># new dataframe that collapses reduplicates.</span></span>
+<span id="cb11-94"><a href="#cb11-94" aria-hidden="true" tabindex="-1"></a>  seed <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="st">"abi"</span> <span class="ot">=</span> <span class="fu">unique</span>(subset<span class="sc">$</span>abi), <span class="st">"year_established"</span> <span class="ot">=</span> year_est,</span>
+<span id="cb11-95"><a href="#cb11-95" aria-hidden="true" tabindex="-1"></a>                     <span class="st">"primary_naics_code"</span> <span class="ot">=</span> <span class="dv">813110</span>, <span class="st">"extra_naics_code"</span> <span class="ot">=</span> extra_naics_code,</span>
+<span id="cb11-96"><a href="#cb11-96" aria-hidden="true" tabindex="-1"></a>                     <span class="st">"naics8_descriptions"</span> <span class="ot">=</span> <span class="st">"Religious Organizations"</span>)</span>
+<span id="cb11-97"><a href="#cb11-97" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-98"><a href="#cb11-98" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Stepwise collapse the duplicates.</span></span>
+<span id="cb11-99"><a href="#cb11-99" aria-hidden="true" tabindex="-1"></a>  build <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb11-100"><a href="#cb11-100" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(match)) {</span>
+<span id="cb11-101"><a href="#cb11-101" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Pull out rows that are affiliated with the same addresses.</span></span>
+<span id="cb11-102"><a href="#cb11-102" aria-hidden="true" tabindex="-1"></a>    change_these <span class="ot">&lt;-</span> match[[j]] <span class="sc">%&gt;%</span> <span class="fu">as.vector</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb11-103"><a href="#cb11-103" aria-hidden="true" tabindex="-1"></a>      (\(y) { <span class="fu">map_lgl</span>(subset<span class="sc">$</span>compiled_address, <span class="sc">~</span> <span class="fu">str_detect</span>(.x, <span class="fu">regex</span>(<span class="fu">paste0</span>(<span class="st">"^"</span>, <span class="fu">str_trim</span>(y), <span class="st">"(,|$)"</span>), <span class="at">ignore_case =</span> <span class="cn">TRUE</span>))) })()</span>
+<span id="cb11-104"><a href="#cb11-104" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb11-105"><a href="#cb11-105" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Sum over the openings.</span></span>
+<span id="cb11-106"><a href="#cb11-106" aria-hidden="true" tabindex="-1"></a>    dates <span class="ot">&lt;-</span> <span class="fu">sapply</span>(subset[change_these, <span class="dv">11</span><span class="sc">:</span><span class="dv">31</span>], <span class="cf">function</span>(x) <span class="fu">sum</span>(x, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-107"><a href="#cb11-107" aria-hidden="true" tabindex="-1"></a>      (\(x) { <span class="fu">as.data.frame</span>(<span class="fu">t</span>(x)) }) ()</span>
+<span id="cb11-108"><a href="#cb11-108" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb11-109"><a href="#cb11-109" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Test how similar the longitude and latitude are.</span></span>
+<span id="cb11-110"><a href="#cb11-110" aria-hidden="true" tabindex="-1"></a>    negligible_change <span class="ot">&lt;-</span> <span class="fl">0.002</span>  <span class="co"># Change in degrees (~222 meters or 728 feet)</span></span>
+<span id="cb11-111"><a href="#cb11-111" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb11-112"><a href="#cb11-112" aria-hidden="true" tabindex="-1"></a>    lonLat_test <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">nrow</span>(subset[change_these, ]) <span class="sc">==</span> <span class="dv">1</span>) {</span>
+<span id="cb11-113"><a href="#cb11-113" aria-hidden="true" tabindex="-1"></a>      <span class="cn">NA</span></span>
+<span id="cb11-114"><a href="#cb11-114" aria-hidden="true" tabindex="-1"></a>    } <span class="cf">else</span> {</span>
+<span id="cb11-115"><a href="#cb11-115" aria-hidden="true" tabindex="-1"></a>      <span class="fu">abs</span>(<span class="fu">max</span>(subset[change_these, ]<span class="sc">$</span>longitude) <span class="sc">-</span> <span class="fu">min</span>(subset[change_these, ]<span class="sc">$</span>longitude)) <span class="sc">&lt;</span> negligible_change <span class="sc">&amp;</span></span>
+<span id="cb11-116"><a href="#cb11-116" aria-hidden="true" tabindex="-1"></a>        <span class="fu">abs</span>(<span class="fu">max</span>(subset[change_these, ]<span class="sc">$</span>latitude)  <span class="sc">-</span> <span class="fu">min</span>(subset[change_these, ]<span class="sc">$</span>latitude))  <span class="sc">&lt;</span> negligible_change</span>
+<span id="cb11-117"><a href="#cb11-117" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb11-118"><a href="#cb11-118" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb11-119"><a href="#cb11-119" aria-hidden="true" tabindex="-1"></a>    build <span class="ot">&lt;-</span> <span class="fu">rbind</span>(build, <span class="fu">cbind</span>(</span>
+<span id="cb11-120"><a href="#cb11-120" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Use the ABI as the first column.</span></span>
+<span id="cb11-121"><a href="#cb11-121" aria-hidden="true" tabindex="-1"></a>      seed[, <span class="dv">1</span>, <span class="at">drop =</span> <span class="cn">FALSE</span>],</span>
+<span id="cb11-122"><a href="#cb11-122" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Without validating the correct address with the USPS, we'll arbitrarily</span></span>
+<span id="cb11-123"><a href="#cb11-123" aria-hidden="true" tabindex="-1"></a>      <span class="co"># choose the first entry. Format the address over different columns.</span></span>
+<span id="cb11-124"><a href="#cb11-124" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_split</span>(match[[j]][<span class="dv">1</span>], <span class="st">", "</span>) <span class="sc">%&gt;%</span> <span class="fu">unlist</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb11-125"><a href="#cb11-125" aria-hidden="true" tabindex="-1"></a>        (\(x) { <span class="fu">as.data.frame</span>(<span class="fu">t</span>(x)) }) () <span class="sc">%&gt;%</span></span>
+<span id="cb11-126"><a href="#cb11-126" aria-hidden="true" tabindex="-1"></a>        <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"address_line_1"</span>, <span class="st">"city"</span>, <span class="st">"state"</span>, <span class="st">"zipcode"</span>)),</span>
+<span id="cb11-127"><a href="#cb11-127" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Store the compiled address string.</span></span>
+<span id="cb11-128"><a href="#cb11-128" aria-hidden="true" tabindex="-1"></a>      <span class="fu">as.data.frame</span>(match[[j]][<span class="dv">1</span>]) <span class="sc">%&gt;%</span> <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"compiled_address"</span>)),</span>
+<span id="cb11-129"><a href="#cb11-129" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Add the longitudes and latitude values. Add an indicator if the</span></span>
+<span id="cb11-130"><a href="#cb11-130" aria-hidden="true" tabindex="-1"></a>      <span class="co"># longitude or latitude were not similar.</span></span>
+<span id="cb11-131"><a href="#cb11-131" aria-hidden="true" tabindex="-1"></a>      <span class="fu">as.data.frame</span>(lonLat_test) <span class="sc">%&gt;%</span> <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"lonLat_test"</span>)),</span>
+<span id="cb11-132"><a href="#cb11-132" aria-hidden="true" tabindex="-1"></a>      <span class="fu">as.data.frame</span>(<span class="fu">mean</span>(subset[change_these, ]<span class="sc">$</span>latitude)) <span class="sc">%&gt;%</span> <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"latitude"</span>)),</span>
+<span id="cb11-133"><a href="#cb11-133" aria-hidden="true" tabindex="-1"></a>      <span class="fu">as.data.frame</span>(<span class="fu">mean</span>(subset[change_these, ]<span class="sc">$</span>longitude)) <span class="sc">%&gt;%</span> <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"longitude"</span>)),</span>
+<span id="cb11-134"><a href="#cb11-134" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Add the rest of the metadata.</span></span>
+<span id="cb11-135"><a href="#cb11-135" aria-hidden="true" tabindex="-1"></a>      seed[, <span class="sc">-</span><span class="dv">1</span>, <span class="at">drop =</span> <span class="cn">FALSE</span>],</span>
+<span id="cb11-136"><a href="#cb11-136" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Finally, add the summed dates.</span></span>
+<span id="cb11-137"><a href="#cb11-137" aria-hidden="true" tabindex="-1"></a>      dates,</span>
+<span id="cb11-138"><a href="#cb11-138" aria-hidden="true" tabindex="-1"></a>      <span class="fu">data.frame</span>(<span class="st">"override_duplicate"</span> <span class="ot">=</span> override_dup_value)</span>
+<span id="cb11-139"><a href="#cb11-139" aria-hidden="true" tabindex="-1"></a>    ))</span>
+<span id="cb11-140"><a href="#cb11-140" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb11-141"><a href="#cb11-141" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-142"><a href="#cb11-142" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Store 'build' in the list.</span></span>
+<span id="cb11-143"><a href="#cb11-143" aria-hidden="true" tabindex="-1"></a>  supplement_build[[i]] <span class="ot">&lt;-</span> build <span class="sc">%&gt;%</span></span>
+<span id="cb11-144"><a href="#cb11-144" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb11-145"><a href="#cb11-145" aria-hidden="true" tabindex="-1"></a>      <span class="at">zipcode =</span> <span class="fu">as.double</span>(zipcode),</span>
+<span id="cb11-146"><a href="#cb11-146" aria-hidden="true" tabindex="-1"></a>      <span class="at">same_num_clusters =</span> <span class="st">"Expanded"</span></span>
+<span id="cb11-147"><a href="#cb11-147" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb11-148"><a href="#cb11-148" aria-hidden="true" tabindex="-1"></a>    <span class="fu">bind_rows</span>(keep_entries)</span>
+<span id="cb11-149"><a href="#cb11-149" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-150"><a href="#cb11-150" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Print the for loop's progress.</span></span>
+<span id="cb11-151"><a href="#cb11-151" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setTxtProgressBar</span>(pb, i)</span>
+<span id="cb11-152"><a href="#cb11-152" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb11-153"><a href="#cb11-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-154"><a href="#cb11-154" aria-hidden="true" tabindex="-1"></a><span class="co"># Combine all data tables in the list into one data table.</span></span>
+<span id="cb11-155"><a href="#cb11-155" aria-hidden="true" tabindex="-1"></a>supplement_build <span class="ot">&lt;-</span> <span class="fu">rbindlist</span>(supplement_build, <span class="at">use.names =</span> <span class="cn">TRUE</span>, <span class="at">fill =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-156"><a href="#cb11-156" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-157"><a href="#cb11-157" aria-hidden="true" tabindex="-1"></a><span class="co"># Commit results.</span></span>
+<span id="cb11-158"><a href="#cb11-158" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(supplement_build, <span class="at">file =</span> <span class="st">"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection C1_04.27.2026.csv"</span>)</span>
+<span id="cb11-159"><a href="#cb11-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-160"><a href="#cb11-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-161"><a href="#cb11-161" aria-hidden="true" tabindex="-1"></a><span class="co"># Read in previously generated results.</span></span>
+<span id="cb11-162"><a href="#cb11-162" aria-hidden="true" tabindex="-1"></a>expanded <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection C1_04.27.2026.csv"</span>, </span>
+<span id="cb11-163"><a href="#cb11-163" aria-hidden="true" tabindex="-1"></a>                     <span class="at">col_types =</span> <span class="fu">cols</span>(<span class="at">...1 =</span> <span class="fu">col_skip</span>())) <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>()</span>
+<span id="cb11-164"><a href="#cb11-164" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-165"><a href="#cb11-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-166"><a href="#cb11-166" aria-hidden="true" tabindex="-1"></a><span class="do">## --------------------</span></span>
+<span id="cb11-167"><a href="#cb11-167" aria-hidden="true" tabindex="-1"></a><span class="do">## SUBSECTION C1: Combine All Results</span></span>
+<span id="cb11-168"><a href="#cb11-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-169"><a href="#cb11-169" aria-hidden="true" tabindex="-1"></a><span class="co"># Verify that all ABI marked for expansion were processed.</span></span>
+<span id="cb11-170"><a href="#cb11-170" aria-hidden="true" tabindex="-1"></a>expand_these <span class="ot">&lt;-</span> <span class="fu">filter</span>(finish_build, same_num_clusters <span class="sc">==</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span> <span class="fu">pull</span>(abi)</span>
+<span id="cb11-171"><a href="#cb11-171" aria-hidden="true" tabindex="-1"></a><span class="fu">all</span>(expanded<span class="sc">$</span>abi <span class="sc">%in%</span> expand_these) <span class="sc">&amp;</span> <span class="fu">all</span>(expand_these <span class="sc">%in%</span> expanded<span class="sc">$</span>abi)</span>
+<span id="cb11-172"><a href="#cb11-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-173"><a href="#cb11-173" aria-hidden="true" tabindex="-1"></a><span class="co"># Combine the expanded version back into the main dataset.</span></span>
+<span id="cb11-174"><a href="#cb11-174" aria-hidden="true" tabindex="-1"></a>df_duplicates <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
+<span id="cb11-175"><a href="#cb11-175" aria-hidden="true" tabindex="-1"></a>  finish_build <span class="sc">%&gt;%</span></span>
+<span id="cb11-176"><a href="#cb11-176" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Exclude ABI that were expanded in this section.</span></span>
+<span id="cb11-177"><a href="#cb11-177" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="sc">!</span>(abi <span class="sc">%in%</span> expanded<span class="sc">$</span>abi)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-178"><a href="#cb11-178" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">same_num_clusters =</span> <span class="fu">as.character</span>(same_num_clusters)),</span>
+<span id="cb11-179"><a href="#cb11-179" aria-hidden="true" tabindex="-1"></a>  expanded <span class="sc">%&gt;%</span></span>
+<span id="cb11-180"><a href="#cb11-180" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">same_num_clusters =</span> <span class="fu">as.character</span>(same_num_clusters))</span>
+<span id="cb11-181"><a href="#cb11-181" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-182"><a href="#cb11-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-183"><a href="#cb11-183" aria-hidden="true" tabindex="-1"></a><span class="co"># Verify that all ABI have been accounted for.</span></span>
+<span id="cb11-184"><a href="#cb11-184" aria-hidden="true" tabindex="-1"></a><span class="fu">all</span>(df_duplicates<span class="sc">$</span>abi <span class="sc">%in%</span> finish_build<span class="sc">$</span>abi) <span class="sc">&amp;</span> <span class="fu">all</span>(finish_build<span class="sc">$</span>abi <span class="sc">%in%</span> df_duplicates<span class="sc">$</span>abi)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="final-notes" class="level3">
+<h3 class="anchored" data-anchor-id="final-notes">Final Notes</h3>
+<p>In the raw dataset, approximately 2.6% of businesses had no physical address recorded (i.e., <code>address_line_1 == NA</code> or <code>address_line_1 == "None Given"</code>). The geolocation associated with these entries is unlikely to reflect the true location of the business, and the correct location cannot be reliably determined without address information. Consequently, all businesses with a missing or unspecified physical address are excluded from the analysis.</p>
+<p>Table showing the number of entries and businesses without a physical address:</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code> Total Entries Total Perc. Businesses ABI Perc.
+         25373        0.98      24810       2.6</code></pre>
+</div>
+</div>
+<p>After this, no significant modifications were made to the final dataset. Minor adjustments included standardizing column variable formatting and sorting rows by descending ABI, with addresses within each ABI ordered chronologically from oldest to most recent. ZIP codes fewer than five digits in length were padded with leading and/or trailing zeros as appropriate: four-digit ZIP codes received a leading zero, and three-digit ZIP codes received both a leading and a trailing zero.</p>
+<p>Inclusion and exclusion expectations for ABIs were verified to confirm that no business entries were unexpectedly missing or added. After this process, businesses with detected duplicates were reduced by approximately 60%, impacting 60% of the raw dataset, and the total combined dataset was reduced by approximately 53% relative to its raw form.</p>
+<p>As noted in previous sections, some records that could potentially be collapsed, such as those with same <code>address_line_1</code> but different <code>city</code>, ere retained as separate entries until address verification is completed. It is also worth noting that during the collapsing of similar addresses, discrepancies of up to 3 degrees in longitude and 1 degree in latitude were observed, underscoring the importance of verifying the geolocation of all entries.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="do">## ----------------------------------------------------------------</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="do">## PART D: Cleaning for Saving the Result</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the part of the raw data where there are no duplicates.</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>no_duplicates <span class="ot">&lt;-</span> church_wide <span class="sc">%&gt;%</span> </span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  (\(x) { x[x<span class="sc">$</span>abi <span class="sc">%!in%</span> duplicates_detected<span class="sc">$</span>abi, ] }) () <span class="sc">%&gt;%</span> </span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">rownames&lt;-</span><span class="st">`</span>(<span class="cn">NULL</span>)</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="do">## --------------------</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="do">## SUBSECTION D1: Add Missing Columns</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="co"># The deduplicated records will be merged back with the portion of the dataset</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="co"># that contained no duplicates. Before merging, the columns of each subset are</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="co"># compared to identify and resolve any discrepancies.</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(df_duplicates) <span class="sc">%&gt;%</span> .[. <span class="sc">%!in%</span> <span class="fu">colnames</span>(no_duplicates)]</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(no_duplicates) <span class="sc">%&gt;%</span> .[. <span class="sc">%!in%</span> <span class="fu">colnames</span>(df_duplicates)]</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Add the missing components by unique ABI.</span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>no_duplicates <span class="ot">&lt;-</span> no_duplicates <span class="sc">%&gt;%</span></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(abi) <span class="sc">%&gt;%</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">compiled_address =</span> <span class="fu">str_c</span>(address_line_1, city, state, zipcode, <span class="at">sep =</span> <span class="st">", "</span>),</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>         <span class="at">lonLat_test =</span> <span class="cn">NA</span>,</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>         <span class="co"># Extract the extra numerics added to the end of the NAICS code.</span></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>         <span class="at">extra_naics_code =</span> <span class="fu">str_replace</span>(primary_naics_code, <span class="st">"813110"</span>, <span class="st">""</span>) <span class="sc">%&gt;%</span> <span class="fu">unique</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>           (\(x) { <span class="fu">str_flatten</span>(x, <span class="at">collapse =</span> <span class="st">", "</span>) }) (),</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>         <span class="at">override_duplicate =</span> <span class="cn">NA</span>,</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>         <span class="at">same_num_clusters =</span> <span class="cn">NA</span>,</span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>         <span class="at">primary_naics_code =</span> <span class="dv">813110</span>,</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>         <span class="at">naics8_descriptions =</span> <span class="st">"Religious Organizations"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">colnames</span>(df_duplicates)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>()</span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a><span class="do">## --------------------</span></span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a><span class="do">## SUBSECTION D2: Merge Duplicate and Singular Record Datasets</span></span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a><span class="co"># Inspect column classes to ensure they correspond</span></span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a><span class="fu">cbind</span>(<span class="fu">as.data.frame</span>(<span class="fu">sapply</span>(no_duplicates, class)), <span class="fu">as.data.frame</span>(<span class="fu">sapply</span>(df_duplicates, class)))</span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a>no_duplicates <span class="ot">&lt;-</span> no_duplicates <span class="sc">%&gt;%</span></span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">zipcode =</span> <span class="fu">as.character</span>(zipcode), <span class="at">year_established =</span> <span class="fu">as.character</span>(year_established),</span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a>         <span class="at">same_num_clusters =</span> <span class="fu">as.character</span>(same_num_clusters))</span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a>df_duplicates <span class="ot">&lt;-</span> df_duplicates <span class="sc">%&gt;%</span></span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">zipcode =</span> <span class="fu">as.character</span>(zipcode))</span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a><span class="co"># Add the duplicated and singlet datasets together again.</span></span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a>step_1 <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(no_duplicates, df_duplicates)</span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a><span class="do">## --------------------</span></span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a><span class="do">## SUBSECTION D3: Remove Businesses with No Recorded Physical Address</span></span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a><span class="co"># Review how many entries this effects</span></span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a>step_1 <span class="sc">%&gt;%</span></span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">is.na</span>(address_line_1) <span class="sc">|</span> address_line_1 <span class="sc">%in%</span> <span class="st">"None Given"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Total Entries"</span> <span class="ot">=</span> <span class="fu">n</span>(),</span>
+<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Total Perc."</span> <span class="ot">=</span> <span class="fu">round</span>(<span class="st">`</span><span class="at">Total Entries</span><span class="st">`</span><span class="sc">/</span><span class="fu">nrow</span>(church_wide)<span class="sc">*</span><span class="dv">100</span>, <span class="at">digits =</span> <span class="dv">2</span>),</span>
+<span id="cb13-62"><a href="#cb13-62" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Businesses"</span> <span class="ot">=</span> <span class="fu">n_distinct</span>(abi),</span>
+<span id="cb13-63"><a href="#cb13-63" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ABI Perc."</span> <span class="ot">=</span> <span class="fu">round</span>(Businesses<span class="sc">/</span><span class="fu">length</span>(<span class="fu">unique</span>(church_wide<span class="sc">$</span>abi))<span class="sc">*</span><span class="dv">100</span>, <span class="at">digits =</span> <span class="dv">2</span>)</span>
+<span id="cb13-64"><a href="#cb13-64" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb13-65"><a href="#cb13-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a>no_address_abi <span class="ot">&lt;-</span> step_1 <span class="sc">%&gt;%</span></span>
+<span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">is.na</span>(address_line_1) <span class="sc">|</span> address_line_1 <span class="sc">%in%</span> <span class="st">"None Given"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(abi) <span class="sc">%&gt;%</span></span>
+<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unique</span>()</span>
+<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove businesses that at one point did not list a physical address.</span></span>
+<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a>step_1 <span class="ot">&lt;-</span> step_1 <span class="sc">%&gt;%</span></span>
+<span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(abi <span class="sc">%!in%</span> no_address_abi)</span>
+<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-75"><a href="#cb13-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a><span class="do">## --------------------</span></span>
+<span id="cb13-77"><a href="#cb13-77" aria-hidden="true" tabindex="-1"></a><span class="do">## SUBSECTION D4: Organize and Save the Results</span></span>
+<span id="cb13-78"><a href="#cb13-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-79"><a href="#cb13-79" aria-hidden="true" tabindex="-1"></a><span class="co"># Now we do some formatting to finish this step.</span></span>
+<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a>step_1 <span class="ot">&lt;-</span> step_1 <span class="sc">%&gt;%</span></span>
+<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Sort the rows by descending ABI.</span></span>
+<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(abi) <span class="sc">%&gt;%</span></span>
+<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Some ZIP codes are incorrectly formatted due to a missing leading or trailing</span></span>
+<span id="cb13-84"><a href="#cb13-84" aria-hidden="true" tabindex="-1"></a>  <span class="co"># zero, resulting in codes that are fewer than five digits. To standardize these,</span></span>
+<span id="cb13-85"><a href="#cb13-85" aria-hidden="true" tabindex="-1"></a>  <span class="co"># we pad them to five digits as follows: four-digit ZIP codes receive a leading</span></span>
+<span id="cb13-86"><a href="#cb13-86" aria-hidden="true" tabindex="-1"></a>  <span class="co"># zero, and three-digit ZIP codes receive both a leading and a trailing zero.</span></span>
+<span id="cb13-87"><a href="#cb13-87" aria-hidden="true" tabindex="-1"></a>  <span class="co">#</span></span>
+<span id="cb13-88"><a href="#cb13-88" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Note: These corrections are provisional. Address validation will be performed</span></span>
+<span id="cb13-89"><a href="#cb13-89" aria-hidden="true" tabindex="-1"></a>  <span class="co"># later to verify and, where necessary, correct this information.</span></span>
+<span id="cb13-90"><a href="#cb13-90" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">zipcode =</span> <span class="fu">gsub</span>(<span class="st">"</span><span class="sc">\\</span><span class="st">b(</span><span class="sc">\\</span><span class="st">d{4})</span><span class="sc">\\</span><span class="st">b"</span>, <span class="st">"0</span><span class="sc">\\</span><span class="st">1"</span>, zipcode)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-91"><a href="#cb13-91" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">zipcode =</span> <span class="fu">gsub</span>(<span class="st">"</span><span class="sc">\\</span><span class="st">b(</span><span class="sc">\\</span><span class="st">d{3})</span><span class="sc">\\</span><span class="st">b"</span>, <span class="st">"0</span><span class="sc">\\</span><span class="st">10"</span>, zipcode)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-92"><a href="#cb13-92" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Search the dates columns for which year that entry first has a 1.</span></span>
+<span id="cb13-93"><a href="#cb13-93" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">First_One_Year =</span> <span class="fu">pmap_chr</span>(<span class="fu">select</span>(., <span class="sc">-</span><span class="fu">colnames</span>(step_1)[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]), find_first_one)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-94"><a href="#cb13-94" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Rename the newly added column entries so the "X" added is removed.</span></span>
+<span id="cb13-95"><a href="#cb13-95" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename_with</span>(<span class="sc">~</span> <span class="fu">sub</span>(<span class="st">"^X"</span>, <span class="st">""</span>, .), <span class="fu">starts_with</span>(<span class="st">"X"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-96"><a href="#cb13-96" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Now we sort the rows so that the oldest address comes before the more</span></span>
+<span id="cb13-97"><a href="#cb13-97" aria-hidden="true" tabindex="-1"></a>  <span class="co"># recent addresses.</span></span>
+<span id="cb13-98"><a href="#cb13-98" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(abi) <span class="sc">%&gt;%</span></span>
+<span id="cb13-99"><a href="#cb13-99" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(First_One_Year, <span class="at">.by_group =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-100"><a href="#cb13-100" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb13-101"><a href="#cb13-101" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Remove the column used for organizing.</span></span>
+<span id="cb13-102"><a href="#cb13-102" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>First_One_Year) <span class="sc">%&gt;%</span></span>
+<span id="cb13-103"><a href="#cb13-103" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>()</span>
+<span id="cb13-104"><a href="#cb13-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-105"><a href="#cb13-105" aria-hidden="true" tabindex="-1"></a><span class="co"># Most ZIP codes are the expected five digits in length. However, a small number</span></span>
+<span id="cb13-106"><a href="#cb13-106" aria-hidden="true" tabindex="-1"></a><span class="co"># have an anomalous length of one digit, which cannot be reliably padded to a</span></span>
+<span id="cb13-107"><a href="#cb13-107" aria-hidden="true" tabindex="-1"></a><span class="co"># valid five-digit ZIP code. These entries are replaced with "00000".</span></span>
+<span id="cb13-108"><a href="#cb13-108" aria-hidden="true" tabindex="-1"></a><span class="fu">str_length</span>(step_1<span class="sc">$</span>zipcode) <span class="sc">%&gt;%</span> <span class="fu">table</span>()</span>
+<span id="cb13-109"><a href="#cb13-109" aria-hidden="true" tabindex="-1"></a>step_1[<span class="fu">str_length</span>(step_1<span class="sc">$</span>zipcode) <span class="sc">%in%</span> <span class="dv">1</span>, <span class="st">"zipcode"</span>] <span class="ot">&lt;-</span> <span class="st">"00000"</span></span>
+<span id="cb13-110"><a href="#cb13-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-111"><a href="#cb13-111" aria-hidden="true" tabindex="-1"></a><span class="co"># Some entries have NA values where a zero should be recorded. These are</span></span>
+<span id="cb13-112"><a href="#cb13-112" aria-hidden="true" tabindex="-1"></a><span class="co"># replaced with zero accordingly.</span></span>
+<span id="cb13-113"><a href="#cb13-113" aria-hidden="true" tabindex="-1"></a>step_1 <span class="ot">&lt;-</span> <span class="fu">mutate</span>(step_1, <span class="fu">across</span>(<span class="fu">all_of</span>(<span class="fu">names</span>(step_1)[<span class="dv">14</span><span class="sc">:</span><span class="dv">34</span>]), <span class="sc">~</span> <span class="fu">coalesce</span>(.x, <span class="dv">0</span>)))</span>
+<span id="cb13-114"><a href="#cb13-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-115"><a href="#cb13-115" aria-hidden="true" tabindex="-1"></a><span class="co"># Commit results.</span></span>
+<span id="cb13-116"><a href="#cb13-116" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(step_1, <span class="at">file =</span> <span class="st">"Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 01_Completed Result_04.29.2026.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+</section>
+<section id="step-2-results" class="level2">
+<h2 class="anchored" data-anchor-id="step-2-results">Step #2 Results</h2>
+<div class="callout callout-style-default callout-tip callout-empty-content callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Coming Soon
+</div>
+</div>
+<div class="callout-body-container callout-body">
+
+</div>
+</div>
+</section>
+<section id="step-3-results" class="level2">
+<h2 class="anchored" data-anchor-id="step-3-results">Step #3 Results</h2>
+<div class="callout callout-style-default callout-tip callout-empty-content callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Coming Soon
+</div>
+</div>
+<div class="callout-body-container callout-body">
+
+</div>
+</div>
+</section>
+<section id="step-4-results" class="level2">
+<h2 class="anchored" data-anchor-id="step-4-results">Step #4 Results</h2>
+<div class="callout callout-style-default callout-tip callout-empty-content callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Coming Soon
+</div>
+</div>
+<div class="callout-body-container callout-body">
+
+</div>
+</div>
+</section>
+<section id="step-5-results" class="level2">
+<h2 class="anchored" data-anchor-id="step-5-results">Step #5 Results</h2>
+<div class="callout callout-style-default callout-tip callout-empty-content callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Coming Soon
+</div>
+</div>
+<div class="callout-body-container callout-body">
+
+</div>
+</div>
+
+
+</section>
+
+<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>This site was built on a ysph-dsde.github.io page. It was rendered using Quarto (v 1.6.39) and theme <a href="https://bootswatch.com/lux/">Lux</a>.</p>
+</div>   
+    <div class="nav-footer-center">
+<p>This report was prepared by <a href="https://www.linkedin.com/in/shelby-golden/">Shelby Golden, M.S.</a>, a Data Scientist at YSPH DSDE.</p>
+<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Cleaning and Harmonization.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://ysph.yale.edu/public-health-research-and-practice/research-centers-and-initiatives/public-health-data-science-and-data-equity/">
+      <i class="bi bi-globe" role="img">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/ysph-dsde">
+      <i class="bi bi-github" role="img">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/showcase/public-health-data-science-and-data-equity-at-yale/">
+      <i class="bi bi-linkedin" role="img">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="mailto:admin.dsdeysph@yale.edu">
+      <i class="bi bi-envelope" role="img">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item">
+ (203) 737-8644
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

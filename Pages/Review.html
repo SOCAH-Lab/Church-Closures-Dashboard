@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Review the Existing Process – Church Closures Dashboard</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<link href="../Images/DSDE-Social-Media-Profile.png" rel="icon" type="image/png">
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-97bfe6499e261bad1e14faa831bf6b4a.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Church Closures Dashboard</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="../Pages/Review.html" aria-current="page"> 
+<span class="menu-text">Review</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../Pages/Cleaning and Harmonization.html"> 
+<span class="menu-text">Preparation</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../Pages/Metric Calculation.html"> 
+<span class="menu-text">Metrics</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="https://ysph.yale.edu/public-health-research-and-practice/research-centers-and-initiatives/public-health-data-science-and-data-equity/contact-us/" target="_blank"> 
+<span class="menu-text">Contact</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#raw-data-dictionary" id="toc-raw-data-dictionary" class="nav-link active" data-scroll-target="#raw-data-dictionary">Raw Data Dictionary</a></li>
+  <li><a href="#reduplicate-abis" id="toc-reduplicate-abis" class="nav-link" data-scroll-target="#reduplicate-abis">Reduplicate ABI’s</a>
+  <ul class="collapse">
+  <li><a href="#mutually-exclusive-dates" id="toc-mutually-exclusive-dates" class="nav-link" data-scroll-target="#mutually-exclusive-dates">Mutually Exclusive Dates</a></li>
+  <li><a href="#moves-vs.-reduplications" id="toc-moves-vs.-reduplications" class="nav-link" data-scroll-target="#moves-vs.-reduplications">Moves vs.&nbsp;Reduplications</a></li>
+  </ul></li>
+  <li><a href="#closer-look-at-assumptions-2" id="toc-closer-look-at-assumptions-2" class="nav-link" data-scroll-target="#closer-look-at-assumptions-2">Closer Look at Assumptions #2</a>
+  <ul class="collapse">
+  <li><a href="#metadata-fields" id="toc-metadata-fields" class="nav-link" data-scroll-target="#metadata-fields">Metadata Fields</a></li>
+  <li><a href="#zip-codes" id="toc-zip-codes" class="nav-link" data-scroll-target="#zip-codes">Zip Codes</a></li>
+  </ul></li>
+  <li><a href="#po-boxs" id="toc-po-boxs" class="nav-link" data-scroll-target="#po-boxs">PO Box’s</a></li>
+  <li><a href="#states-represented" id="toc-states-represented" class="nav-link" data-scroll-target="#states-represented">States Represented</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Review.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Review the Existing Process</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><small>Last Updated: April 11<sup>th</sup>, 2026</small></p>
+<p>The purpose of this page is to provide an understanding of the challenges associated with the data and to identify opportunities for data validation or cleaning. Therefore, we do not need to be concerned with evaluating every case.</p>
+<p>Selected code excerpts are provided below. The complete code used to generate this report can be found in <a href="https://github.com/ysph-dsde/church-closures/blob/main/Code/Explore%20the%20Raw%20Data.R">Code/Explore the Raw Data.R</a>.</p>
+<section id="raw-data-dictionary" class="level2">
+<h2 class="anchored" data-anchor-id="raw-data-dictionary">Raw Data Dictionary</h2>
+<p>File name: <code>church_wide_form_071723.csv</code><br>
+Number of rows: 2,601,599<br>
+Number of columns: 31</p>
+<ul>
+<li><p><strong>abi:</strong> American Business Identifier (ABI): The unique identifier for each business, used to associate addresses with a specific organization.</p></li>
+<li><p><strong>year_established:</strong> Indicates the year the business was first established.</p></li>
+<li><p><strong>state:</strong> The state associated with the address.</p></li>
+<li><p><strong>city:</strong> The city associated with the address.</p></li>
+<li><p><strong>zipcode:</strong> The five-digit ZIP code associated with the address.</p></li>
+<li><p><strong>address_line_1:</strong> The primary address line associated with the ABI entry.</p></li>
+<li><p><strong>primary_naics_code:</strong> This dataset combines the six-digit 2022 vintage <a href="https://www.census.gov/naics/?input=813110&amp;year=2022&amp;details=813110">North American Industry Classification System (NAICS)</a> code and a two-digit proprietary code from Data Axle. The two-digit Data Axle code provides additional classification details not reflected here.</p></li>
+<li><p><strong>naics8_descriptions:</strong> All entries have NAICS = 813110, indicating they are classified as ‘Religious Organizations’, which includes churches, shrines, monasteries (except schools), synagogues, mosques, and temples.</p></li>
+<li><p><strong>longitude and latitude:</strong> Given as two columns. Provides the geolocation associated with the address listed in that row.</p></li>
+<li><p><strong>2001 to 2021:</strong> One binary column per year (2001–2021) indicating whether a response was recorded for that address: <code>1</code> if a response was received, <code>NA</code> if no response was received.</p></li>
+</ul>
+</section>
+<section id="reduplicate-abis" class="level2">
+<h2 class="anchored" data-anchor-id="reduplicate-abis">Reduplicate ABI’s</h2>
+<p>Because ABIs are used to uniquely identify entries, we need to ensure that there are no reduplicates.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">duplicated</span>(church_wide<span class="sc">$</span>abi) <span class="sc">%&gt;%</span> <span class="fu">table</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>               
+1  TRUE 1647336
+2 FALSE  954263</code></pre>
+</div>
+</div>
+<p>It appears that there may be several entries containing reduplicated information, impacting as many as <code>577727</code> unique ABIs. We examine each unique ABI that may potentially be reduplicated in the following ways:</p>
+<ol type="1">
+<li>Confirm that the date binaries are mutually exclusive, indicating that each recorded entry provides unique information.</li>
+<li>Confirm that the ZIP code remains consistent across entries.</li>
+<li>Verify that the following metadata fields are consistent across entries: <code>year_established</code>, <code>state</code>, <code>city</code>, <code>primary_naics_code</code>, and <code>naics8_descriptions</code>.</li>
+<li>Confirm that the longitude and latitude coordinates fall within acceptable error margins for a given business address.</li>
+</ol>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="do">## ----------------------------------------------------------------</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="do">## AMERICAN BUSINESS IDENTIFIER (ABI) REDUPLICATES</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>search_space <span class="ot">&lt;-</span> church_wide<span class="sc">$</span>abi[<span class="fu">duplicated</span>(church_wide<span class="sc">$</span>abi)] <span class="sc">%&gt;%</span> <span class="fu">unique</span>()</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Add a progress bar to show where the function is in the for loop.</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>pb <span class="ot">=</span> <span class="fu">txtProgressBar</span>(<span class="at">min =</span> <span class="dv">0</span>, <span class="at">max =</span> <span class="fu">length</span>(search_space), <span class="at">style =</span> <span class="dv">3</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(search_space)) {</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Subset to show only the entries associated with one duplicated ABI.</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  subset <span class="ot">&lt;-</span> church_wide[church_wide<span class="sc">$</span>abi <span class="sc">%in%</span> search_space[i], ]</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 1. Confirm the date binaries are mutually exclusive. A passing result will</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  <span class="co">#    say "TRUE".</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>  test_1 <span class="ot">&lt;-</span> <span class="fu">sapply</span>(subset[, <span class="dv">11</span><span class="sc">:</span><span class="dv">31</span>], <span class="cf">function</span>(x) <span class="fu">sum</span>(x, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) <span class="sc">%!in%</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>) <span class="sc">%&gt;%</span> <span class="fu">any</span>() <span class="sc">==</span> <span class="cn">FALSE</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 2. Confirm the other metadata are consistent. This is excluding the</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  <span class="co">#    longitude and latitude values.</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Same zip code? A passing result will say "TRUE".</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>  test_2a <span class="ot">&lt;-</span> subset<span class="sc">$</span>zipcode <span class="sc">%&gt;%</span> <span class="fu">unique</span>() <span class="sc">%&gt;%</span> <span class="fu">length</span>() <span class="sc">==</span> <span class="dv">1</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>  <span class="co"># All duplicated entries metadata are same? A passing result will say "TRUE".</span></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>  test_2b <span class="ot">&lt;-</span> subset[, <span class="fu">c</span>(<span class="st">"year_established"</span>, <span class="st">"state"</span>, <span class="st">"city"</span>, <span class="st">"primary_naics_code"</span>, <span class="st">"naics8_descriptions"</span>)] <span class="sc">%&gt;%</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>    <span class="fu">unique</span>() <span class="sc">%&gt;%</span> <span class="fu">nrow</span>() <span class="sc">==</span> <span class="dv">1</span></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>  <span class="co"># 3. Confirm the longitude and latitude are within error of each other. A</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>  <span class="co">#    passing result will say "TRUE".</span></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>  test_3 <span class="ot">&lt;-</span> <span class="fu">max</span>(subset<span class="sc">$</span>longitude) <span class="sc">-</span> <span class="fu">min</span>(subset<span class="sc">$</span>longitude) <span class="sc">&lt;</span> <span class="dv">1</span> <span class="sc">&amp;</span> <span class="fu">max</span>(subset<span class="sc">$</span>latitude) <span class="sc">-</span> <span class="fu">min</span>(subset<span class="sc">$</span>latitude) <span class="sc">&lt;</span> <span class="dv">1</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>  result <span class="ot">&lt;-</span> <span class="fu">rbind</span>(result, <span class="fu">cbind</span>(search_space[i], test_1, test_2a, test_2b, test_3))</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Print the for loop's progress.</span></span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setTxtProgressBar</span>(pb, i)</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a><span class="co"># Commit result with reformatting.</span></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> result <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"abi"</span>, <span class="st">"Exclusive"</span>, <span class="st">"Zip_Same"</span>, <span class="st">"Metadata_Same"</span>, <span class="st">"LonLat_Similar"</span>))</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert results from binary back to logical.</span></span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>result[, <span class="sc">-</span><span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="fu">apply</span>(result[, <span class="sc">-</span><span class="dv">1</span>], <span class="dv">2</span>, <span class="cf">function</span>(x) <span class="fu">as.logical</span>(x))</span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the result.</span></span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(result, <span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/ABI Duplicates Test_05.16.2025.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<section id="mutually-exclusive-dates" class="level3">
+<h3 class="anchored" data-anchor-id="mutually-exclusive-dates">Mutually Exclusive Dates</h3>
+<p>Each reduplicated ABI reports unique binary records across all year columns. The table below confirms that every column-wise sum per ABI yields 0 or 1 (TRUE), the expected result for unique records.</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>              
+1  TRUE 577727
+2 FALSE      0</code></pre>
+</div>
+</div>
+</section>
+<section id="moves-vs.-reduplications" class="level3">
+<h3 class="anchored" data-anchor-id="moves-vs.-reduplications">Moves vs.&nbsp;Reduplications</h3>
+<p>To appropriately evaluate the remaining three conditions listed above, we need to differentiate variations resulting from explainable sources, such as moves, or errors in data reporting. The primary suspicion is that the detected reduplications arise from alternative addresses associated with the ABIs over a 20-year span.</p>
+<p>Below are summary tables showing the different combinations of the remaining three conditions listed above:</p>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><u>Counts of Reduplicated ABIs</u></p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>, , Long/Lat = FALSE
+
+        Zip Code
+Metadata FALSE TRUE
+   FALSE  1047    9
+   TRUE      2  134
+
+, , Long/Lat = TRUE
+
+        Zip Code
+Metadata FALSE   TRUE
+   FALSE 49634 187570
+   TRUE  27073 309950</code></pre>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<p><u>Percentages of Reduplicated ABI’s</u></p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>, , Long/Lat = FALSE
+
+        Zip Code
+Metadata FALSE TRUE
+   FALSE  0.18 0.00
+   TRUE   0.00 0.02
+
+, , Long/Lat = TRUE
+
+        Zip Code
+Metadata FALSE  TRUE
+   FALSE  8.59 32.47
+   TRUE   4.69 53.65</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div style="height: 1em;">
+
+</div>
+<p>We expect the following results if certain combinations of assumptions are validated:</p>
+<ol type="1">
+<li><p><code>LonLat_Similar, Zip_Same, Metadata_Same = TRUE</code>: The church has not moved, no alternative address outside of the reported zip code was used (e.g., PO Box), and the other metadata did not change. This implies that the only variation detected comes from the <code>address_line_1</code> entry, and no special considerations are required.</p>
+<p><strong>RESULTS:</strong> Approximately 54% of duplicated entries apply, accounting for 33% of all unique ABIs in the dataset. Of these, nearly 15% used a PO Box at some point, representing almost 5% of all ABIs and 39% of all PO Box entries..</p></li>
+<li><p><code>LonLat_Similar, Zip_Same = TRUE</code> and <code>Metadata_Same = FALSE</code>: The church has not significantly moved, which implies that the observed variation is driven by a field other than <code>address_line_1</code> (e.g., <code>year_established</code>, <code>state</code>, <code>city</code>, <code>primary_naics_code</code>, or <code>naics8_descriptions</code>). These discrepancies may reflect data entry errors or the recording of alternative city locations rather than an actual relocation. Further investigation will ensure completeness.</p>
+<p><strong>RESULTS:</strong> Approximately 33% of duplicated entries apply, accounting for 20% of all unique ABIs in the dataset. Of these, nearly 12% used a PO Box at some point, representing almost 3% of all ABIs and 19% of all PO Box entries.</p></li>
+<li><p><code>LonLat_Similar, Metadata_Same = TRUE</code> and <code>Zip_Same = FALSE</code>: This issue can be attributed to two explainable scenarios: either the move was small but resulted in a new zip code, or one of the addresses used a PO Box with a different zip code but the same latitude and longitude as a nearby address. Additionally, there might have been a typographical error in the zip code.</p>
+<p><strong>RESULTS:</strong> Approximately 5% of duplicated entries apply, accounting for 3% of all unique ABIs in the dataset. Of these, nearly 48% used a PO Box at some point, representing almost 1.4% of all ABIs and 12% of all PO Box entries.</p></li>
+<li><p><code>LonLat_Similar = TRUE</code> and <code>Zip_Same, Metadata_Same = FALSE</code>: This discrepancy may also be attributable to small relocations that go undetected by the geolocation change threshold yet produce a change in city, zip code, or state for border locations. Variation in the recorded year established may similarly contribute. Both sources of discrepancy will be further investigated and are expected to be addressed in the same manner as the second or third assumption combinations.</p>
+<p><strong>RESULTS:</strong> Approximately 9% of duplicated entries apply, accounting for 5.2% of all unique ABIs in the dataset. Of these, nearly 36% used a PO Box at some point, representing almost 1.9% of all ABIs and 15% of all PO Box entries.</p></li>
+<li><p><code>LonLat_Similar = FALSE</code> and <code>Zip_Same, Metadata = TRUE</code>: It is unlikely that there would be a significant move without a change in the zip code and other metadata, such as the city or state. It is also possible that non-physical addresses, like PO Boxes, are contributing to this outcome. These are rare occurrences and will be investigated individually to assess for typographical errors.</p>
+<p><strong>RESULTS:</strong> Approximately 0.02% of duplicated entries apply, accounting for 0.01% of all unique ABIs in the dataset. Of these, nearly 31% used a PO Box at some point, representing almost 0.004% of all ABIs and 0.04% of all PO Box entries.</p></li>
+<li><p><code>LonLat_Similar, Zip_Same, Metadata = FALSE</code>: These entries are most likely associated with a significant move out of the area and will be treated in the same manner as the fifth combination of assumptions. Their zip codes and other metadata might also contain typographical errors that will need to be assessed for completeness.</p>
+<p><strong>RESULTS:</strong> Approximately 0.18% of duplicated entries apply, accounting for 0.11% of all unique ABIs in the dataset. Of these, nearly 31% used a PO Box at some point, representing almost 0.03% of all ABIs and 0.3% of all PO Box entries.</p></li>
+<li><p><code>LonLat_Similar, Metadata = FALSE</code> and <code>Zip_Same = TRUE</code> <strong>OR</strong> <code>LonLat_Similar, Zip_Same = FALSE</code> and <code>Metadata = TRUE</code>: These results suggest significant relocations with no change in zip code or other metadata. Though a stable zip code is plausible, no change across any address field is unusual. These rare cases will be individually reviewed for typographical errors.</p>
+<p><strong>RESULTS:</strong> Approximately 0.002% of duplicated entries apply, accounting for 0.001% of all unique ABIs in the dataset. Of these, nearly 91% used a PO Box at some point, representing almost 0.001% of all ABIs and 0.01% of all PO Box entries.</p></li>
+</ol>
+<div style="height: 1em;">
+
+</div>
+<p>Below are graphs showing the distribution of representation across the seven different assumptions listed above. We observe that most outcomes fall into the categories of small or no moves, with over half of the data not indicating any typographical errors. A significant percentage of unique ABIs with at least one PO Box included are also represented in the first two conditions, following the same patterns as the left graph.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Review_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="1344"></p>
+</figure>
+</div>
+</div>
+</div>
+<div style="height: 1em;">
+
+</div>
+<p>Typographical errors are most likely associated with the last three assumption combinations. Although most entries appear to satisfy superficial expectations, additional validation is clearly needed to ensure accuracy. There is also a trend suggesting that PO Box entries are a notable source of inaccuracies.</p>
+</section>
+</section>
+<section id="closer-look-at-assumptions-2" class="level2">
+<h2 class="anchored" data-anchor-id="closer-look-at-assumptions-2">Closer Look at Assumptions #2</h2>
+<section id="metadata-fields" class="level3">
+<h3 class="anchored" data-anchor-id="metadata-fields">Metadata Fields</h3>
+<p>Above, we showed that the set of assumptions with <code>LonLat_Similar, Zip_Same = TRUE</code> and <code>Metadata_Same = FALSE</code>, covering 20% of the data, could be associated with typographical errors in the metadata. Other occurrences with <code>Metadata_Same = FALSE</code> (assumptions #4, #6, and #7) are likely related to typographical errors not necessarily associated with the metadata fields.</p>
+<p>The metadata fields batched together included: <code>year_established</code>, <code>state</code>, <code>city</code>, <code>primary_naics_code</code>, and <code>naics8_descriptions.</code> All entries have <code>naics8_descriptions = "RELIGIOUS ORGANIZATIONS"</code>, so this variable will be ignored. Since states and cities are most likely associated together, we will focus on the more granular variable, <code>city</code>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="do">## --------------------</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="do">## Identify Source of Reduplicated Entries</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Load in the pre-produced test results for evaluation.</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/ABI Duplicates Test_05.16.2025.csv"</span>, </span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>                   <span class="at">col_types =</span> <span class="fu">cols</span>(<span class="at">...1 =</span> <span class="fu">col_skip</span>())) <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>()</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Subset the assumption test results and full raw data</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>subset_2 <span class="ot">&lt;-</span> result[result<span class="sc">$</span>Zip_Same <span class="sc">%in%</span> <span class="cn">TRUE</span> <span class="sc">&amp;</span> result<span class="sc">$</span>LonLat_Similar <span class="sc">%in%</span> <span class="cn">TRUE</span> <span class="sc">&amp;</span> result<span class="sc">$</span>Metadata_Same <span class="sc">%in%</span> <span class="cn">FALSE</span>, ] <span class="sc">%&gt;%</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">rownames&lt;-</span><span class="st">`</span>(<span class="cn">NULL</span>)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>church_2 <span class="ot">&lt;-</span> church_wide[church_wide<span class="sc">$</span>abi <span class="sc">%in%</span> subset_2<span class="sc">$</span>abi, ]</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>search_space <span class="ot">&lt;-</span> subset_2<span class="sc">$</span>abi</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Add a progress bar to show where the function is in the for loop.</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>pb <span class="ot">=</span> <span class="fu">txtProgressBar</span>(<span class="at">min =</span> <span class="dv">0</span>, <span class="at">max =</span> <span class="fu">length</span>(search_space), <span class="at">style =</span> <span class="dv">3</span>)</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>result2 <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(search_space)) {</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Subset to show only the entries associated with one reduplicated ABI.</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>  subset <span class="ot">&lt;-</span> church_2[church_2<span class="sc">$</span>abi <span class="sc">%in%</span> search_space[i], ]</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>  year_unique  <span class="ot">&lt;-</span> <span class="fu">length</span>(<span class="fu">unique</span>(subset<span class="sc">$</span>year_established)) <span class="sc">==</span> <span class="dv">1</span></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>  state_unique <span class="ot">&lt;-</span> <span class="fu">length</span>(<span class="fu">unique</span>(subset<span class="sc">$</span>state)) <span class="sc">==</span> <span class="dv">1</span></span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>  city_unique  <span class="ot">&lt;-</span> <span class="fu">length</span>(<span class="fu">unique</span>(subset<span class="sc">$</span>city)) <span class="sc">==</span> <span class="dv">1</span></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>  naics_unique <span class="ot">&lt;-</span> <span class="fu">length</span>(<span class="fu">unique</span>(subset<span class="sc">$</span>primary_naics_code)) <span class="sc">==</span> <span class="dv">1</span></span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>  result2 <span class="ot">&lt;-</span> <span class="fu">rbind</span>(result2, <span class="fu">cbind</span>(search_space[i], year_unique, state_unique, city_unique, naics_unique))</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Print the for loop's progress.</span></span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setTxtProgressBar</span>(pb, i)</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a><span class="co"># Commit result with reformatting.</span></span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>result2 <span class="ot">&lt;-</span> result2 <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"abi"</span>, <span class="st">"Year"</span>, <span class="st">"State"</span>, <span class="st">"City"</span>, <span class="st">"NAICS"</span>))</span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert results from binary back to logical.</span></span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>result2[, <span class="sc">-</span><span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="fu">apply</span>(result2[, <span class="sc">-</span><span class="dv">1</span>], <span class="dv">2</span>, <span class="cf">function</span>(x) <span class="fu">as.logical</span>(x))</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the result.</span></span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(result2, <span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same_04.10.2026.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>Below are summary tables showing whether a specific metadata field varied for a given unique ABI that satisfied the assumptions <code>LonLat_Similar, Zip_Same = TRUE</code> and <code>Metadata_Same = FALSE</code>:</p>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><u>ABI Counts with Varying Metadata</u></p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>, , Year Established = FALSE
+
+       NAICS Code
+City    FALSE   TRUE
+  FALSE   359   3490
+  TRUE  12926 130819
+
+, , Year Established = TRUE
+
+       NAICS Code
+City    FALSE TRUE
+  FALSE   694 7360
+  TRUE  31922    0</code></pre>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<p><u>Percentages ABI with Varying Metadata</u></p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>, , Year Established = FALSE
+
+       NAICS Code
+City    FALSE  TRUE
+  FALSE  0.19  1.86
+  TRUE   6.89 69.74
+
+, , Year Established = TRUE
+
+       NAICS Code
+City    FALSE TRUE
+  FALSE  0.37 3.92
+  TRUE  17.02 0.00</code></pre>
+</div>
+</div>
+</div>
+</div>
+<p>Most discrepancies (approximately 70%) are attributable to variation in the reported year established, approximately 17% to NAICS code variation, 4% to city variation. The remaining 9% contain a combination of two or all of these factors. Approximately 94.65% of total cases contained an error from either the year established or NAICS Code variable but not city. Approximately 2% contained variation with the city reported and either one or both of the other two variables.</p>
+<p>Variation in the reported year established and NAICS code are properties of the business itself rather than of each address under which it was listed. As neither is considered critical to validate completely, both sources of variation will be noted and recorded but not further pursued.</p>
+<p>Validating city accuracy poses specific challenges, as approximately 12,000 entries are affected. It is possible that border cities experienced changes in their city association over the three decennial periods captured in this dataset. During the address validation phase, similar addresses differing only by city should be retained as separate entries, with only those validated by the reference source kept.</p>
+</section>
+<section id="zip-codes" class="level3">
+<h3 class="anchored" data-anchor-id="zip-codes">Zip Codes</h3>
+<p>Building on the results from Assumption #2, this section further explores the degree of inconsistency in the city reported for a given address. The simplemaps <a href="https://simplemaps.com/data/us-cities">United States Cities Database</a> is used to identify the recommended city name for a given five-digit ZIP code, and the results are compared against the unique cities listed for each business.</p>
+<p>This analysis separates by unique ABI but not unique address, as the focus is on consistency between each unique ZIP code and its corresponding simplemaps result. Granularity beyond the business level is therefore unnecessary. ZIP codes with leading or trailing zeros stripped prior to receipt of this version of the raw data are marked as invalid.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="do">## --------------------</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="do">## Source of Reduplicated Entries - Assumptions #2</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Load in the pre-produced test results for evaluation.</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>result2 <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same_04.10.2026.csv"</span>, </span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>                   <span class="at">col_types =</span> <span class="fu">cols</span>(<span class="at">...1 =</span> <span class="fu">col_skip</span>())) <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>()</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Subset the assumption test results and full raw data</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>subset_2 <span class="ot">&lt;-</span> result[result<span class="sc">$</span>Zip_Same <span class="sc">%in%</span> <span class="cn">TRUE</span> <span class="sc">&amp;</span> result<span class="sc">$</span>LonLat_Similar <span class="sc">%in%</span> <span class="cn">TRUE</span> <span class="sc">&amp;</span> result<span class="sc">$</span>Metadata_Same <span class="sc">%in%</span> <span class="cn">FALSE</span>, ] <span class="sc">%&gt;%</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">rownames&lt;-</span><span class="st">`</span>(<span class="cn">NULL</span>)</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>church_2 <span class="ot">&lt;-</span> church_wide[church_wide<span class="sc">$</span>abi <span class="sc">%in%</span> subset_2<span class="sc">$</span>abi, ]</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>search_space <span class="ot">&lt;-</span> result2[result2<span class="sc">$</span>City <span class="sc">==</span> <span class="cn">FALSE</span>, <span class="st">"abi"</span>]</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Add a progress bar to show where the function is in the for loop.</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>pb <span class="ot">=</span> <span class="fu">txtProgressBar</span>(<span class="at">min =</span> <span class="dv">0</span>, <span class="at">max =</span> <span class="fu">length</span>(search_space), <span class="at">style =</span> <span class="dv">3</span>)</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>result3 <span class="ot">&lt;-</span> <span class="cn">NULL</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(search_space)) {</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Subset to show only the entries associated with one reduplicated ABI.</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>  subset <span class="ot">&lt;-</span> church_2[church_2<span class="sc">$</span>abi <span class="sc">%in%</span> search_space[i], ]</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Preferred city for that entry.</span></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>  zip_code <span class="ot">&lt;-</span> <span class="fu">unique</span>(subset<span class="sc">$</span>zipcode)</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Some of the entered zip codes are invalid. In most cases, it seems a leading</span></span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>  <span class="co"># or trailing zero was erroneously removed.</span></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>(<span class="fu">str_length</span>(zip_code) <span class="sc">!=</span> <span class="dv">5</span>) {</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>    listed_city <span class="ot">&lt;-</span> <span class="fu">str_c</span>(<span class="st">"Invalid Zip Code: "</span>, zip_code)</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>  <span class="co"># If the zip code is valid, then check for the preferred city name.</span></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> <span class="cf">if</span>(<span class="fu">str_length</span>(zip_code) <span class="sc">==</span> <span class="dv">5</span>) {</span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>    query_result <span class="ot">&lt;-</span> <span class="fu">get_city_info</span>(<span class="fu">unique</span>(subset<span class="sc">$</span>zipcode), zip_city_lookup)</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Sometimes that query might not result in a match to the API database.</span></span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span>(<span class="fu">is.null</span>(query_result) ) {</span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>      listed_city <span class="ot">&lt;-</span> <span class="fu">str_c</span>(<span class="st">"Invalid Zip Code: "</span>, zip_code)</span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>    } <span class="cf">else</span> {</span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>      listed_city <span class="ot">&lt;-</span> query_result</span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Number of entries total.</span></span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a>  num_entries <span class="ot">&lt;-</span> <span class="fu">nrow</span>(subset)</span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Variation due to a PO Box?</span></span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a>  any_poBox   <span class="ot">&lt;-</span> <span class="fu">length</span>(<span class="fu">str_which</span>(subset<span class="sc">$</span>address_line_1, <span class="st">"(?i)PO Box|P O Box"</span>)) <span class="sc">!=</span> <span class="dv">0</span></span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Report the cities that are similar to other entries, match within some</span></span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a>  <span class="co"># threshold, and compare with those that are uniquely reported.</span></span>
+<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a>  similar_entries <span class="ot">&lt;-</span> <span class="fu">find_similar_addresses</span>(subset<span class="sc">$</span>city) <span class="sc">%&gt;%</span> <span class="fu">unlist</span>() <span class="sc">%&gt;%</span> <span class="fu">unique</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb10-53"><a href="#cb10-53" aria-hidden="true" tabindex="-1"></a>    (\(x) { <span class="fu">str_flatten</span>(x, <span class="at">collapse =</span> <span class="st">", "</span>) }) ()</span>
+<span id="cb10-54"><a href="#cb10-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-55"><a href="#cb10-55" aria-hidden="true" tabindex="-1"></a>  unique_entries  <span class="ot">&lt;-</span> <span class="fu">find_similar_addresses</span>(subset<span class="sc">$</span>city, <span class="at">threshold =</span> <span class="dv">0</span>) <span class="sc">%&gt;%</span> <span class="fu">unlist</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb10-56"><a href="#cb10-56" aria-hidden="true" tabindex="-1"></a>    <span class="fu">unique</span>() <span class="sc">%&gt;%</span> (\(x) { <span class="fu">str_flatten</span>(x, <span class="at">collapse =</span> <span class="st">", "</span>) }) ()</span>
+<span id="cb10-57"><a href="#cb10-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-58"><a href="#cb10-58" aria-hidden="true" tabindex="-1"></a>  result3 <span class="ot">&lt;-</span> <span class="fu">rbind</span>(result3, <span class="fu">cbind</span>(search_space[i], listed_city, num_entries, any_poBox, similar_entries, unique_entries))</span>
+<span id="cb10-59"><a href="#cb10-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-60"><a href="#cb10-60" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Print the for loop's progress.</span></span>
+<span id="cb10-61"><a href="#cb10-61" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setTxtProgressBar</span>(pb, i)</span>
+<span id="cb10-62"><a href="#cb10-62" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-63"><a href="#cb10-63" aria-hidden="true" tabindex="-1"></a><span class="co"># Commit result with reformatting.</span></span>
+<span id="cb10-64"><a href="#cb10-64" aria-hidden="true" tabindex="-1"></a>result3  <span class="ot">&lt;-</span> result3 <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb10-65"><a href="#cb10-65" aria-hidden="true" tabindex="-1"></a>   <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"abi"</span>, <span class="st">"Preferred City Name"</span>, <span class="st">"# Entries"</span>, <span class="st">"PO Box?"</span>, <span class="st">"Similar Names"</span>, <span class="st">"Unique Names"</span>))</span>
+<span id="cb10-66"><a href="#cb10-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-67"><a href="#cb10-67" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate summary metrics to facilitate assessment of the results.</span></span>
+<span id="cb10-68"><a href="#cb10-68" aria-hidden="true" tabindex="-1"></a>result3 <span class="ot">&lt;-</span> result3 <span class="sc">%&gt;%</span></span>
+<span id="cb10-69"><a href="#cb10-69" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb10-70"><a href="#cb10-70" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Calculate the difference between the number of unique cities and the number</span></span>
+<span id="cb10-71"><a href="#cb10-71" aria-hidden="true" tabindex="-1"></a>    <span class="co"># of cities with minor typographical differences (i.e. similar).</span></span>
+<span id="cb10-72"><a href="#cb10-72" aria-hidden="true" tabindex="-1"></a>    <span class="at">c1 =</span> <span class="fu">str_split</span>(<span class="st">`</span><span class="at">Unique Names</span><span class="st">`</span>, <span class="st">"</span><span class="sc">\\</span><span class="st">s*,</span><span class="sc">\\</span><span class="st">s*"</span>),</span>
+<span id="cb10-73"><a href="#cb10-73" aria-hidden="true" tabindex="-1"></a>    <span class="at">c2 =</span> <span class="fu">str_split</span>(<span class="st">`</span><span class="at">Similar Names</span><span class="st">`</span>, <span class="st">"</span><span class="sc">\\</span><span class="st">s*,</span><span class="sc">\\</span><span class="st">s*"</span>),</span>
+<span id="cb10-74"><a href="#cb10-74" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Unique-Similar</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">map2_int</span>(c1, c2, <span class="sc">~</span> <span class="fu">length</span>(.x) <span class="sc">-</span> <span class="fu">length</span>(.y)),</span>
+<span id="cb10-75"><a href="#cb10-75" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Count the number of unique suggested cities.</span></span>
+<span id="cb10-76"><a href="#cb10-76" aria-hidden="true" tabindex="-1"></a>    <span class="at">c3 =</span> <span class="fu">if_else</span>(</span>
+<span id="cb10-77"><a href="#cb10-77" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(<span class="st">`</span><span class="at">Preferred City Name</span><span class="st">`</span>, <span class="st">"Invalid Zip Code:|No Matches Found:"</span>),</span>
+<span id="cb10-78"><a href="#cb10-78" aria-hidden="true" tabindex="-1"></a>      <span class="fu">list</span>(<span class="cn">NA_character_</span>),</span>
+<span id="cb10-79"><a href="#cb10-79" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_split</span>(<span class="st">`</span><span class="at">Preferred City Name</span><span class="st">`</span>, <span class="st">"</span><span class="sc">\\</span><span class="st">s*,</span><span class="sc">\\</span><span class="st">s*"</span>)</span>
+<span id="cb10-80"><a href="#cb10-80" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb10-81"><a href="#cb10-81" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at"># Cities Suggested</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">map_int</span>(</span>
+<span id="cb10-82"><a href="#cb10-82" aria-hidden="true" tabindex="-1"></a>      c3,</span>
+<span id="cb10-83"><a href="#cb10-83" aria-hidden="true" tabindex="-1"></a>      \(x) {</span>
+<span id="cb10-84"><a href="#cb10-84" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> (<span class="fu">is.null</span>(x)) <span class="fu">return</span>(<span class="cn">NA_integer_</span>)</span>
+<span id="cb10-85"><a href="#cb10-85" aria-hidden="true" tabindex="-1"></a>        x <span class="ot">&lt;-</span> <span class="fu">as.character</span>(x)</span>
+<span id="cb10-86"><a href="#cb10-86" aria-hidden="true" tabindex="-1"></a>        x <span class="ot">&lt;-</span> <span class="fu">str_trim</span>(x)</span>
+<span id="cb10-87"><a href="#cb10-87" aria-hidden="true" tabindex="-1"></a>        x <span class="ot">&lt;-</span> x[x <span class="sc">!=</span> <span class="st">""</span>]</span>
+<span id="cb10-88"><a href="#cb10-88" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> (<span class="fu">length</span>(x) <span class="sc">==</span> <span class="dv">0</span> <span class="sc">||</span> (<span class="fu">length</span>(x) <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;&amp;</span> <span class="fu">is.na</span>(x))) <span class="cn">NA_integer_</span> <span class="cf">else</span> <span class="fu">length</span>(x)</span>
+<span id="cb10-89"><a href="#cb10-89" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb10-90"><a href="#cb10-90" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb10-91"><a href="#cb10-91" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Calculate the difference between the number of unique cities and the number</span></span>
+<span id="cb10-92"><a href="#cb10-92" aria-hidden="true" tabindex="-1"></a>    <span class="co"># of cities suggested as preferred.</span></span>
+<span id="cb10-93"><a href="#cb10-93" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Unique-Preferred</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">map2_int</span>(</span>
+<span id="cb10-94"><a href="#cb10-94" aria-hidden="true" tabindex="-1"></a>      c1,</span>
+<span id="cb10-95"><a href="#cb10-95" aria-hidden="true" tabindex="-1"></a>      <span class="st">`</span><span class="at"># Cities Suggested</span><span class="st">`</span>,</span>
+<span id="cb10-96"><a href="#cb10-96" aria-hidden="true" tabindex="-1"></a>      \(x, y) {</span>
+<span id="cb10-97"><a href="#cb10-97" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> (<span class="fu">anyNA</span>(x) <span class="sc">||</span> <span class="fu">anyNA</span>(y)) <span class="fu">return</span>(<span class="cn">NA_integer_</span>)</span>
+<span id="cb10-98"><a href="#cb10-98" aria-hidden="true" tabindex="-1"></a>        <span class="fu">length</span>(x) <span class="sc">-</span> <span class="fu">length</span>(y)</span>
+<span id="cb10-99"><a href="#cb10-99" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb10-100"><a href="#cb10-100" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb10-101"><a href="#cb10-101" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Verify whether the preferred address is present in the unique address vector.</span></span>
+<span id="cb10-102"><a href="#cb10-102" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Preferred in Unique?</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">if_else</span>(</span>
+<span id="cb10-103"><a href="#cb10-103" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_detect</span>(<span class="st">`</span><span class="at">Preferred City Name</span><span class="st">`</span>, <span class="st">"Invalid Zip Code:|No Matches Found:"</span>),</span>
+<span id="cb10-104"><a href="#cb10-104" aria-hidden="true" tabindex="-1"></a>      <span class="cn">NA</span>,</span>
+<span id="cb10-105"><a href="#cb10-105" aria-hidden="true" tabindex="-1"></a>      <span class="fu">map2_lgl</span>(<span class="st">`</span><span class="at">Unique Names</span><span class="st">`</span>, <span class="st">`</span><span class="at">Preferred City Name</span><span class="st">`</span>, <span class="sc">~</span> <span class="fu">str_detect</span>(.x, <span class="fu">fixed</span>(.y)))</span>
+<span id="cb10-106"><a href="#cb10-106" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb10-107"><a href="#cb10-107" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb10-108"><a href="#cb10-108" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>c1, <span class="sc">-</span>c2, <span class="sc">-</span>c3)</span>
+<span id="cb10-109"><a href="#cb10-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-110"><a href="#cb10-110" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the result.</span></span>
+<span id="cb10-111"><a href="#cb10-111" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(result3, <span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/City Name Variation_04.10.2026.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>The algorithm returned only one preferred address suggestion per five-digit zip code. NA values were assigned when the zip code was invalid (missing a leading or trailing zero) or when no match was found in the database. Of all businesses, 6.5% had invalid zip codes, while 1.7% had valid zip codes but returned no match. Only 6.7% of these businesses had city variations involving a PO Box.</p>
+<p>68% of businesses returned a potential match, while nearly 25% returned no preferred city. The proportion of matches increased as the number of addresses increased (see table below). There does not appear to be a strong association between PO Box addresses and the absence of a preferred city.</p>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><u>Address Count &amp; Preferred City Presence</u></p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>                Preferred in Unique?
+Unique-Preferred FALSE TRUE
+               1  2743 7992
+               2    93   92
+               3     0    1</code></pre>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<p><u>PO Box &amp; Preferred City Presence</u></p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>       Preferred in Unique?
+PO Box? FALSE TRUE
+  FALSE  22.6 63.3
+  TRUE    1.3  4.6</code></pre>
+</div>
+</div>
+</div>
+</div>
+<p>These evaluations indicate inconsistencies in the address entries that warrant validation before they can be considered accurate. Accurate addresses are expected to be more readily matched in the reference database used for geolocation.</p>
+</section>
+</section>
+<section id="po-boxs" class="level2">
+<h2 class="anchored" data-anchor-id="po-boxs">PO Box’s</h2>
+<p>The data processing summary provided by the team noted that all PO Boxes were removed prior to data processing. About 12% of all ABIs listed had at least one PO Box associated with an entry. As shown above, each row-wise entry associated with a given ABI supplies unique information. Therefore, we expect some skew to have been introduced due to this method.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>poBox_all <span class="ot">&lt;-</span> church_wide[<span class="fu">str_which</span>(church_wide<span class="sc">$</span>address_line_1, <span class="st">"(?i)PO Box|P O Box"</span>), ]</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">length</span>(<span class="fu">unique</span>(poBox_all<span class="sc">$</span>abi))<span class="sc">/</span><span class="fu">length</span>(<span class="fu">unique</span>(church_wide<span class="sc">$</span>abi))<span class="sc">*</span><span class="dv">100</span>, <span class="at">digits =</span> <span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The full extent of the skew is not evaluated on this page. However, to illustrate the issue, several simulated examples based on real instances are provided. These examples highlight two key aspects:</p>
+<ol type="1">
+<li>A PO Box address is used either before or after other addresses, misrepresenting the span of year open.</li>
+<li>A PO Box address is used between other addresses for more than three consecutive years.</li>
+</ol>
+<p>The second point may introduce skew because the closure detection method defined by Professor Ransome and Dr.&nbsp;Insang identifies a church closure as more than three consecutive zeros between 2001 and 2021. Under this method, sequences such as “10001” and “101” are replaced with “11111” and “111,” respectively, and treated as continuously open. A PO Box used between other addresses that exceeds this threshold would therefore be artificially identified as a closure and reopening event.</p>
+<p>Below are two artificially generated examples illustrating this issue. Real examples from the dataset are indexed in the <code>Explore the Raw Data.R</code> file under the section <strong>ASSUMPTION TO REMOVE PO BOXES</strong>. Note that access to the full dataset is required to view the real examples. In these cited real examples,</p>
+<p><strong>EXAMPLE #1:</strong></p>
+<p>Reported year first observed: 2005<br>
+Reported year last observed: 2021<br>
+Date first closure: N/A</p>
+<p>Derived from:</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>                      Compiled Address 2001 2002 2003 2004 2005 2006 2007 2008
+1       PO Box 987, Rosewood, PA 19004    1    1    1    1    0    0    0    0
+2 123 Maple Street, Rosewood, PA 19001    0    0    0    0    1    1    1    0
+3    789 Pine Lane, Rosewood, PA 19003    0    0    0    0    0    0    0    1
+4   789 Piine Lane, Rosewood, PA 19003    0    0    0    0    0    0    0    0
+5      789 Pine Ln, Rosewood, PA 19003    0    0    0    0    0    0    0    0
+6   456 Oak Avenue, Rosewood, PA 19002    0    0    0    0    0    0    0    0
+  2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021
+1    0    0    0    0    0    0    0    0    0    0    0    0    0
+2    0    0    0    0    0    0    0    0    0    0    0    0    0
+3    0    1    1    1    1    0    0    0    1    0    0    0    0
+4    1    0    0    0    0    0    0    0    0    0    0    0    0
+5    0    0    0    0    0    1    1    1    0    0    0    0    0
+6    0    0    0    0    0    0    0    0    0    1    1    1    1</code></pre>
+</div>
+</div>
+<p><strong>EXAMPLE #2:</strong></p>
+<p>Reported year first observed: 2001<br>
+Reported year last observed: 2021<br>
+Date first closure: 2005 and reopened in 2010</p>
+<p>Derived from:</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>                          Compiled Address 2001 2002 2003 2004 2005 2006 2007
+1 321 Chestnut Drive, Greenfield, MA 01301    1    1    1    1    0    0    0
+2            PO Box 456, Amherst, MA 01002    0    0    0    0    1    1    1
+3     789 Elm Street, Greenfield, MA 01301    0    0    0    0    0    0    0
+4       456 Oak Road, Greenfield, MA 01301    0    0    0    0    0    0    0
+  2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021
+1    0    0    0    0    0    0    0    0    0    0    0    0    0    0
+2    1    1    0    0    0    0    0    0    0    0    0    0    0    0
+3    0    0    1    1    1    1    0    0    0    0    0    0    0    0
+4    0    0    0    0    0    0    1    1    1    1    1    1    1    1</code></pre>
+</div>
+</div>
+<p>These examples also show that the geolocation of a PO Box is sometimes identical to that of a physical address. This is not problematic if the intent is to closely associate the two; however, it may be problematic if multiple matches exist or if the PO Box location is sufficiently distant to suggest a move outside of the community.</p>
+<p>The full extent of this issue warrants further assessment.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show the code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="do">## ----------------------------------------------------------------</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="do">## ASSUMPTION TO REMOVE PO BOX'S</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>search_space <span class="ot">&lt;-</span> church_wide[<span class="fu">str_which</span>(church_wide<span class="sc">$</span>address_line_1, <span class="st">"(?i)PO Box|P O Box"</span>), <span class="st">"abi"</span>] <span class="sc">%&gt;%</span> </span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unique</span>() <span class="co"># Isolate ABIs that filed under a PO Box at one point</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>church_wide_dt <span class="ot">&lt;-</span> <span class="fu">as.data.table</span>(church_wide)  <span class="co"># Convert for efficient data manipulation</span></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>result4 <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="st">"list"</span>, <span class="fu">length</span>(search_space))  <span class="co"># Initialize an empty list</span></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>pb <span class="ot">=</span> <span class="fu">txtProgressBar</span>(<span class="at">min =</span> <span class="dv">0</span>, <span class="at">max =</span> <span class="fu">length</span>(search_space), <span class="at">style =</span> <span class="dv">3</span>)  <span class="co"># Initialize progress bar</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(search_space)) {</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Subset to show only the entries associated with one reduplicated ABI.</span></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>  subset <span class="ot">&lt;-</span> church_wide_dt[abi <span class="sc">%in%</span> search_space[i]]</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># --------------------</span></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Identify PO Box address rows for this ABI, then compare each PO Box row’s</span></span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># longitude/latitude to every NON–PO Box row for the same ABI (i.e., all rows</span></span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>  <span class="co"># excluding the PO Box row itself and all other PO Box rows).</span></span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>  index <span class="ot">&lt;-</span> <span class="fu">str_which</span>(subset<span class="sc">$</span>address_line_1, <span class="st">"(?i)PO Box|P O Box"</span>)</span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>  build <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="st">"list"</span>, <span class="fu">length</span>(index))</span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(index)){</span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>    po_box <span class="ot">&lt;-</span> index[j]</span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>    others <span class="ot">&lt;-</span> <span class="fu">setdiff</span>(<span class="fu">seq_len</span>(<span class="fu">nrow</span>(subset)), <span class="fu">union</span>(po_box, index))</span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Test how similar the longitude and latitude are.</span></span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>    negligible_change <span class="ot">&lt;-</span> <span class="fl">0.002</span>  <span class="co"># Change in degrees (~222 meters or 728 feet)</span></span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>    lon_test <span class="ot">&lt;-</span> <span class="fu">abs</span>(subset<span class="sc">$</span>longitude[others] <span class="sc">-</span> subset<span class="sc">$</span>longitude[po_box])</span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a>    lat_test <span class="ot">&lt;-</span> <span class="fu">abs</span>(subset<span class="sc">$</span>latitude [others] <span class="sc">-</span> subset<span class="sc">$</span>latitude [po_box])</span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a>    lonLat_test <span class="ot">&lt;-</span> lon_test <span class="sc">&lt;</span> negligible_change <span class="sc">&amp;</span> lat_test <span class="sc">&lt;</span> negligible_change</span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compile the results.</span></span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a>    build[[j]] <span class="ot">&lt;-</span> <span class="fu">cbind</span>(</span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Use the ABI as the first column.</span></span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a>      <span class="fu">unique</span>(subset<span class="sc">$</span>abi),</span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Add the PO Box name.</span></span>
+<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a>      subset[po_box, <span class="st">"address_line_1"</span>],</span>
+<span id="cb16-39"><a href="#cb16-39" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Add the summary results capturing if any comparisons passed.</span></span>
+<span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a>      <span class="fu">any</span>(lonLat_test, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Number of failed Boolean tests.</span></span>
+<span id="cb16-42"><a href="#cb16-42" aria-hidden="true" tabindex="-1"></a>      lonLat_test <span class="sc">%&gt;%</span> (\(y) <span class="fu">sum</span>(<span class="sc">!</span>y, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) (),</span>
+<span id="cb16-43"><a href="#cb16-43" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Total number of comparisons.</span></span>
+<span id="cb16-44"><a href="#cb16-44" aria-hidden="true" tabindex="-1"></a>      lonLat_test <span class="sc">%&gt;%</span> (\(y) <span class="fu">length</span>(y)) (),</span>
+<span id="cb16-45"><a href="#cb16-45" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Summary statistics of the failed Boolean tests (longitude diffs).</span></span>
+<span id="cb16-46"><a href="#cb16-46" aria-hidden="true" tabindex="-1"></a>      lon_test[<span class="sc">!</span>lonLat_test] <span class="sc">%&gt;%</span> (\(y) <span class="cf">if</span> (<span class="fu">length</span>(y) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> <span class="fu">min</span>(y,  <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) (),</span>
+<span id="cb16-47"><a href="#cb16-47" aria-hidden="true" tabindex="-1"></a>      lon_test[<span class="sc">!</span>lonLat_test] <span class="sc">%&gt;%</span> (\(y) <span class="cf">if</span> (<span class="fu">length</span>(y) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> <span class="fu">mean</span>(y, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) (),</span>
+<span id="cb16-48"><a href="#cb16-48" aria-hidden="true" tabindex="-1"></a>      lon_test[<span class="sc">!</span>lonLat_test] <span class="sc">%&gt;%</span> (\(y) <span class="cf">if</span> (<span class="fu">length</span>(y) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> <span class="fu">max</span>(y,  <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) (),</span>
+<span id="cb16-49"><a href="#cb16-49" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Summary statistics of the failed Boolean tests (latitude diffs).</span></span>
+<span id="cb16-50"><a href="#cb16-50" aria-hidden="true" tabindex="-1"></a>      lat_test[<span class="sc">!</span>lonLat_test] <span class="sc">%&gt;%</span> (\(y) <span class="cf">if</span> (<span class="fu">length</span>(y) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> <span class="fu">min</span>(y,  <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) (),</span>
+<span id="cb16-51"><a href="#cb16-51" aria-hidden="true" tabindex="-1"></a>      lat_test[<span class="sc">!</span>lonLat_test] <span class="sc">%&gt;%</span> (\(y) <span class="cf">if</span> (<span class="fu">length</span>(y) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> <span class="fu">mean</span>(y, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) (),</span>
+<span id="cb16-52"><a href="#cb16-52" aria-hidden="true" tabindex="-1"></a>      lat_test[<span class="sc">!</span>lonLat_test] <span class="sc">%&gt;%</span> (\(y) <span class="cf">if</span> (<span class="fu">length</span>(y) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> <span class="fu">max</span>(y,  <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) ()</span>
+<span id="cb16-53"><a href="#cb16-53" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb16-54"><a href="#cb16-54" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb16-55"><a href="#cb16-55" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb16-56"><a href="#cb16-56" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Store 'build' in the list.</span></span>
+<span id="cb16-57"><a href="#cb16-57" aria-hidden="true" tabindex="-1"></a>  result4[[i]] <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, build) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-58"><a href="#cb16-58" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">colnames&lt;-</span><span class="st">`</span>(<span class="fu">c</span>(<span class="st">"abi"</span>,<span class="st">"address_line_1"</span>,<span class="st">"Summary Outcome"</span>, <span class="st">"n_failed"</span>,<span class="st">"n_total"</span>,</span>
+<span id="cb16-59"><a href="#cb16-59" aria-hidden="true" tabindex="-1"></a>                   <span class="st">"lon_failed_min"</span>,<span class="st">"lon_failed_mean"</span>,<span class="st">"lon_failed_max"</span>, </span>
+<span id="cb16-60"><a href="#cb16-60" aria-hidden="true" tabindex="-1"></a>                   <span class="st">"lat_failed_min"</span>,<span class="st">"lat_failed_mean"</span>,<span class="st">"lat_failed_max"</span>))</span>
+<span id="cb16-61"><a href="#cb16-61" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb16-62"><a href="#cb16-62" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Print the for loop's progress.</span></span>
+<span id="cb16-63"><a href="#cb16-63" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setTxtProgressBar</span>(pb, i)</span>
+<span id="cb16-64"><a href="#cb16-64" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb16-65"><a href="#cb16-65" aria-hidden="true" tabindex="-1"></a><span class="co"># Commit result with reformatting.</span></span>
+<span id="cb16-66"><a href="#cb16-66" aria-hidden="true" tabindex="-1"></a>result4 <span class="ot">&lt;-</span> <span class="fu">rbindlist</span>(result4, <span class="at">use.names =</span> <span class="cn">TRUE</span>, <span class="at">fill =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb16-67"><a href="#cb16-67" aria-hidden="true" tabindex="-1"></a>  (\(DT) {</span>
+<span id="cb16-68"><a href="#cb16-68" aria-hidden="true" tabindex="-1"></a>    cols_to_round <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"lon_failed_min"</span>, <span class="st">"lon_failed_mean"</span>,<span class="st">"lon_failed_max"</span>,</span>
+<span id="cb16-69"><a href="#cb16-69" aria-hidden="true" tabindex="-1"></a>                       <span class="st">"lat_failed_min"</span>,<span class="st">"lat_failed_mean"</span>,<span class="st">"lat_failed_max"</span>)</span>
+<span id="cb16-70"><a href="#cb16-70" aria-hidden="true" tabindex="-1"></a>    DT[, (cols_to_round) <span class="sc">:</span><span class="er">=</span> <span class="fu">as.data.table</span>(<span class="fu">sapply</span>(.SD, round, <span class="at">digits =</span> <span class="dv">3</span>)),</span>
+<span id="cb16-71"><a href="#cb16-71" aria-hidden="true" tabindex="-1"></a>       .SDcols <span class="ot">=</span> cols_to_round]</span>
+<span id="cb16-72"><a href="#cb16-72" aria-hidden="true" tabindex="-1"></a>  })()</span>
+<span id="cb16-73"><a href="#cb16-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-74"><a href="#cb16-74" aria-hidden="true" tabindex="-1"></a><span class="co"># # Save the result.</span></span>
+<span id="cb16-75"><a href="#cb16-75" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(result4, <span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/PO Box Geolocation_04.10.2026.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>28% of evaluations revealed that only a PO Box was listed, corresponding to almost 3% of unique ABI. All such entries are associated with a <code>Summary Outcome = FALSE</code> result. Excluding evaluations where only PO Boxes were used, 38% of entries showed at least one PO Box to physical address alignment. NA values were detected in one or more comparators, though these constituted fewer than 1% of the data.</p>
+<p>Looking only at entries where <code>Summary Outcome = FALSE</code> and excluding evaluations limited to PO Boxes, the summary statistics indicate that most differences are close to zero, with the third quartile for each measure falling below 1 degree. However, some entries exhibit notably large differences, with longitude differences reaching as high as 47 degrees.</p>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><u>Longitude Failed</u></p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>              min     mean      max
+    Min.  0.00000  0.00000  0.00000
+ 1st Qu.  0.00500  0.00600  0.00600
+  Median  0.01200  0.01400  0.01500
+    Mean  0.03695  0.04036  0.04487
+ 3rd Qu.  0.02900  0.03300  0.03600
+    Max. 30.82600 30.82600 47.44800</code></pre>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<p><u>Latitude Failed</u></p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>             min     mean      max
+    Min.  0.0000  0.00000  0.00000
+ 1st Qu.  0.0040  0.00500  0.00500
+  Median  0.0100  0.01200  0.01300
+    Mean  0.0266  0.02924  0.03217
+ 3rd Qu.  0.0240  0.02700  0.02900
+    Max. 11.0440 11.04400 11.04400</code></pre>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section id="states-represented" class="level2">
+<h2 class="anchored" data-anchor-id="states-represented">States Represented</h2>
+<p>All 50 states are represented, along with D.C. and five U.S. territories. Confirming representation of all cities is not applicable, as some cities may genuinely have no religious institutions rather than reflecting missing data. The following abbreviations represent non-state U.S. jurisdictions that are also present:</p>
+<ul>
+<li><strong>DC</strong> – District of Columbia</li>
+<li><strong>PR</strong> – Puerto Rico</li>
+<li><strong>VI</strong> – U.S. Virgin Islands</li>
+<li><strong>GU</strong> – Guam</li>
+<li><strong>MP</strong> – Northern Mariana Islands</li>
+<li><strong>FM</strong> – Federated States of Micronesia</li>
+</ul>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Confirm all 50 U.S. states are represented.</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">unique</span>(church_wide<span class="sc">$</span>state) <span class="sc">%&gt;%</span> .[. <span class="sc">%in%</span> datasets<span class="sc">::</span>state.abb] <span class="sc">%&gt;%</span> <span class="fu">length</span>()</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Other state-level codes that are not one of the 50 U.S. states.</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="fu">unique</span>(church_wide<span class="sc">$</span>state) <span class="sc">%&gt;%</span> .[. <span class="sc">%!in%</span> datasets<span class="sc">::</span>state.abb]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+
+</section>
+
+<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>This site was built on a ysph-dsde.github.io page. It was rendered using Quarto (v 1.6.39) and theme <a href="https://bootswatch.com/lux/">Lux</a>.</p>
+</div>   
+    <div class="nav-footer-center">
+<p>This report was prepared by <a href="https://www.linkedin.com/in/shelby-golden/">Shelby Golden, M.S.</a>, a Data Scientist at YSPH DSDE.</p>
+<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Review.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://ysph.yale.edu/public-health-research-and-practice/research-centers-and-initiatives/public-health-data-science-and-data-equity/">
+      <i class="bi bi-globe" role="img">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/ysph-dsde">
+      <i class="bi bi-github" role="img">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/showcase/public-health-data-science-and-data-equity-at-yale/">
+      <i class="bi bi-linkedin" role="img">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="mailto:admin.dsdeysph@yale.edu">
+      <i class="bi bi-envelope" role="img">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item">
+ (203) 737-8644
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>
