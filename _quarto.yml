@@ -3,7 +3,7 @@ project:
   output-dir: _site
   render:
     - "*.qmd"
-    - "!Local Only/"
+    - "!KEEP LOCAL/"
 
 website:
   title: "Church Closures Dashboard"
@@ -43,9 +43,14 @@ website:
 
 format:
   html:
+    include-in-header: 
+      - _includes/google_analytics.html
+    header-includes:
+      - <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+      - <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
+    toc: true
+    toc-depth: 4
     theme: lux
     css: styles.css
-    toc: true
-
-
+    from: markdown+autolink_bare_uris
 

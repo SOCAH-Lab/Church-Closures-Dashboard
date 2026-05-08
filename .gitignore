@@ -12,30 +12,32 @@
 .RData
 
 # --------------------
-# Files and file types to ignore but are not sensitive
+# General for the site
 
 /.quarto/
 /docs/
 /_site/
+/_includes/
 sites_libs/
-**/*.pptx
+
+# --------------------
+# Exclude file types and incompletely rendered page outputs
+
+*_files
+*.html
+/_quarto_internal_scss_error.scss
 **/*.quarto_ipynb
 
 # --------------------
+# Project-specific exclusions
+
+**/*.pptx
+
 # The location for all the sensitive data that is individual level
 
 Code/KEEP LOCAL/
 Data/Raw/KEEP LOCAL/
 Data/Results/KEEP LOCAL/
-
-# --------------------
-# Catch-all to ensure all KEEP LOCAL directories are ignored
-
-**/KEEP LOCAL/
-
-
-# --------------------
-# API Credentials
 
 # API credentials cannot be shared. Add them to the following environment
 # file located in the project root directory and ensure that git is
@@ -46,3 +48,9 @@ Data/Results/KEEP LOCAL/
 # provided in scripts where an API key is loaded.
 
 .Renviron
+
+
+# Catch-all to ensure all KEEP LOCAL directories are ignored
+
+**/KEEP LOCAL/
+
