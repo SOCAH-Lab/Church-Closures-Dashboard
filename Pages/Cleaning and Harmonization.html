@@ -88,6 +88,38 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
+<!--
+ * This script integrates Google Analytics with your webpage, enabling you to 
+ * track and analyze visitor traffic.
+ * 
+ * It includes the following features:
+ *    1. Asynchronously loading the Google Analytics tracking library.
+ *    2. Setting up the global `dataLayer` array used by Google Analytics.
+ *    3. Defining the `gtag` function for configuring and sending data to Google Analytics.
+ *    4. Initializing Google Analytics with your tracking ID.
+ *
+ * Author: Shelby Golden, M.S.
+ *   Date: May 2026
+-->
+
+<!-- Google tag (gtag.js) -->
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-WK21WW2E0W"></script>
+<script>
+  // Initialize the dataLayer array if it doesn't already exist
+  window.dataLayer = window.dataLayer || [];
+  
+  // Define the gtag function to push arguments onto the dataLayer
+  function gtag(){dataLayer.push(arguments);}
+  
+  // Record a pageview with the current timestamp
+  gtag('js', new Date());
+
+  // Configure Google Analytics with your tracking ID
+  gtag('config', 'G-WK21WW2E0W');
+</script>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
 
   <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
@@ -173,7 +205,7 @@ window.Quarto = {
   <li><a href="#analysis-outline" id="toc-analysis-outline" class="nav-link active" data-scroll-target="#analysis-outline">Analysis Outline</a></li>
   <li><a href="#code-optimization" id="toc-code-optimization" class="nav-link" data-scroll-target="#code-optimization">Code Optimization</a></li>
   <li><a href="#step-1-results" id="toc-step-1-results" class="nav-link" data-scroll-target="#step-1-results">Step #1 Results</a>
-  <ul class="collapse">
+  <ul>
   <li><a href="#verify-no-duplicates-got-added" id="toc-verify-no-duplicates-got-added" class="nav-link" data-scroll-target="#verify-no-duplicates-got-added">Verify No Duplicates Got Added</a></li>
   <li><a href="#explore-the-nature-of-duplications-added" id="toc-explore-the-nature-of-duplications-added" class="nav-link" data-scroll-target="#explore-the-nature-of-duplications-added">Explore the Nature of Duplications Added</a></li>
   <li><a href="#similar-addresses-geolocation-discrepancies" id="toc-similar-addresses-geolocation-discrepancies" class="nav-link" data-scroll-target="#similar-addresses-geolocation-discrepancies">Similar Addresses: Geolocation Discrepancies</a></li>

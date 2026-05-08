@@ -88,6 +88,38 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-label": "Search"
   }
 }</script>
+<!--
+ * This script integrates Google Analytics with your webpage, enabling you to 
+ * track and analyze visitor traffic.
+ * 
+ * It includes the following features:
+ *    1. Asynchronously loading the Google Analytics tracking library.
+ *    2. Setting up the global `dataLayer` array used by Google Analytics.
+ *    3. Defining the `gtag` function for configuring and sending data to Google Analytics.
+ *    4. Initializing Google Analytics with your tracking ID.
+ *
+ * Author: Shelby Golden, M.S.
+ *   Date: May 2026
+-->
+
+<!-- Google tag (gtag.js) -->
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-WK21WW2E0W"></script>
+<script>
+  // Initialize the dataLayer array if it doesn't already exist
+  window.dataLayer = window.dataLayer || [];
+  
+  // Define the gtag function to push arguments onto the dataLayer
+  function gtag(){dataLayer.push(arguments);}
+  
+  // Record a pageview with the current timestamp
+  gtag('js', new Date());
+
+  // Configure Google Analytics with your tracking ID
+  gtag('config', 'G-WK21WW2E0W');
+</script>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
 
 
 <link rel="stylesheet" href="../styles.css">
@@ -143,12 +175,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#raw-data-dictionary" id="toc-raw-data-dictionary" class="nav-link active" data-scroll-target="#raw-data-dictionary">Raw Data Dictionary</a></li>
   <li><a href="#reduplicate-abis" id="toc-reduplicate-abis" class="nav-link" data-scroll-target="#reduplicate-abis">Reduplicate ABI’s</a>
-  <ul class="collapse">
+  <ul>
   <li><a href="#mutually-exclusive-dates" id="toc-mutually-exclusive-dates" class="nav-link" data-scroll-target="#mutually-exclusive-dates">Mutually Exclusive Dates</a></li>
   <li><a href="#moves-vs.-reduplications" id="toc-moves-vs.-reduplications" class="nav-link" data-scroll-target="#moves-vs.-reduplications">Moves vs.&nbsp;Reduplications</a></li>
   </ul></li>
   <li><a href="#closer-look-at-assumptions-2" id="toc-closer-look-at-assumptions-2" class="nav-link" data-scroll-target="#closer-look-at-assumptions-2">Closer Look at Assumptions #2</a>
-  <ul class="collapse">
+  <ul>
   <li><a href="#metadata-fields" id="toc-metadata-fields" class="nav-link" data-scroll-target="#metadata-fields">Metadata Fields</a></li>
   <li><a href="#zip-codes" id="toc-zip-codes" class="nav-link" data-scroll-target="#zip-codes">Zip Codes</a></li>
   </ul></li>
