@@ -147,9 +147,9 @@ ul.task-list li input[type="checkbox"] {
 <section id="important-links-and-locations" class="level2">
 <h2 class="anchored" data-anchor-id="important-links-and-locations">Important Links and Locations</h2>
 <p>In accordance with the Data Use Agreement for this dataset, some repositories may not be publicly accessible or may contain local files that are not tracked by Git and or included on GitHub. Complete copies of the data and summary results can be accessed in the ‘SOCAH LAB\Church closing\Raw data’ folder on Yale’s OneDrive.</p>
-<p>Active dashboard: <a href="https://church-closing-dashboard.vercel.app/">Closed Churches in the US</a></p>
+<p>Active dashboard prototype: <a href="https://church-closing-dashboard.vercel.app/">Closed Churches in the US</a></p>
 <p>Original GitHub Repo by Dr.&nbsp;Song: <a href="https://github.com/sigmafelix/healthreligion_project">sigmafelix/healthreligion_project</a></p>
-<p>Source for Dashboard Map Code: <a href="https://github.com/ysph-dsde/church-closures">ysph-dsde/church-closures</a></p>
+<p>Current Project GitHub Repo by Shelby: <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard">SOCAH-Lab/Church-Closures-Dashboard</a></p>
 </section>
 <section id="repository-note" class="level2">
 <h2 class="anchored" data-anchor-id="repository-note">Repository Note</h2>
@@ -234,7 +234,7 @@ ul.task-list li input[type="checkbox"] {
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
+        var filterRegex = new RegExp("https:\/\/SOCAH-Lab\.github\.io\/Church-Closures-Dashboard\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }

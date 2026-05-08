@@ -1,0 +1,1 @@
+Sitemap: https://SOCAH-Lab.github.io/Church-Closures-Dashboard/sitemap.xml

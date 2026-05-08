@@ -18,7 +18,7 @@
     "href": "index.html#important-links-and-locations",
     "title": "Overview",
     "section": "Important Links and Locations",
-    "text": "Important Links and Locations\nIn accordance with the Data Use Agreement for this dataset, some repositories may not be publicly accessible or may contain local files that are not tracked by Git and or included on GitHub. Complete copies of the data and summary results can be accessed in the ‘SOCAH LAB\\Church closing\\Raw data’ folder on Yale’s OneDrive.\nActive dashboard: Closed Churches in the US\nOriginal GitHub Repo by Dr. Song: sigmafelix/healthreligion_project\nSource for Dashboard Map Code: ysph-dsde/church-closures"
+    "text": "Important Links and Locations\nIn accordance with the Data Use Agreement for this dataset, some repositories may not be publicly accessible or may contain local files that are not tracked by Git and or included on GitHub. Complete copies of the data and summary results can be accessed in the ‘SOCAH LAB\\Church closing\\Raw data’ folder on Yale’s OneDrive.\nActive dashboard prototype: Closed Churches in the US\nOriginal GitHub Repo by Dr. Song: sigmafelix/healthreligion_project\nCurrent Project GitHub Repo by Shelby: SOCAH-Lab/Church-Closures-Dashboard"
   },
   {
     "objectID": "index.html#repository-note",
