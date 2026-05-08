@@ -18,11 +18,11 @@ Findings addressing each of these objectives are accessible via the navigation b
 
 In accordance with the Data Use Agreement for this dataset, some repositories may not be publicly accessible or may contain local files that are not tracked by Git and or included on GitHub. Complete copies of the data and summary results can be accessed in the 'SOCAH LAB\\Church closing\\Raw data' folder on Yale's OneDrive.
 
-Active dashboard: [Closed Churches in the US](https://church-closing-dashboard.vercel.app/)
+Active dashboard prototype: [Closed Churches in the US](https://church-closing-dashboard.vercel.app/)
 
 Original GitHub Repo by Dr. Song: [sigmafelix/healthreligion_project](https://github.com/sigmafelix/healthreligion_project)
 
-Source for Dashboard Map Code: [ysph-dsde/church-closures](https://github.com/ysph-dsde/church-closures)
+Current Project GitHub Repo by Shelby: [SOCAH-Lab/Church-Closures-Dashboard](https://github.com/SOCAH-Lab/Church-Closures-Dashboard)
 
 ## Repository Note
 

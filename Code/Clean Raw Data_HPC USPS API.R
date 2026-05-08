@@ -121,7 +121,7 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 # Each index was processed in a separate session and compiled in
 # "Clean Raw Data_Step 2.R".
 
-# 1:42000 <-- completed
+# 1:42000 <-- in progress
 # 42001:84000 <-- completed
 # 84001:126000 <-- completed
 # 126001:168000 <-- completed
@@ -140,15 +140,15 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 # 672001:714000 <-- completed
 # 714001:756000 <-- completed
 # 756001:798000 <-- completed
-# 798001:840000 <-- in progress
-# 840001:882000 <-- in progress
-# 882001:924000 <-- in progress
-# 924001:966000 <-- in progress
-# 966001:1008000
-# 1008001:1050000
-# 1050001:1092000
-# 1092001:1134000
-# 1134001:1176000
+# 798001:840000 <-- completed
+# 840001:882000 <-- completed
+# 882001:924000 <-- completed
+# 924001:966000 <-- completed
+# 966001:1008000 <-- completed
+# 1008001:1050000 <-- completed
+# 1050001:1092000 <-- completed
+# 1092001:1134000 <-- completed
+# 1134001:1176000 <-- completed
 # 1176001:1210975
 
 
@@ -172,7 +172,7 @@ consumer_key <- Sys.getenv("USPS_CONSUMER_KEY", unset = "<UNSET>")
 consumer_secret <- Sys.getenv("USPS_CONSUMER_SECRET", unset = "<UNSET>")
 
 # Set index
-index = 840001:882000
+index = 1050001:1092000
 
 # Add a progress bar to show where the function is in the for loop.
 pb = txtProgressBar(min = min(index), max = max(index), style = 3)
@@ -218,7 +218,7 @@ for (i in min(index):max(index)) {
           )
         })
         
-        # Stop after the first candidate that yields a city
+        # Stop after the first candidate that yields a result
         break
       }
     }
