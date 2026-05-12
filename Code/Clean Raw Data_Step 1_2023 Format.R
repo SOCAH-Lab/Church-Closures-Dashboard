@@ -1,9 +1,14 @@
 ## ----------------------------------------------------------------
 ## Consolidate reduplicate records caused by minor address typographical variations.
+## 
+## NOTE: This script was designed for the 2023 raw data format. An updated
+##       version has been created to handle the 2026 format. Refer to
+##       "Process Data Update.R" for a description of their differences and
+##       any handling variations.
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025
-## Date Modified: April 29th, 2026
+## Date Modified: May 12th, 2026
 ## 
 ## Description: During review of the raw data, it was identified that multiple
 ##              records are associated with the same address, attributed to
@@ -152,8 +157,16 @@ mb <- microbenchmark(
 
 autoplot(mb)
 
+
+#' @description Codebook for the output fields produced by the evaluation.
+#'
+#' @field expr Codename identifying the subsetting method applied.
+#'
+#' @field time Computational time elapsed to complete the operation, measured 
+#'             in milliseconds.
+
 mb_result <- data.table("expr" = mb$expr, "time" = mb$time)
-write.csv(as.data.frame(mb_result), "./Data/Results/From Clean Raw Data/Step 1/Step 1 MB Timings_Subsetting.csv", row.names = FALSE)
+write.csv(as.data.frame(mb_result), "./Data/Results/From Clean Raw Data/Step 1_2023 Format/Step 1 MB Timings_Subsetting.csv", row.names = FALSE)
 
 
 # On average, Method 4: Using data.table's efficient subsetting with %in% was
@@ -229,8 +242,16 @@ mb <- microbenchmark(
 
 autoplot(mb)
 
+
+#' @description Codebook for the output fields produced by the evaluation.
+#'
+#' @field expr Codename identifying the data combination method applied.
+#'
+#' @field time Computational time elapsed to complete the operation, measured 
+#'             in milliseconds.
+
 mb_result <- data.table("expr" = mb$expr, "time" = mb$time)
-write.csv(as.data.frame(mb_result), "./Data/Results/From Clean Raw Data/Step 1/Step 1 MB Timings_Data Combining.csv", row.names = FALSE)
+write.csv(as.data.frame(mb_result), "./Data/Results/From Clean Raw Data/Step 1_2023 Format/Step 1 MB Timings_Data Combining.csv", row.names = FALSE)
 
 
 # On average, Method 5: Accumulate in a list and data.table rbindlist once was
@@ -380,12 +401,24 @@ write.csv(as.data.frame(mb_result), "./Data/Results/From Clean Raw Data/Step 1/S
 # 
 # # Combine all data tables in the list into one data table.
 # finish_build <- rbindlist(finish_build, use.names = TRUE, fill = TRUE)
-# 
+
+
+#' @description Codebook for the new output fields produced by the data
+#'              cleaning and validation step. All other fields were present
+#'              in the in-progress form of the raw data imported at the
+#'              start of the step.
+#'
+#' @field compiled_address  Formatted, combined version of all address elements.
+#'
+#' @field lonLat_test  Boolean. TRUE if the difference between the maximum and 
+#'                     minimum longitude and latitude values did not exceed the 
+#'                     0.002 degree threshold.
+
 # # Commit results.
-# write.csv(finish_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B_04.22.2026.csv")
+# write.csv(finish_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B_04.22.2026.csv")
 
 # Read in previously generated results.
-finish_build <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B_04.22.2026.csv", 
+finish_build <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B_04.22.2026.csv", 
                          col_types = cols(...1 = col_skip())) %>% as.data.frame()
 
 all(finish_build$abi %in% duplicates_detected$abi) & all(duplicates_detected$abi %in% finish_build$abi)
@@ -430,13 +463,25 @@ round(nrow(finish_build)/(church_wide %>% filter(abi %in% duplicates_detected$ab
 #   ungroup() %>%
 #   # Convert the grouped data back to a standard data frame.
 #   as.data.frame()
-# 
+
+
+#' @description Codebook for the output fields produced by the evaluation.
+#'
+#' @field abi Unique business identifier. Evaluation is performed over each 
+#'            unique business ID.
+#'
+#' @field `2001:2021` Column-wise sum of all entries associated with the given 
+#'                    business ID.
+#'
+#' @field all_counts_0_or_1 Boolean. TRUE if all date entry sums for the given
+#'                          business ID are equal to 0 or 1.
+
 # # Commit results.
-# write.csv(test_no_dup, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B1_04.22.2026.csv")
+# write.csv(test_no_dup, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B1_04.22.2026.csv")
 
 
 # Read in previously generated results.
-test_no_dup <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B1_04.22.2026.csv", 
+test_no_dup <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B1_04.22.2026.csv", 
                         col_types = cols(...1 = col_skip())) %>% as.data.frame()
 
 
@@ -680,11 +725,23 @@ finish_build <- finish_build %>%
   mutate(override_duplicate = coalesce(override_duplicate, override_duplicate_from_new)) %>%
   select(-override_duplicate_from_new)
 
+
+#' @description Codebook for the new output fields produced by the data
+#'              cleaning and validation step. All other fields were present
+#'              in the in-progress form of the data generated in SUBSECTION B.
+#'
+#' @field override_duplicate Boolean. TRUE if the address was manually
+#'                           identified as the same physical address,
+#'                           indicating that the failed longitude and latitude 
+#'                           similarity test should be overridden. FALSE if 
+#'                           the failed test still applies. NA if this 
+#'                           evaluation did not apply.
+
 # # Commit results.
-# write.csv(finish_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B2_04.26.2026.csv")
+# write.csv(finish_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B2_04.26.2026.csv")
 
 # Read in previously generated results.
-finish_build <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B2_04.26.2026.csv", 
+finish_build <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B2_04.26.2026.csv", 
                          col_types = cols(...1 = col_skip())) %>% as.data.frame()
 
 
@@ -946,13 +1003,28 @@ table("Clusters" = finish_build$same_num_clusters, "Duplicated" = finish_build$o
 # 
 # # Combine all data tables in the list into one data table.
 # supplement_build <- rbindlist(supplement_build, use.names = TRUE, fill = TRUE)
-# 
+
+
+#' @description Codebook for the new output fields produced by the data
+#'              cleaning and validation step. All other fields were present
+#'              in the in-progress form of the data generated in
+#'              Subsection B2. This is a subset of finish_build, containing
+#'              only entries that need to be expanded
+#'              (i.e., same_num_clusters == FALSE).
+#'
+#' @field same_num_clusters Expanded entries represent addresses that were
+#'                          initially collapsed, failed the longitude and
+#'                          latitude similarity test, and were identified as 
+#'                          needing to be expanded for individual address 
+#'                          validation. FALSE entries belong to the same subset 
+#'                          but were not marked for expansion.
+
 # # Commit results.
-# write.csv(supplement_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection C1_04.27.2026.csv")
+# write.csv(supplement_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection C1_04.27.2026.csv")
 
 
 # Read in previously generated results.
-expanded <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection C1_04.27.2026.csv", 
+expanded <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection C1_04.27.2026.csv", 
                      col_types = cols(...1 = col_skip())) %>% as.data.frame()
 
 
@@ -1101,11 +1173,19 @@ step_1[str_length(step_1$zipcode) %in% 1, "zipcode"] <- "00000"
 # replaced with zero accordingly.
 step_1 <- mutate(step_1, across(all_of(names(step_1)[14:34]), ~ coalesce(.x, 0)))
 
+
+#' @description Codebook for the new output fields produced by the data
+#'              cleaning and validation step. All other fields were present
+#'              in the in-progress form of the data generated in
+#'              Subsection C1.
+#'              
+#' NO NEW FIELDS ADDED
+
 # # Commit results.
-# write.csv(step_1, file = "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 01_Completed Result_04.29.2026.csv")
+# write.csv(step_1, file = "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 01_Completed Result_04.29.2026.csv")
 
 # Load in the pre-produced test results for evaluation.
-step_1 <- read_csv("Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 01_Completed Result_04.29.2026.csv",
+step_1 <- read_csv("Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 01_Completed Result_04.29.2026.csv",
                    col_types = cols(...1 = col_skip())) %>% as.data.frame()
 
 
