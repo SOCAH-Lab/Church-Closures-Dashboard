@@ -202,7 +202,27 @@ duplicated(church_wide$abi) %>% table()
 # 
 # # Convert results from binary back to logical.
 # result[, -1] <- apply(result[, -1], 2, function(x) as.logical(x))
-#
+
+
+#' @description Codebook for the output fields produced by the evaluation.
+#' 
+#' @field abi Unique business identifier over which the evaluation is performed.
+#'                        
+#' @field Exclusive Boolean. TRUE if date columns sum to 0 or 1, indicating
+#'                  that the information provided by each is mutually exclusive.
+#'              
+#' @field Zip_Same Boolean. TRUE if the zip code is consistent across all 
+#'                 addresses associated with a given business ID.
+#'                        
+#' @field Metadata_Same Boolean. TRUE if the following metadata fields are
+#'                      consistent across all addresses associated with a given
+#'                      business ID: year_established, state, city,
+#'                      primary_naics_code, and naics8_descriptions.
+#'                        
+#' @field LonLat_Similar Boolean. TRUE if the difference between the minimum
+#'                       and maximum longitude AND latitude values are each
+#'                       less than 1 degree.
+
 # # Save the result.
 # write.csv(result, "Data/Results/KEEP LOCAL/From Explore the Raw Data/ABI Duplicates Test_05.16.2025.csv")
 
@@ -385,7 +405,26 @@ church_wide$naics8_descriptions %>% unique()
 # 
 # # Convert results from binary back to logical.
 # result2[, -1] <- apply(result2[, -1], 2, function(x) as.logical(x))
-# 
+
+
+#' @description Codebook for the output fields produced by the evaluation.
+#'
+#' @field abi Unique business identifier. Evaluation is performed over each
+#'            unique business ID in the subset that meets the second set of
+#'            reduplication assumptions.
+#'
+#' @field Year Boolean. TRUE if all addresses associated with the business ID
+#'             share a single unique value for year_established.
+#'
+#' @field State Boolean. TRUE if all addresses associated with the business ID
+#'              share a single unique value for state.
+#'
+#' @field City Boolean. TRUE if all addresses associated with the business ID
+#'             share a single unique value for city.
+#'
+#' @field NAICS Boolean. TRUE if all addresses associated with the business ID
+#'              share a single unique value for primary_naics_code.
+
 # # Save the result.
 # write.csv(result2, "Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same_04.10.2026.csv")
 
@@ -526,7 +565,43 @@ table("City" = result2$City)
 #     )
 #   ) %>%
 #   select(-c1, -c2, -c3)
-# 
+
+
+#' @description Codebook for the output fields produced by the evaluation.
+#' 
+#' @field abi Unique business identifier. Evaluation is performed over each 
+#'            unique business ID in the subset that meets the second set of 
+#'            reduplication assumptions and where the city similarity evaluation 
+#'            did not pass.
+#'
+#' @field `Preferred City Name` Preferred address matched to the business using
+#'                              the zip code and the simplemaps database.
+#'
+#' @field `# Entries` Number of rows, or possible addresses, associated with 
+#'                    each business ID.
+#'
+#' @field `PO Box?` Boolean. TRUE if any address associated with the business 
+#'                  ID corresponds to a PO Box.
+#'
+#' @field `Similar Names` City names in the dataset grouped into clusters of 
+#'                        similar names by string similarity.
+#'
+#' @field `Unique Names` Distinct city name outcomes present in the dataset 
+#'                       after grouping.
+#'
+#' @field `Unique-Similar` Difference between the number of unique city names 
+#'                         and the number of unique similar city name clusters.
+#'
+#' @field `# Cities Suggested` Total number of city matches suggested by the
+#'                             simplemaps database for the associated zip code.
+#'
+#' @field `Preferred in Unique?` Boolean. TRUE if the preferred city name
+#'                               returned by the simplemaps database is already
+#'                               present in the dataset.
+#'
+#' @field `Unique-Preferred` Difference between the number of unique city names 
+#'                           and the number of preferred city names.
+
 # # Save the result.
 # write.csv(result3, "Data/Results/KEEP LOCAL/From Explore the Raw Data/City Name Variation_04.10.2026.csv")
 
@@ -828,8 +903,32 @@ church_long[524, 1:3]
 #     DT[, (cols_to_round) := as.data.table(sapply(.SD, round, digits = 3)),
 #        .SDcols = cols_to_round]
 #   })()
-# 
-# # # Save the result.
+
+
+#' @description Codebook for the output fields produced by the evaluation.
+#'
+#' @field abi Unique business identifier. Evaluation is performed over each 
+#'            unique business ID associated with at least one PO Box address.
+#'
+#' @field address_line_1 PO Box address. Evaluation is performed over each
+#'                       unique PO Box associated with a given business ID.
+#'
+#' @field `Summary Outcome` Boolean. TRUE if any entries sharing the same PO
+#'                          Box number pass both the longitude and latitude
+#'                          similarity tests (threshold: 0.002 degrees each).
+#'
+#' @field n_failed Number of entries that failed the longitude and latitude 
+#'                 similarity tests.
+#'
+#' @field n_total Total number of occurrences of the PO Box across all entries.
+#'
+#' @field lon_failed_[min|mean|max] Minimum, mean, and maximum longitude values
+#'                                  among entries that failed the similarity test.
+#'
+#' @field lat_failed_[min|mean|max] Minimum, mean, and maximum latitude values
+#'                                  among entries that failed the similarity test.
+
+# # Save the result.
 # write.csv(result4, "Data/Results/KEEP LOCAL/From Explore the Raw Data/PO Box Geolocation_04.10.2026.csv")
 
 # Load in the pre-produced test results for evaluation.
