@@ -1,0 +1,55 @@
+"","Variable","Group","Metadata","By Business","By Year","Var Class_2026","Var Class_2023"
+"1","company","Core business details",TRUE,TRUE,FALSE,"character",NA
+"2","abi","Core business details",FALSE,TRUE,FALSE,"numeric","numeric"
+"3","year_established","Core business details",TRUE,TRUE,FALSE,"numeric","numeric"
+"4","primary_naics6_code","Core business details",TRUE,TRUE,FALSE,"numeric","numeric"
+"5","naics6_descriptions","Core business details",TRUE,TRUE,FALSE,"character","character"
+"6","subsidiary_number","Core business details",TRUE,TRUE,FALSE,"character",NA
+"7","company_holding_status","Core business details",TRUE,TRUE,FALSE,"numeric",NA
+"8","address_line_1","Core business details by location",FALSE,FALSE,FALSE,"character","character"
+"9","city","Core business details by location",FALSE,FALSE,FALSE,"character","character"
+"10","state","Core business details by location",FALSE,FALSE,FALSE,"character","character"
+"11","zipcode","Core business details by location",FALSE,FALSE,FALSE,"character","numeric"
+"12","zip4","Core business details by location",FALSE,FALSE,FALSE,"character",NA
+"13","primary_sic_code","Core business details by location",TRUE,FALSE,FALSE,"numeric",NA
+"14","sic6_descriptions","Core business details by location",TRUE,FALSE,FALSE,"character",NA
+"15","sic_code","Core business details by location",TRUE,FALSE,TRUE,"numeric",NA
+"16","sic6_descriptions_sic","Core business details by location",TRUE,FALSE,TRUE,"character",NA
+"17","sic_code_1","Core business details by location",TRUE,FALSE,TRUE,"numeric",NA
+"18","sic6_descriptions_sic1","Core business details by location",TRUE,FALSE,TRUE,"character",NA
+"19","sic_code_2","Core business details by location",TRUE,FALSE,TRUE,"numeric",NA
+"20","sic6_descriptions_sic2","Core business details by location",TRUE,FALSE,TRUE,"character",NA
+"21","sic_code_3","Core business details by location",TRUE,FALSE,TRUE,"numeric",NA
+"22","sic6_descriptions_sic3","Core business details by location",TRUE,FALSE,TRUE,"character",NA
+"23","sic_code_4","Core business details by location",TRUE,FALSE,TRUE,"logical",NA
+"24","sic6_descriptions_sic4","Core business details by location",TRUE,FALSE,TRUE,"logical",NA
+"25","latitude","Core location details",FALSE,FALSE,FALSE,"numeric","numeric"
+"26","longitude","Core location details",FALSE,FALSE,FALSE,"numeric","numeric"
+"27","census_block","Core location details",FALSE,FALSE,FALSE,"numeric",NA
+"28","census_tract","Core location details",FALSE,FALSE,FALSE,"character",NA
+"29","county_code","Core location details",FALSE,FALSE,FALSE,"character",NA
+"30","fips_code","Core location details",FALSE,FALSE,FALSE,"character",NA
+"31","cbsa_level","Core location details",FALSE,FALSE,FALSE,"numeric",NA
+"32","cbsa_code","Core location details",FALSE,FALSE,FALSE,"character",NA
+"33","csa_code","Core location details",FALSE,FALSE,FALSE,"character",NA
+"34","area_code","Core location details",FALSE,FALSE,FALSE,"numeric",NA
+"35","site_number","Core business details by location",TRUE,FALSE,TRUE,"character",NA
+"36","yellow_page_code","Core business details by location",TRUE,FALSE,TRUE,"numeric",NA
+"37","office_size_code","Core business details by location",TRUE,FALSE,TRUE,"logical",NA
+"38","employee_size_location","Core business details by location",TRUE,FALSE,TRUE,"numeric",NA
+"39","location_employee_size_code","Core business details by location",TRUE,FALSE,TRUE,"character",NA
+"40","sales_volume_location","Core business details by location",TRUE,FALSE,TRUE,"numeric",NA
+"41","location_sales_volume_code","Core business details by location",TRUE,FALSE,TRUE,"character",NA
+"42","parent_number","Parent company details",TRUE,TRUE,TRUE,"character",NA
+"43","parent_actual_employee_size","Parent company details",TRUE,TRUE,TRUE,"numeric",NA
+"44","parent_employee_size_code","Parent company details",TRUE,TRUE,TRUE,"character",NA
+"45","parent_actual_sales_volume","Parent company details",TRUE,TRUE,TRUE,"numeric",NA
+"46","parent_sales_volume_code","Parent company details",TRUE,TRUE,TRUE,"character",NA
+"47","primary_naics2_code","Unknown variables or code translations",TRUE,NA,TRUE,"numeric","numeric"
+"48","address_type_indicator","Unknown variables or code translations",TRUE,FALSE,TRUE,"character",NA
+"49","industry_specific_first_byte","Unknown variables or code translations",TRUE,NA,TRUE,"character",NA
+"50","business_status_code","Unknown variables or code translations",TRUE,TRUE,TRUE,"numeric",NA
+"51","population_code","Unknown variables or code translations",TRUE,FALSE,TRUE,"numeric",NA
+"52","match_code","Unknown variables or code translations",TRUE,NA,TRUE,"character",NA
+"53","ticker","Unknown variables or code translations",TRUE,NA,TRUE,"logical",NA
+"54","idcode","Unknown variables or code translations",TRUE,NA,TRUE,"numeric",NA
