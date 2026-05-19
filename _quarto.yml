@@ -18,9 +18,17 @@ website:
   navbar:
     right:
       - text: "Review"
-        href: Pages/Review.qmd
+        menu:
+          - text: "2023 Format"
+            href: Pages/Review_2023 Format.qmd
+          - text: "2026 Format"
+            href: Pages/Review_2026 Format.qmd
       - text: "Preparation"
-        href: Pages/Cleaning and Harmonization.qmd
+        menu:
+          - text: "2023 Format"
+            href: Pages/Cleaning and Harmonization_2023 Format.qmd
+          - text: "2026 Format"
+            href: Pages/Cleaning and Harmonization_2026 Format.qmd
       - text: "Metrics"
         href: Pages/Metric Calculation.qmd
       - text: Contact
