@@ -31,14 +31,17 @@ source("./Functions.R")
 "%!in%" <- function(x,y)!("%in%"(x,y))
 ```
 
-<small>Last Updated: April 29<sup>th</sup>, 2026</small>
+<small>Last Updated: May 19<sup>th</sup>, 2026</small>
 
 :::{.callout-warning}
-Add note here that this is the 2023 format. Update links to repo and file references. Add codebook?
+# 2023 vs. 2026 Format
+
+In May 2026, an updated version of the raw data was provided in a different format than the version exported in July 2023 and provided in the summer of 2025. As a result, data processing was split into two paths: one for the 2023 format and one for the 2026 format.
+
+The 2026 versions of comparable sections should be treated as the most current method applicable for ongoing research. Insights from the 2023 format are assumed to apply to the 2026 format as well. Unexpected outcomes or shortcomings in algorithm performance identified in the 2023 drafts were used to inform improvements applied in the 2026 version.
 :::
 
-
-The ultimate goal of this project is to produce a reasonably cleaned, concise, and validated form of the raw data suitable for dynamic visualization to the census tract level across three decennial periods. As noted in the [Review](Review.html) section, inconsistencies between addresses arise from typographical errors. A substantial portion of the various errors detected were among entries that utilized a PO Box at some point during the filing period.
+The ultimate goal of this project is to produce a reasonably cleaned, concise, and validated form of the raw data suitable for dynamic visualization to the census tract level across three decennial periods. As noted in the [Review - 2023 Format](Review_2023 Format.html) section, inconsistencies between addresses arise from typographical errors. A substantial portion of the various errors detected were among entries that utilized a PO Box at some point during the filing period.
 
 Without further information from the data distributor, the level of accuracy that can be assumed for the geolocation associated with each address cannot be guaranteed. It is therefore advisable to validate all unique addresses, with particular attention to PO Box entries, which are known to have incorrect geolocations associated with them.
 
@@ -87,7 +90,7 @@ The review process was initiated for the Google Maps API given its anticipated c
 
 ## Code Optimization
 
-Selected code excerpts are provided below. The complete code used to generate this report can be found in [Code/Clean Raw Data_Step 1.R](https://github.com/ysph-dsde/church-closures/blob/main/Code/Clean%20Raw%20Data_Step%201.R).
+Selected code excerpts are provided below. The complete code used to generate this report can be found in [Code/Clean Raw Data_Step 1_2023 Format.R](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean Raw Data_Step 1_2023 Format.R).
 
 During the initial development of this process, from late July through the first prototype unveiling on June 18<sup>th</sup>, 2025, priority was placed on rapidly processing the raw data and establishing a viable workflow, rather than on optimization. As a result, many steps were slow to execute, and only a portion of the data could be fully processed in time for the prototype presentation.
 
@@ -329,13 +332,13 @@ Overall, processing a large data frame using the `data.table` class proved to be
 
 ## Step #1 Results
 
-Selected code excerpts are provided below. The complete code used to generate this report can be found in [Code/Clean Raw Data_Step 1.R](https://github.com/ysph-dsde/church-closures/blob/main/Code/Clean%20Raw%20Data_Step%201.R).
+Selected code excerpts are provided below. The complete code used to generate this report can be found in [Code/Clean Raw Data_Step 1_2023 Format.R](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean Raw Data_Step 1_2023 Format.R).
 
-Data evaluation ([Review](Review.html)) revealed that most reduplicated entries arise from either new addresses added within the observation period or typographical errors. To resolve this, `stringdist()` and Depth-First Search (DFS) are used to cluster similar address variants, with one address randomly selected from each group to carry forward.
+Data evaluation ([Review - 2023 Format](Review_2023 Format.html)) revealed that most reduplicated entries arise from either new addresses added within the observation period or typographical errors. To resolve this, `stringdist()` and Depth-First Search (DFS) are used to cluster similar address variants, with one address randomly selected from each group to carry forward.
 
 While manual adjudication would be required to guarantee that the retained address is a verified street address, the approach described here incorporates a Boolean quality check to flag potentially incorrect combinations of similar but distinct addresses. This check evaluates the maximum change in geographic coordinates (longitude and latitude) to ensure that retained address variants are either near-identical or exact matches.
 
-For reference, one degree of longitude is approximately 69 miles (111 kilometers), while one degree of latitude varies based on proximity to the equator, averaging approximately 54 miles (87 kilometers) across the contiguous United States. The length of a typical U.S. city block also varies, with common estimates ranging from 100 to 200 meters. Based on these benchmarks, a deviation exceeding 0.002 degrees in either longitude or latitude ($\approx$ 222 meters) is used as the threshold for flagging significant geographic discrepancy.
+For reference, one degree of longitude is approximately 69 miles (111 kilometers), while one degree of latitude varies based on proximity to the equator, averaging approximately 54 miles (87 kilometers) across the contiguous United States. The length of a typical U.S. city block also varies, with common estimates ranging from 100 to 200 meters. Based on these benchmarks, a deviation exceeding 0.002 degrees in either longitude or latitude ($\approx$ 222 meters) is used as the threshold for flagging significant geographic discrepancy (sources [1](https://www.usgs.gov/faqs/how-much-distance-does-a-degree-minute-and-second-cover-your-maps), [2](https://www.nhc.noaa.gov/gccalc.shtml), [3](https://en.wikipedia.org/wiki/City_block), and [4](https://en.wikipedia.org/wiki/List_of_United_States_cities_by_area)).
 
 ```{r}
 #| eval: false

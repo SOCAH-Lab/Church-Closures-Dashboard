@@ -408,20 +408,20 @@ church_wide$naics8_descriptions %>% unique()
 
 
 #' @description Codebook for the output fields produced by the evaluation.
-#'
+#' 
 #' @field abi Unique business identifier. Evaluation is performed over each
 #'            unique business ID in the subset that meets the second set of
 #'            reduplication assumptions.
-#'
+#' 
 #' @field Year Boolean. TRUE if all addresses associated with the business ID
 #'             share a single unique value for year_established.
-#'
+#' 
 #' @field State Boolean. TRUE if all addresses associated with the business ID
 #'              share a single unique value for state.
-#'
+#' 
 #' @field City Boolean. TRUE if all addresses associated with the business ID
 #'             share a single unique value for city.
-#'
+#' 
 #' @field NAICS Boolean. TRUE if all addresses associated with the business ID
 #'              share a single unique value for primary_naics_code.
 

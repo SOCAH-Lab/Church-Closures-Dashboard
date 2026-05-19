@@ -105,7 +105,7 @@ source("./Code/Support Functions/For Step 1.R")
 # For complete data exploration and the reporting that justified the steps taken
 # here, please refer to the "./Code/Explore the Raw Data.R" file and the
 # corresponding Review page summarizing findings at
-# https://ysph-dsde.github.io/church-closures/Pages/Review.html.
+# https://socah-lab.github.io/Church-Closures-Dashboard/Pages/Review_2023%20Format.html.
 
 
 # Load the raw dataset in wide format.

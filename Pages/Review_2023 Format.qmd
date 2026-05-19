@@ -1,5 +1,5 @@
 ---
-title: "Review the Existing Process"
+title: "Prior Data Processing and Raw Data Quality Assessment"
 editor: source
 ---
 
@@ -32,39 +32,66 @@ source("./Functions.R")
 "%!in%" <- function(x,y)!("%in%"(x,y))
 ```
 
-<small>Last Updated: April 11<sup>th</sup>, 2026</small>
+```{=html}
+<style>
+.scrollable-output pre {
+  max-height: 400px;
+  overflow-x: auto;
+  border: 1px solid #ccc;
+  padding: 10px;
+}
+.scrollable-output-terms  {
+  max-height: 500px;
+  overflow-x: auto;
+  border: 1px solid #ccc;
+  padding: 10px;
+}
+
+</style>
+```
+
+<small>Last Updated: May 19<sup>th</sup>, 2026</small>
+
+:::{.callout-warning}
+# 2023 vs. 2026 Format
+
+In May 2026, an updated version of the raw data was provided in a different format than the version exported in July 2023 and provided in the summer of 2025. As a result, data processing was split into two paths: one for the 2023 format and one for the 2026 format.
+
+The 2026 versions of comparable sections should be treated as the most current method applicable for ongoing research. Insights from the 2023 format are assumed to apply to the 2026 format as well. Unexpected outcomes or shortcomings in algorithm performance identified in the 2023 drafts were used to inform improvements applied in the 2026 version.
+:::
 
 The purpose of this page is to provide an understanding of the challenges associated with the data and to identify opportunities for data validation or cleaning. Therefore, we do not need to be concerned with evaluating every case.
 
-Selected code excerpts are provided below. The complete code used to generate this report can be found in [Code/Explore the Raw Data.R](https://github.com/ysph-dsde/church-closures/blob/main/Code/Explore%20the%20Raw%20Data.R).
+Selected code excerpts are provided below. The complete code used to generate this report can be found in [Code/Explore the Raw Data.R](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Explore%20the%20Raw%20Data.R).
 
 ## Raw Data Dictionary
 
-File name: `church_wide_form_071723.csv`\
-Number of rows: 2,601,599\
-Number of columns: 31
+**File name:** `church_wide_form_071723.csv`\
+**Number of rows:** 2,601,599\
+**Number of columns:** 31
 
-- **abi:** American Business Identifier (ABI): The unique identifier for each business, used to associate addresses with a specific organization.
+::: scrollable-output-terms
+- `abi:` American Business Identifier (ABI): The unique identifier for each business, used to associate addresses with a specific organization.
 
-- **year_established:** Indicates the year the business was first established.
+- `year_established:` Indicates the year the business was first established.
 
-- **state:** The state associated with the address.
+- `state:` The state associated with the address.
 
-- **city:** The city associated with the address.
+- `city:` The city associated with the address.
 
-- **zipcode:** The five-digit ZIP code associated with the address.
+- `zipcode:` The five-digit ZIP code associated with the address.
 
-- **address_line_1:** The primary address line associated with the ABI entry.
+- `address_line_1:` The primary address line associated with the ABI entry.
 
-- **primary_naics_code:** This dataset combines the six-digit 2022 vintage [North American Industry Classification System (NAICS)](https://www.census.gov/naics/?input=813110&year=2022&details=813110) code and a two-digit proprietary code from Data Axle. The two-digit Data Axle code provides additional classification details not reflected here.
+- `primary_naics_code:` This dataset combines the six-digit 2022 vintage [North American Industry Classification System (NAICS)](https://www.census.gov/naics/?input=813110&year=2022&details=813110) code and a two-digit proprietary code from Data Axle. The two-digit Data Axle code provides additional classification details not reflected here.
 
-- **naics8_descriptions:** All entries have NAICS = 813110, indicating they are classified as 'Religious Organizations', which includes churches, shrines, monasteries (except schools), synagogues, mosques, and temples.
+- `naics8_descriptions:` All entries have NAICS = 813110, indicating they are classified as "Religious Organizations", which includes churches, shrines, monasteries (except schools), synagogues, mosques, and temples.
 
-- **longitude and latitude:** Given as two columns. Provides the geolocation associated with the address listed in that row.
+- `longitude and latitude:` Given as two columns. Provides the geolocation associated with the address listed in that row.
 
-- **2001 to 2021:** One binary column per year (2001–2021) indicating whether a response was recorded
+- `2001 to 2021:` One binary column per year (2001–2021) indicating whether a response was recorded
 for that address: `1` if a response was received, `NA` if no response was received.
-
+:::
 
 ## Reduplicate ABI's
 
@@ -72,6 +99,7 @@ Because ABIs are used to uniquely identify entries, we need to ensure that there
 
 ```{r}
 #| eval: false
+
 duplicated(church_wide$abi) %>% table()
 ```
 
@@ -141,6 +169,26 @@ result <- result %>% as.data.frame() %>%
 
 # Convert results from binary back to logical.
 result[, -1] <- apply(result[, -1], 2, function(x) as.logical(x))
+
+
+#' @description Codebook for the output fields produced by the evaluation.
+#' 
+#' @field abi Unique business identifier over which the evaluation is performed.
+#'                        
+#' @field Exclusive Boolean. TRUE if date columns sum to 0 or 1, indicating
+#'                  that the information provided by each is mutually exclusive.
+#'              
+#' @field Zip_Same Boolean. TRUE if the zip code is consistent across all 
+#'                 addresses associated with a given business ID.
+#'                        
+#' @field Metadata_Same Boolean. TRUE if the following metadata fields are
+#'                      consistent across all addresses associated with a given
+#'                      business ID: year_established, state, city,
+#'                      primary_naics_code, and naics8_descriptions.
+#'                        
+#' @field LonLat_Similar Boolean. TRUE if the difference between the minimum
+#'                       and maximum longitude AND latitude values are each
+#'                       less than 1 degree.
 
 # Save the result.
 write.csv(result, "Data/Results/KEEP LOCAL/From Explore the Raw Data/ABI Duplicates Test_05.16.2025.csv")
@@ -383,6 +431,25 @@ result2 <- result2 %>% as.data.frame() %>%
 # Convert results from binary back to logical.
 result2[, -1] <- apply(result2[, -1], 2, function(x) as.logical(x))
 
+
+#' @description Codebook for the output fields produced by the evaluation.
+#' 
+#' @field abi Unique business identifier. Evaluation is performed over each
+#'            unique business ID in the subset that meets the second set of
+#'            reduplication assumptions.
+#' 
+#' @field Year Boolean. TRUE if all addresses associated with the business ID
+#'             share a single unique value for year_established.
+#' 
+#' @field State Boolean. TRUE if all addresses associated with the business ID
+#'              share a single unique value for state.
+#' 
+#' @field City Boolean. TRUE if all addresses associated with the business ID
+#'             share a single unique value for city.
+#' 
+#' @field NAICS Boolean. TRUE if all addresses associated with the business ID
+#'              share a single unique value for primary_naics_code.
+
 # Save the result.
 write.csv(result2, "Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same_04.10.2026.csv")
 ```
@@ -570,6 +637,42 @@ result3 <- result3 %>%
     )
   ) %>%
   select(-c1, -c2, -c3)
+
+
+#' @description Codebook for the output fields produced by the evaluation.
+#' 
+#' @field abi Unique business identifier. Evaluation is performed over each 
+#'            unique business ID in the subset that meets the second set of 
+#'            reduplication assumptions and where the city similarity evaluation 
+#'            did not pass.
+#'
+#' @field `Preferred City Name` Preferred address matched to the business using
+#'                              the zip code and the simplemaps database.
+#'
+#' @field `# Entries` Number of rows, or possible addresses, associated with 
+#'                    each business ID.
+#'
+#' @field `PO Box?` Boolean. TRUE if any address associated with the business 
+#'                  ID corresponds to a PO Box.
+#'
+#' @field `Similar Names` City names in the dataset grouped into clusters of 
+#'                        similar names by string similarity.
+#'
+#' @field `Unique Names` Distinct city name outcomes present in the dataset 
+#'                       after grouping.
+#'
+#' @field `Unique-Similar` Difference between the number of unique city names 
+#'                         and the number of unique similar city name clusters.
+#'
+#' @field `# Cities Suggested` Total number of city matches suggested by the
+#'                             simplemaps database for the associated zip code.
+#'
+#' @field `Preferred in Unique?` Boolean. TRUE if the preferred city name
+#'                               returned by the simplemaps database is already
+#'                               present in the dataset.
+#'
+#' @field `Unique-Preferred` Difference between the number of unique city names 
+#'                           and the number of preferred city names.
 
 # Save the result.
 write.csv(result3, "Data/Results/KEEP LOCAL/From Explore the Raw Data/City Name Variation_04.10.2026.csv")
@@ -831,6 +934,30 @@ result4 <- rbindlist(result4, use.names = TRUE, fill = TRUE) %>%
     DT[, (cols_to_round) := as.data.table(sapply(.SD, round, digits = 3)),
        .SDcols = cols_to_round]
   })()
+
+
+#' @description Codebook for the output fields produced by the evaluation.
+#'
+#' @field abi Unique business identifier. Evaluation is performed over each 
+#'            unique business ID associated with at least one PO Box address.
+#'
+#' @field address_line_1 PO Box address. Evaluation is performed over each
+#'                       unique PO Box associated with a given business ID.
+#'
+#' @field `Summary Outcome` Boolean. TRUE if any entries sharing the same PO
+#'                          Box number pass both the longitude and latitude
+#'                          similarity tests (threshold: 0.002 degrees each).
+#'
+#' @field n_failed Number of entries that failed the longitude and latitude 
+#'                 similarity tests.
+#'
+#' @field n_total Total number of occurrences of the PO Box across all entries.
+#'
+#' @field lon_failed_[min|mean|max] Minimum, mean, and maximum longitude values
+#'                                  among entries that failed the similarity test.
+#'
+#' @field lat_failed_[min|mean|max] Minimum, mean, and maximum latitude values
+#'                                  among entries that failed the similarity test.
 
 # # Save the result.
 write.csv(result4, "Data/Results/KEEP LOCAL/From Explore the Raw Data/PO Box Geolocation_04.10.2026.csv")
