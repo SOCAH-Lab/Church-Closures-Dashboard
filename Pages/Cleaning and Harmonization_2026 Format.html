@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Overview – Church Closures Dashboard</title>
+<title>Cleaning and Validation – Church Closures Dashboard</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -23,21 +23,21 @@ ul.task-list li input[type="checkbox"] {
 </style>
 
 
-<script src="site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="site_libs/quarto-nav/headroom.min.js"></script>
-<link href="./Images/DSDE-Social-Media-Profile.png" rel="icon" type="image/png">
-<script src="site_libs/clipboard/clipboard.min.js"></script>
-<script src="site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
-<script src="site_libs/quarto-html/popper.min.js"></script>
-<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="site_libs/quarto-html/anchor.min.js"></script>
-<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-97bfe6499e261bad1e14faa831bf6b4a.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<link href="../Images/DSDE-Social-Media-Profile.png" rel="icon" type="image/png">
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-97bfe6499e261bad1e14faa831bf6b4a.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "language": {
     "search-no-results-text": "No results",
@@ -87,7 +87,7 @@ ul.task-list li input[type="checkbox"] {
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
 
 
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../styles.css">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -97,7 +97,7 @@ ul.task-list li input[type="checkbox"] {
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a class="navbar-brand" href="./index.html">
+    <a class="navbar-brand" href="../index.html">
     <span class="navbar-title">Church Closures Dashboard</span>
     </a>
   </div>
@@ -112,11 +112,11 @@ ul.task-list li input[type="checkbox"] {
     </a>
     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-review">    
         <li>
-    <a class="dropdown-item" href="./Pages/Review_2023 Format.html">
+    <a class="dropdown-item" href="../Pages/Review_2023 Format.html">
  <span class="dropdown-text">2023 Format</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./Pages/Review_2026 Format.html">
+    <a class="dropdown-item" href="../Pages/Review_2026 Format.html">
  <span class="dropdown-text">2026 Format</span></a>
   </li>  
     </ul>
@@ -127,17 +127,17 @@ ul.task-list li input[type="checkbox"] {
     </a>
     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-preparation">    
         <li>
-    <a class="dropdown-item" href="./Pages/Cleaning and Harmonization_2023 Format.html">
+    <a class="dropdown-item" href="../Pages/Cleaning and Harmonization_2023 Format.html">
  <span class="dropdown-text">2023 Format</span></a>
   </li>  
         <li>
-    <a class="dropdown-item" href="./Pages/Cleaning and Harmonization_2026 Format.html">
+    <a class="dropdown-item" href="../Pages/Cleaning and Harmonization_2026 Format.html">
  <span class="dropdown-text">2026 Format</span></a>
   </li>  
     </ul>
   </li>
   <li class="nav-item">
-    <a class="nav-link" href="./Pages/Metric Calculation.html"> 
+    <a class="nav-link" href="../Pages/Metric Calculation.html"> 
 <span class="menu-text">Metrics</span></a>
   </li>  
   <li class="nav-item">
@@ -160,19 +160,22 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#project-goals" id="toc-project-goals" class="nav-link active" data-scroll-target="#project-goals">Project Goals</a></li>
-  <li><a href="#important-links-and-locations" id="toc-important-links-and-locations" class="nav-link" data-scroll-target="#important-links-and-locations">Important Links and Locations</a></li>
-  <li><a href="#repository-note" id="toc-repository-note" class="nav-link" data-scroll-target="#repository-note">Repository Note</a></li>
-  <li><a href="#vs.-2026-format" id="toc-vs.-2026-format" class="nav-link" data-scroll-target="#vs.-2026-format">2023 vs.&nbsp;2026 Format</a></li>
+  <li><a href="#analysis-outline" id="toc-analysis-outline" class="nav-link active" data-scroll-target="#analysis-outline">Analysis Outline</a></li>
+  <li><a href="#code-optimization" id="toc-code-optimization" class="nav-link" data-scroll-target="#code-optimization">Code Optimization</a></li>
+  <li><a href="#step-1-results" id="toc-step-1-results" class="nav-link" data-scroll-target="#step-1-results">Step #1 Results</a></li>
+  <li><a href="#step-2-results" id="toc-step-2-results" class="nav-link" data-scroll-target="#step-2-results">Step #2 Results</a></li>
+  <li><a href="#step-3-results" id="toc-step-3-results" class="nav-link" data-scroll-target="#step-3-results">Step #3 Results</a></li>
+  <li><a href="#step-4-results" id="toc-step-4-results" class="nav-link" data-scroll-target="#step-4-results">Step #4 Results</a></li>
+  <li><a href="#step-5-results" id="toc-step-5-results" class="nav-link" data-scroll-target="#step-5-results">Step #5 Results</a></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/index.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Cleaning and Harmonization_2026 Format.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Overview</h1>
+<h1 class="title">Cleaning and Validation</h1>
 </div>
 
 
@@ -189,33 +192,108 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>Dynamically visualize data from <a href="https://doc.arcgis.com/en/esri-demographics/latest/arcgis-places/data-axle.htm">Data Axle</a> to display four metrics related to church closures at the tract level over various date ranges. Include ‘snapshot’ views of socioeconomic information about the areas alongside the church closure metrics.</p>
-<section id="project-goals" class="level2">
-<h2 class="anchored" data-anchor-id="project-goals">Project Goals</h2>
-<p>Findings addressing each of these objectives are accessible via the navigation bar in the top right.</p>
-<ol type="1">
-<li><p><strong>REVIEW:</strong> Evaluate the raw data and previously outlined cleaning, validation, and harmonization methods employed by <a href="https://sigmafelix.wixsite.com/mysite">Dr.&nbsp;Insang Song</a> for accuracy and identify opportunities for improvement.</p></li>
-<li><p><strong>PREPARATION:</strong> Implement identified improvements to prepare the dataset for analysis and distribution to qualifying collaborators.</p></li>
-<li><p><strong>METRICS:</strong> Calculate the metrics necessary for dynamic visualization.</p></li>
-</ol>
-</section>
-<section id="important-links-and-locations" class="level2">
-<h2 class="anchored" data-anchor-id="important-links-and-locations">Important Links and Locations</h2>
-<p>In accordance with the Data Use Agreement for this dataset, some repositories may not be publicly accessible or may contain local files that are not tracked by Git and or included on GitHub. Complete copies of the data and summary results can be accessed in the ‘SOCAH LAB\Church closing\Raw data’ folder on Yale’s OneDrive.</p>
-<p>Active dashboard prototype: <a href="https://church-closing-dashboard.vercel.app/">Closed Churches in the US</a></p>
-<p>Original GitHub Repo by Dr.&nbsp;Song: <a href="https://github.com/sigmafelix/healthreligion_project">sigmafelix/healthreligion_project</a></p>
-<p>Current Project GitHub Repo by Shelby: <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard">SOCAH-Lab/Church-Closures-Dashboard</a></p>
-</section>
-<section id="repository-note" class="level2">
-<h2 class="anchored" data-anchor-id="repository-note">Repository Note</h2>
-<p>The Data Use Agreements (DUAs) with the data owner, Data Axle, prohibit public distribution of the raw data. Accordingly, individual-level files are stored in <code>~/KEEP LOCAL</code> directories. While most local-only files are individual-level data, some code or results may also be restricted.</p>
-<p>All publicly distributed results are summarized, and all publicly distributed code has been constructed to avoid directly revealing or referencing individual-level results. Executing all code below requires access to the raw data and results.</p>
-<p>API keys are user-specific and are not publicly distributed. Where applicable, instructions have been provided to help users obtain their own API keys.</p>
-</section>
-<section id="vs.-2026-format" class="level2">
-<h2 class="anchored" data-anchor-id="vs.-2026-format">2023 vs.&nbsp;2026 Format</h2>
+<p><small>Last Updated: May 19<sup>th</sup>, 2026</small></p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>2023 vs.&nbsp;2026 Format
+</div>
+</div>
+<div class="callout-body-container callout-body">
 <p>In May 2026, an updated version of the raw data was provided in a different format than the version exported in July 2023 and provided in the summer of 2025. As a result, data processing was split into two paths: one for the 2023 format and one for the 2026 format.</p>
 <p>The 2026 versions of comparable sections should be treated as the most current method applicable for ongoing research. Insights from the 2023 format are assumed to apply to the 2026 format as well. Unexpected outcomes or shortcomings in algorithm performance identified in the 2023 drafts were used to inform improvements applied in the 2026 version.</p>
+</div>
+</div>
+<section id="analysis-outline" class="level2">
+<h2 class="anchored" data-anchor-id="analysis-outline">Analysis Outline</h2>
+<p>The analysis outline and motivating preamble provided in <a href="Cleaning and Harmonization_2023 Format.html">Cleaning and Harmonization - 2023 Format</a> apply here. Process improvements or modifications identified during the initial 2026 format assessment are noted in <a href="Review_2026 Format.html">Review - 2026 Format</a>.</p>
+</section>
+<section id="code-optimization" class="level2">
+<h2 class="anchored" data-anchor-id="code-optimization">Code Optimization</h2>
+<p>Notes regarding code optimization steps taken for High Performance Computing (HPC) usage are provided in the <a href="Cleaning and Harmonization_2023 Format.html#code-optimization">Cleaning and Harmonization - 2023 Format</a> page.</p>
+</section>
+<section id="step-1-results" class="level2">
+<h2 class="anchored" data-anchor-id="step-1-results">Step #1 Results</h2>
+<div class="callout callout-style-default callout-tip callout-empty-content callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Coming Soon
+</div>
+</div>
+<div class="callout-body-container callout-body">
+
+</div>
+</div>
+</section>
+<section id="step-2-results" class="level2">
+<h2 class="anchored" data-anchor-id="step-2-results">Step #2 Results</h2>
+<div class="callout callout-style-default callout-tip callout-empty-content callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Coming Soon
+</div>
+</div>
+<div class="callout-body-container callout-body">
+
+</div>
+</div>
+</section>
+<section id="step-3-results" class="level2">
+<h2 class="anchored" data-anchor-id="step-3-results">Step #3 Results</h2>
+<div class="callout callout-style-default callout-tip callout-empty-content callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Coming Soon
+</div>
+</div>
+<div class="callout-body-container callout-body">
+
+</div>
+</div>
+</section>
+<section id="step-4-results" class="level2">
+<h2 class="anchored" data-anchor-id="step-4-results">Step #4 Results</h2>
+<div class="callout callout-style-default callout-tip callout-empty-content callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Coming Soon
+</div>
+</div>
+<div class="callout-body-container callout-body">
+
+</div>
+</div>
+</section>
+<section id="step-5-results" class="level2">
+<h2 class="anchored" data-anchor-id="step-5-results">Step #5 Results</h2>
+<div class="callout callout-style-default callout-tip callout-empty-content callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Coming Soon
+</div>
+</div>
+<div class="callout-body-container callout-body">
+
+</div>
+</div>
 
 
 </section>
@@ -629,7 +707,7 @@ ul.task-list li input[type="checkbox"] {
 </div>   
     <div class="nav-footer-center">
 <p>This report was prepared by <a href="https://www.linkedin.com/in/shelby-golden/">Shelby Golden, M.S.</a>, a Data Scientist at YSPH DSDE.</p>
-<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/index.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Cleaning and Harmonization_2026 Format.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">

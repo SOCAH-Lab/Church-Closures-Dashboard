@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Review the Existing Process – Church Closures Dashboard</title>
+<title>Prior Data Processing and Raw Data Quality Assessment – Church Closures Dashboard</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -141,10 +141,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
-  <li class="nav-item">
-    <a class="nav-link active" href="../Pages/Review.html" aria-current="page"> 
-<span class="menu-text">Review</span></a>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-review" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Review</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-review">    
+        <li>
+    <a class="dropdown-item" href="../Pages/Review_2023 Format.html">
+ <span class="dropdown-text">2023 Format</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../Pages/Review_2026 Format.html">
+ <span class="dropdown-text">2026 Format</span></a>
+  </li>  
+    </ul>
+  </li>
   <li class="nav-item dropdown ">
     <a class="nav-link dropdown-toggle" href="#" id="nav-menu-preparation" role="link" data-bs-toggle="dropdown" aria-expanded="false">
  <span class="menu-text">Preparation</span>
@@ -198,14 +209,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#po-boxs" id="toc-po-boxs" class="nav-link" data-scroll-target="#po-boxs">PO Box’s</a></li>
   <li><a href="#states-represented" id="toc-states-represented" class="nav-link" data-scroll-target="#states-represented">States Represented</a></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Review.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Review_2023 Format.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Review the Existing Process</h1>
+<h1 class="title">Prior Data Processing and Raw Data Quality Assessment</h1>
 </div>
 
 
@@ -222,26 +233,57 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p><small>Last Updated: April 11<sup>th</sup>, 2026</small></p>
+<style>
+.scrollable-output pre {
+  max-height: 400px;
+  overflow-x: auto;
+  border: 1px solid #ccc;
+  padding: 10px;
+}
+.scrollable-output-terms  {
+  max-height: 500px;
+  overflow-x: auto;
+  border: 1px solid #ccc;
+  padding: 10px;
+}
+
+</style>
+<p><small>Last Updated: May 19<sup>th</sup>, 2026</small></p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>2023 vs.&nbsp;2026 Format
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>In May 2026, an updated version of the raw data was provided in a different format than the version exported in July 2023 and provided in the summer of 2025. As a result, data processing was split into two paths: one for the 2023 format and one for the 2026 format.</p>
+<p>The 2026 versions of comparable sections should be treated as the most current method applicable for ongoing research. Insights from the 2023 format are assumed to apply to the 2026 format as well. Unexpected outcomes or shortcomings in algorithm performance identified in the 2023 drafts were used to inform improvements applied in the 2026 version.</p>
+</div>
+</div>
 <p>The purpose of this page is to provide an understanding of the challenges associated with the data and to identify opportunities for data validation or cleaning. Therefore, we do not need to be concerned with evaluating every case.</p>
-<p>Selected code excerpts are provided below. The complete code used to generate this report can be found in <a href="https://github.com/ysph-dsde/church-closures/blob/main/Code/Explore%20the%20Raw%20Data.R">Code/Explore the Raw Data.R</a>.</p>
+<p>Selected code excerpts are provided below. The complete code used to generate this report can be found in <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Explore%20the%20Raw%20Data.R">Code/Explore the Raw Data.R</a>.</p>
 <section id="raw-data-dictionary" class="level2">
 <h2 class="anchored" data-anchor-id="raw-data-dictionary">Raw Data Dictionary</h2>
-<p>File name: <code>church_wide_form_071723.csv</code><br>
-Number of rows: 2,601,599<br>
-Number of columns: 31</p>
+<p><strong>File name:</strong> <code>church_wide_form_071723.csv</code><br>
+<strong>Number of rows:</strong> 2,601,599<br>
+<strong>Number of columns:</strong> 31</p>
+<div class="scrollable-output-terms">
 <ul>
-<li><p><strong>abi:</strong> American Business Identifier (ABI): The unique identifier for each business, used to associate addresses with a specific organization.</p></li>
-<li><p><strong>year_established:</strong> Indicates the year the business was first established.</p></li>
-<li><p><strong>state:</strong> The state associated with the address.</p></li>
-<li><p><strong>city:</strong> The city associated with the address.</p></li>
-<li><p><strong>zipcode:</strong> The five-digit ZIP code associated with the address.</p></li>
-<li><p><strong>address_line_1:</strong> The primary address line associated with the ABI entry.</p></li>
-<li><p><strong>primary_naics_code:</strong> This dataset combines the six-digit 2022 vintage <a href="https://www.census.gov/naics/?input=813110&amp;year=2022&amp;details=813110">North American Industry Classification System (NAICS)</a> code and a two-digit proprietary code from Data Axle. The two-digit Data Axle code provides additional classification details not reflected here.</p></li>
-<li><p><strong>naics8_descriptions:</strong> All entries have NAICS = 813110, indicating they are classified as ‘Religious Organizations’, which includes churches, shrines, monasteries (except schools), synagogues, mosques, and temples.</p></li>
-<li><p><strong>longitude and latitude:</strong> Given as two columns. Provides the geolocation associated with the address listed in that row.</p></li>
-<li><p><strong>2001 to 2021:</strong> One binary column per year (2001–2021) indicating whether a response was recorded for that address: <code>1</code> if a response was received, <code>NA</code> if no response was received.</p></li>
+<li><p><code>abi:</code> American Business Identifier (ABI): The unique identifier for each business, used to associate addresses with a specific organization.</p></li>
+<li><p><code>year_established:</code> Indicates the year the business was first established.</p></li>
+<li><p><code>state:</code> The state associated with the address.</p></li>
+<li><p><code>city:</code> The city associated with the address.</p></li>
+<li><p><code>zipcode:</code> The five-digit ZIP code associated with the address.</p></li>
+<li><p><code>address_line_1:</code> The primary address line associated with the ABI entry.</p></li>
+<li><p><code>primary_naics_code:</code> This dataset combines the six-digit 2022 vintage <a href="https://www.census.gov/naics/?input=813110&amp;year=2022&amp;details=813110">North American Industry Classification System (NAICS)</a> code and a two-digit proprietary code from Data Axle. The two-digit Data Axle code provides additional classification details not reflected here.</p></li>
+<li><p><code>naics8_descriptions:</code> All entries have NAICS = 813110, indicating they are classified as “Religious Organizations”, which includes churches, shrines, monasteries (except schools), synagogues, mosques, and temples.</p></li>
+<li><p><code>longitude and latitude:</code> Given as two columns. Provides the geolocation associated with the address listed in that row.</p></li>
+<li><p><code>2001 to 2021:</code> One binary column per year (2001–2021) indicating whether a response was recorded for that address: <code>1</code> if a response was received, <code>NA</code> if no response was received.</p></li>
 </ul>
+</div>
 </section>
 <section id="reduplicate-abis" class="level2">
 <h2 class="anchored" data-anchor-id="reduplicate-abis">Reduplicate ABI’s</h2>
@@ -312,8 +354,28 @@ Number of columns: 31</p>
 <span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert results from binary back to logical.</span></span>
 <span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>result[, <span class="sc">-</span><span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="fu">apply</span>(result[, <span class="sc">-</span><span class="dv">1</span>], <span class="dv">2</span>, <span class="cf">function</span>(x) <span class="fu">as.logical</span>(x))</span>
 <span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the result.</span></span>
-<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(result, <span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/ABI Duplicates Test_05.16.2025.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a><span class="co">#' @description Codebook for the output fields produced by the evaluation.</span></span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field abi Unique business identifier over which the evaluation is performed.</span></span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a><span class="co">#'                        </span></span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field Exclusive Boolean. TRUE if date columns sum to 0 or 1, indicating</span></span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a><span class="co">#'                  that the information provided by each is mutually exclusive.</span></span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a><span class="co">#'              </span></span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field Zip_Same Boolean. TRUE if the zip code is consistent across all </span></span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a><span class="co">#'                 addresses associated with a given business ID.</span></span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a><span class="co">#'                        </span></span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field Metadata_Same Boolean. TRUE if the following metadata fields are</span></span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a><span class="co">#'                      consistent across all addresses associated with a given</span></span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a><span class="co">#'                      business ID: year_established, state, city,</span></span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a><span class="co">#'                      primary_naics_code, and naics8_descriptions.</span></span>
+<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a><span class="co">#'                        </span></span>
+<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field LonLat_Similar Boolean. TRUE if the difference between the minimum</span></span>
+<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a><span class="co">#'                       and maximum longitude AND latitude values are each</span></span>
+<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a><span class="co">#'                       less than 1 degree.</span></span>
+<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the result.</span></span>
+<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(result, <span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/ABI Duplicates Test_05.16.2025.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 <section id="mutually-exclusive-dates" class="level3">
@@ -400,7 +462,7 @@ Metadata FALSE  TRUE
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="Review_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="1344"></p>
+<p><img src="Review_2023-Format_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="1344"></p>
 </figure>
 </div>
 </div>
@@ -460,8 +522,27 @@ Metadata FALSE  TRUE
 <span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert results from binary back to logical.</span></span>
 <span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>result2[, <span class="sc">-</span><span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="fu">apply</span>(result2[, <span class="sc">-</span><span class="dv">1</span>], <span class="dv">2</span>, <span class="cf">function</span>(x) <span class="fu">as.logical</span>(x))</span>
 <span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the result.</span></span>
-<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(result2, <span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same_04.10.2026.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a><span class="co">#' @description Codebook for the output fields produced by the evaluation.</span></span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field abi Unique business identifier. Evaluation is performed over each</span></span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a><span class="co">#'            unique business ID in the subset that meets the second set of</span></span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a><span class="co">#'            reduplication assumptions.</span></span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field Year Boolean. TRUE if all addresses associated with the business ID</span></span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a><span class="co">#'             share a single unique value for year_established.</span></span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field State Boolean. TRUE if all addresses associated with the business ID</span></span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a><span class="co">#'              share a single unique value for state.</span></span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field City Boolean. TRUE if all addresses associated with the business ID</span></span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a><span class="co">#'             share a single unique value for city.</span></span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field NAICS Boolean. TRUE if all addresses associated with the business ID</span></span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a><span class="co">#'              share a single unique value for primary_naics_code.</span></span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the result.</span></span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(result2, <span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same_04.10.2026.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 <p>Below are summary tables showing whether a specific metadata field varied for a given unique ABI that satisfied the assumptions <code>LonLat_Similar, Zip_Same = TRUE</code> and <code>Metadata_Same = FALSE</code>:</p>
@@ -626,8 +707,44 @@ City    FALSE TRUE
 <span id="cb10-107"><a href="#cb10-107" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
 <span id="cb10-108"><a href="#cb10-108" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>c1, <span class="sc">-</span>c2, <span class="sc">-</span>c3)</span>
 <span id="cb10-109"><a href="#cb10-109" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-110"><a href="#cb10-110" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the result.</span></span>
-<span id="cb10-111"><a href="#cb10-111" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(result3, <span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/City Name Variation_04.10.2026.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb10-110"><a href="#cb10-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-111"><a href="#cb10-111" aria-hidden="true" tabindex="-1"></a><span class="co">#' @description Codebook for the output fields produced by the evaluation.</span></span>
+<span id="cb10-112"><a href="#cb10-112" aria-hidden="true" tabindex="-1"></a><span class="co">#' </span></span>
+<span id="cb10-113"><a href="#cb10-113" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field abi Unique business identifier. Evaluation is performed over each </span></span>
+<span id="cb10-114"><a href="#cb10-114" aria-hidden="true" tabindex="-1"></a><span class="co">#'            unique business ID in the subset that meets the second set of </span></span>
+<span id="cb10-115"><a href="#cb10-115" aria-hidden="true" tabindex="-1"></a><span class="co">#'            reduplication assumptions and where the city similarity evaluation </span></span>
+<span id="cb10-116"><a href="#cb10-116" aria-hidden="true" tabindex="-1"></a><span class="co">#'            did not pass.</span></span>
+<span id="cb10-117"><a href="#cb10-117" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb10-118"><a href="#cb10-118" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field `Preferred City Name` Preferred address matched to the business using</span></span>
+<span id="cb10-119"><a href="#cb10-119" aria-hidden="true" tabindex="-1"></a><span class="co">#'                              the zip code and the simplemaps database.</span></span>
+<span id="cb10-120"><a href="#cb10-120" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb10-121"><a href="#cb10-121" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field `# Entries` Number of rows, or possible addresses, associated with </span></span>
+<span id="cb10-122"><a href="#cb10-122" aria-hidden="true" tabindex="-1"></a><span class="co">#'                    each business ID.</span></span>
+<span id="cb10-123"><a href="#cb10-123" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb10-124"><a href="#cb10-124" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field `PO Box?` Boolean. TRUE if any address associated with the business </span></span>
+<span id="cb10-125"><a href="#cb10-125" aria-hidden="true" tabindex="-1"></a><span class="co">#'                  ID corresponds to a PO Box.</span></span>
+<span id="cb10-126"><a href="#cb10-126" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb10-127"><a href="#cb10-127" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field `Similar Names` City names in the dataset grouped into clusters of </span></span>
+<span id="cb10-128"><a href="#cb10-128" aria-hidden="true" tabindex="-1"></a><span class="co">#'                        similar names by string similarity.</span></span>
+<span id="cb10-129"><a href="#cb10-129" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb10-130"><a href="#cb10-130" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field `Unique Names` Distinct city name outcomes present in the dataset </span></span>
+<span id="cb10-131"><a href="#cb10-131" aria-hidden="true" tabindex="-1"></a><span class="co">#'                       after grouping.</span></span>
+<span id="cb10-132"><a href="#cb10-132" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb10-133"><a href="#cb10-133" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field `Unique-Similar` Difference between the number of unique city names </span></span>
+<span id="cb10-134"><a href="#cb10-134" aria-hidden="true" tabindex="-1"></a><span class="co">#'                         and the number of unique similar city name clusters.</span></span>
+<span id="cb10-135"><a href="#cb10-135" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb10-136"><a href="#cb10-136" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field `# Cities Suggested` Total number of city matches suggested by the</span></span>
+<span id="cb10-137"><a href="#cb10-137" aria-hidden="true" tabindex="-1"></a><span class="co">#'                             simplemaps database for the associated zip code.</span></span>
+<span id="cb10-138"><a href="#cb10-138" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb10-139"><a href="#cb10-139" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field `Preferred in Unique?` Boolean. TRUE if the preferred city name</span></span>
+<span id="cb10-140"><a href="#cb10-140" aria-hidden="true" tabindex="-1"></a><span class="co">#'                               returned by the simplemaps database is already</span></span>
+<span id="cb10-141"><a href="#cb10-141" aria-hidden="true" tabindex="-1"></a><span class="co">#'                               present in the dataset.</span></span>
+<span id="cb10-142"><a href="#cb10-142" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb10-143"><a href="#cb10-143" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field `Unique-Preferred` Difference between the number of unique city names </span></span>
+<span id="cb10-144"><a href="#cb10-144" aria-hidden="true" tabindex="-1"></a><span class="co">#'                           and the number of preferred city names.</span></span>
+<span id="cb10-145"><a href="#cb10-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-146"><a href="#cb10-146" aria-hidden="true" tabindex="-1"></a><span class="co"># Save the result.</span></span>
+<span id="cb10-147"><a href="#cb10-147" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(result3, <span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/City Name Variation_04.10.2026.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 <p>The algorithm returned only one preferred address suggestion per five-digit zip code. NA values were assigned when the zip code was invalid (missing a leading or trailing zero) or when no match was found in the database. Of all businesses, 6.5% had invalid zip codes, while 1.7% had valid zip codes but returned no match. Only 6.7% of these businesses had city variations involving a PO Box.</p>
@@ -793,8 +910,32 @@ Date first closure: 2005 and reopened in 2010</p>
 <span id="cb16-71"><a href="#cb16-71" aria-hidden="true" tabindex="-1"></a>       .SDcols <span class="ot">=</span> cols_to_round]</span>
 <span id="cb16-72"><a href="#cb16-72" aria-hidden="true" tabindex="-1"></a>  })()</span>
 <span id="cb16-73"><a href="#cb16-73" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-74"><a href="#cb16-74" aria-hidden="true" tabindex="-1"></a><span class="co"># # Save the result.</span></span>
-<span id="cb16-75"><a href="#cb16-75" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(result4, <span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/PO Box Geolocation_04.10.2026.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb16-74"><a href="#cb16-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-75"><a href="#cb16-75" aria-hidden="true" tabindex="-1"></a><span class="co">#' @description Codebook for the output fields produced by the evaluation.</span></span>
+<span id="cb16-76"><a href="#cb16-76" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb16-77"><a href="#cb16-77" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field abi Unique business identifier. Evaluation is performed over each </span></span>
+<span id="cb16-78"><a href="#cb16-78" aria-hidden="true" tabindex="-1"></a><span class="co">#'            unique business ID associated with at least one PO Box address.</span></span>
+<span id="cb16-79"><a href="#cb16-79" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb16-80"><a href="#cb16-80" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field address_line_1 PO Box address. Evaluation is performed over each</span></span>
+<span id="cb16-81"><a href="#cb16-81" aria-hidden="true" tabindex="-1"></a><span class="co">#'                       unique PO Box associated with a given business ID.</span></span>
+<span id="cb16-82"><a href="#cb16-82" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb16-83"><a href="#cb16-83" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field `Summary Outcome` Boolean. TRUE if any entries sharing the same PO</span></span>
+<span id="cb16-84"><a href="#cb16-84" aria-hidden="true" tabindex="-1"></a><span class="co">#'                          Box number pass both the longitude and latitude</span></span>
+<span id="cb16-85"><a href="#cb16-85" aria-hidden="true" tabindex="-1"></a><span class="co">#'                          similarity tests (threshold: 0.002 degrees each).</span></span>
+<span id="cb16-86"><a href="#cb16-86" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb16-87"><a href="#cb16-87" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field n_failed Number of entries that failed the longitude and latitude </span></span>
+<span id="cb16-88"><a href="#cb16-88" aria-hidden="true" tabindex="-1"></a><span class="co">#'                 similarity tests.</span></span>
+<span id="cb16-89"><a href="#cb16-89" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb16-90"><a href="#cb16-90" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field n_total Total number of occurrences of the PO Box across all entries.</span></span>
+<span id="cb16-91"><a href="#cb16-91" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb16-92"><a href="#cb16-92" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field lon_failed_[min|mean|max] Minimum, mean, and maximum longitude values</span></span>
+<span id="cb16-93"><a href="#cb16-93" aria-hidden="true" tabindex="-1"></a><span class="co">#'                                  among entries that failed the similarity test.</span></span>
+<span id="cb16-94"><a href="#cb16-94" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb16-95"><a href="#cb16-95" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field lat_failed_[min|mean|max] Minimum, mean, and maximum latitude values</span></span>
+<span id="cb16-96"><a href="#cb16-96" aria-hidden="true" tabindex="-1"></a><span class="co">#'                                  among entries that failed the similarity test.</span></span>
+<span id="cb16-97"><a href="#cb16-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-98"><a href="#cb16-98" aria-hidden="true" tabindex="-1"></a><span class="co"># # Save the result.</span></span>
+<span id="cb16-99"><a href="#cb16-99" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(result4, <span class="st">"Data/Results/KEEP LOCAL/From Explore the Raw Data/PO Box Geolocation_04.10.2026.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 <p>28% of evaluations revealed that only a PO Box was listed, corresponding to almost 3% of unique ABI. All such entries are associated with a <code>Summary Outcome = FALSE</code> result. Excluding evaluations where only PO Boxes were used, 38% of entries showed at least one PO Box to physical address alignment. NA values were detected in one or more comparators, though these constituted fewer than 1% of the data.</p>
@@ -925,7 +1066,7 @@ Date first closure: 2005 and reopened in 2010</p>
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
+        var filterRegex = new RegExp("https:\/\/SOCAH-Lab\.github\.io\/Church-Closures-Dashboard\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -1260,7 +1401,7 @@ Date first closure: 2005 and reopened in 2010</p>
 </div>   
     <div class="nav-footer-center">
 <p>This report was prepared by <a href="https://www.linkedin.com/in/shelby-golden/">Shelby Golden, M.S.</a>, a Data Scientist at YSPH DSDE.</p>
-<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Review.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Review_2023 Format.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">
