@@ -69,21 +69,15 @@
 ## 
 ## 4. Ensure that the ".Renviron" file is listed in your ".gitignore" file and
 ##    is not being tracked by Git.
-## 
-## NOTE: If you experience issues loading your environment variables, run the
-##       following code to explicitly set the ".Renviron" file location using
-##       rprojroot:
-## 
-##       rprojroot::find_rstudio_root_file()
-##       readRenviron(rprojroot::find_rstudio_root_file(".Renviron"))
 ##  
 ## Sections:
 ##    - SET UP THE ENVIRONMENT
 ##    - LOAD IN THE DATA
 ##
-##    - PART A: Enhancing Function Performance and Efficiency
-##        * SUBSECTION A1: Optimizing Data Subsetting
-##        * SUBSECTION A2: Optimizing Data Combination
+##    - PART A: Validating the Address Using the USPS API
+##        * SUBSECTION A1: Prepare Subset for HPC
+##        * SUBSECTION A2: Compile the Results
+##        * SUBSECTION A3: Assess the Algorithms Performance
 
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
@@ -149,7 +143,7 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 
 
 ## ----------------------------------------------------------------
-## PART A: 
+## PART A: Validating the Address Using the USPS API
 
 # Using the API's where erroneous duplicated addresses were compressed,
 # and their longitutde and latitude are similar, we now query the USPS
@@ -166,7 +160,7 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 #       other is suitable. This can be changed in later iterations if need be.
 
 # 1:42000 <-- completed
-# 42001:84000 <-- need to redo
+# 42001:84000 <-- completed
 # 84001:126000 <-- completed
 # 126001:168000 <-- completed
 # 168001:210000 <-- completed
@@ -184,21 +178,21 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 # 672001:714000 <-- completed
 # 714001:756000 <-- completed
 # 756001:798000 <-- completed
-# 798001:840000 <-- in progress
-# 840001:882000 <-- in progress
-# 882001:924000 <-- in progress
-# 924001:966000 <-- in progress
-# 966001:1008000
-# 1008001:1050000
-# 1050001:1092000
-# 1092001:1134000
-# 1134001:1176000
+# 798001:840000 <-- completed
+# 840001:882000 <-- completed
+# 882001:924000 <-- completed
+# 924001:966000 <-- completed
+# 966001:1008000 <-- completed
+# 1008001:1050000 <-- completed
+# 1050001:1092000 <-- completed
+# 1092001:1134000 <-- completed
+# 1134001:1176000 <-- completed
 # 1176001:1210975
 
 
 
 ## --------------------
-## SUBSECTION A1: 
+## SUBSECTION A1: Prepare Subset for HPC
 
 # While verifying the addresses, we want to add the address line 2, zip code
 # 4-digit extension, and a boolean to verify that the address has been verified.
