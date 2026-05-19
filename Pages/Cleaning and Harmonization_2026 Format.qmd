@@ -1,0 +1,87 @@
+---
+title: "Cleaning and Validation"
+editor: source
+---
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| include: false
+
+## ----------------------------------------------------------------
+## SET UP THE ENVIRONMENT
+
+# Initiate the package environment.
+# renv::init()
+renv::restore()
+
+suppressPackageStartupMessages({
+  library("readr")            # Reads in CSV and other delimited files
+  library("dplyr")            # Data manipulation and transformation
+  library("ggplot2")          # Graphics and visualization
+  library("microbenchmark")   # Micro-benchmarking for performance
+  library("data.table")       # High-performance data manipulation
+})
+
+# Load in the functions.
+source("./Functions.R")
+
+# Define the "not in" operation
+"%!in%" <- function(x,y)!("%in%"(x,y))
+```
+
+<small>Last Updated: May 19<sup>th</sup>, 2026</small>
+
+:::{.callout-warning}
+# 2023 vs. 2026 Format
+
+In May 2026, an updated version of the raw data was provided in a different format than the version exported in July 2023 and provided in the summer of 2025. As a result, data processing was split into two paths: one for the 2023 format and one for the 2026 format.
+
+The 2026 versions of comparable sections should be treated as the most current method applicable for ongoing research. Insights from the 2023 format are assumed to apply to the 2026 format as well. Unexpected outcomes or shortcomings in algorithm performance identified in the 2023 drafts were used to inform improvements applied in the 2026 version.
+:::
+
+## Analysis Outline
+
+The analysis outline and motivating preamble provided in [Cleaning and Harmonization - 2023 Format](Cleaning and Harmonization_2023 Format.html) apply here. Process improvements or modifications identified during the initial 2026 format assessment are noted in [Review - 2026 Format](Review_2026 Format.html).
+
+## Code Optimization
+
+Notes regarding code optimization steps taken for High Performance
+Computing (HPC) usage are provided in the [Cleaning and Harmonization - 2023 Format](Cleaning and Harmonization_2023 Format.html#code-optimization) page.
+
+## Step #1 Results
+
+::: {.callout-tip}
+# Coming Soon
+:::
+
+## Step #2 Results
+
+::: {.callout-tip}
+# Coming Soon
+:::
+
+## Step #3 Results
+
+::: {.callout-tip}
+# Coming Soon
+:::
+
+## Step #4 Results
+
+::: {.callout-tip}
+# Coming Soon
+:::
+
+## Step #5 Results
+
+::: {.callout-tip}
+# Coming Soon
+:::
+
+
+
+
+
+

@@ -100,7 +100,7 @@ full_join(types_long, types_wide, by = "Variable") %>%
   `colnames<-`(c("Variable", "Long 2026", "Wide 2023"))
 
 
-# Core fields — abi, address_line_1, city, and state — are consistent between
+# Core fields (abi, address_line_1, city, and state) are consistent between
 # the old and new data. The new data stores the zip code as a five-digit 
 # character field, preserving leading zeros, and adds a four-digit zip code 
 # extension.
@@ -170,12 +170,12 @@ full_join(types_long, types_wide, by = "Variable") %>%
 # This analysis requires only the core business and location details. The remaining
 # metadata will be processed simultaneously to produce a final, cleaned dataset,
 # though not with any specific follow-up analysis in mind. As a result, the metadata
-# may not be in a format suitable for all analyses, as the data are primarily prepared
-# for the dashboard.
+# may not be in a format suitable for all analyses, as the data are primarily
+# prepared for the dashboard.
 # 
 # There are two types of metadata:
 #   a) Metadata relevant to a given business or location that does not change
-#      across years (e.g. year_established, parent_number)
+#      across years (e.g. year_established, fips_code)
 #   b) Metadata that may change across years (e.g. employee_size_location)
 # 
 # Data are collapsed to unique businesses and locations, with archive_version_year
@@ -185,9 +185,12 @@ full_join(types_long, types_wide, by = "Variable") %>%
 #     are applied to all locations.
 #   - Metadata expected to vary by location are summarized by location.
 # 
-# Both types may contain multiple entries marked by the date ranges they apply to.
-# Where no date range is present, only one value was observed for that business
-# or location.
+# Both types may contain multiple entries, distinguished by the date ranges they
+# apply to. To account for this variation, differing values for some fields are
+# retained alongside their associated date ranges. Where no date range is present,
+# only one value was observed for that business or location. Not all fields with
+# unique values are formatted this way; only those expected to be relevant to the
+# project goals.
 # 
 # NOTE: When processing the previously exported 2023 data, it was identified that
 # the NAICS code is eight digits long, with the trailing two digits representing
@@ -367,7 +370,7 @@ core_fields <- core_fields %>%
 # Both versions share the same unique NAICS encodings. The 2023 data processing
 # protocol retained only the unique NAICS six-digit codes and descriptions,
 # which are consistent across all entries; the trailing two digits were stored
-# as a string. The method devised in Part C to retain the applicable years will
+# as a string. The method devised in PART C to retain the applicable years will
 # also be applied to this field.
 
 all(unique(church_long_form_050926$primary_naics_code) %in% unique(church_wide$primary_naics_code)) &
@@ -380,7 +383,7 @@ church_long_form_050926$naics8_descriptions %>% unique()
 # (e.g., school, retreat center). This information was not provided in the 
 # previous version.
 # 
-# It is provided as a primary classification column accompanied by up to five
+# It is provided as a primary classification column accompanied by up to four
 # additional overflow columns. All are examined together in the following
 # subsection.
 
@@ -406,7 +409,7 @@ church_long_form_050926$sic6_descriptions_sic4 %>% unique()
 sic_results <- sic_overflow_audit(church_long_form_050926)
 
 
-# PART A: Each additional SIC encoding is assumed to represent supplementary
+# ASSUMPTION A: Each additional SIC encoding is assumed to represent supplementary
 # classification information attributed to that address. The code columns follow
 # the expected pattern; however, the description columns do not. This is likely
 # due to missing descriptions for certain codes.
@@ -425,7 +428,7 @@ sic_results$overflow_summary_desc
 sic_results$missing_desc_codes_are_subset_of_no_desc
 
 
-# PART B: If each column represents an overflow of the same underlying
+# ASSUMPTION B: If each column represents an overflow of the same underlying
 # information, a significant degree of overlap in the values present
 # across columns would be expected.
 
@@ -441,24 +444,25 @@ sic_results$presence_tabs
 # 
 # Only a small subset of possible SIC codes is utilized in the primary column,
 # suggesting that the available selection may be more restricted at the point
-# of data collection. We want to check if any of the 43 outcomes in the primary SIC are
-# unique or used in overflow SIC.
+# of data collection. We want to check if any of the 43 outcomes in the primary 
+# SIC are unique or used in overflow SIC.
 
 # Pull columns that are logical TRUE/FALSE “sic presence” columns
-sic_cols <- sic_results$presence_wide |>
-  select(where(is.logical)) |>
+sic_cols <- sic_results$presence_wide %>%
+  select(where(is.logical)) %>%
   names()
 
 other_cols <- setdiff(sic_cols, "primary_sic_code + sic6_descriptions")
 
 # All Primary SIC outcomes are present in the overflow categories
-sic_results$presence_wide |>
-  filter(.data[["primary_sic_code + sic6_descriptions"]] & if_any(all_of(other_cols), ~ .x))
+sic_results$presence_wide %>%
+  filter(.data[["primary_sic_code + sic6_descriptions"]] & if_any(all_of(other_cols), ~ .x)) %>%
+  nrow()
 
 
-# PART C: It is assumed that each code maps uniquely to a single description
-# and vice versa. To verify this assumption, a mapping table is constructed
-# from all non-null (code, description) pairs across all column pairs.
+# ASSUMPTION C: It is assumed that each code maps uniquely to a single 
+# description and vice versa. To verify this assumption, a mapping table is 
+# constructed from all non-null (code, description) pairs across all column pairs.
 
 sic_results$map_tbl
 
@@ -481,8 +485,8 @@ list(
 # despite having a valid description in other instances. Each case will be 
 # addressed individually.
 #
-# PART D: Many of these inconsistencies are likely attributable to variations
-# in nomenclature.
+# ASSUMPTION D: Many of these inconsistencies are likely attributable to 
+# variations in nomenclature.
 
 # Entries to correct description
 fix_desc <- sic_results$presence_wide %>%
@@ -509,16 +513,25 @@ fix_code <- sic_results$presence_wide %>%
     by = "sic_code"
   )
 
+# Entries to correct NA
+fix_na <- sic_results$presence_wide %>%
+  semi_join(
+    sic_results$presence_wide %>%
+      filter(sic_desc %in% sic_results$desc_that_is_sometimes_na$sic_desc) %>%
+      distinct(sic_code),
+    by = "sic_code"
+  )
+
 
 # These SIC code characteristics are expected to vary with additional years of
 # data or subsequent exports of previous reports, as Data Axle may update their
 # database over time. It will therefore be important to process these columns
 # from a raw data export prior to beginning any analysis or data validation.
 # 
-# All unique SIC outcomes for a given abi and address will be retained and
-# expanded as overflow columns. Some effort will be made to ensure the primary
-# encoding is consistent with qualifying classifiers, while all remaining
-# columns will represent any other unique SIC values present.
+# All unique SIC values for a given abi and address will be retained and 
+# expanded as overflow columns. The primary encoding will be constrained to 
+# ensure it remains consistent with qualifying classifiers, while all additional 
+# SIC columns will represent any other unique SIC values present.
 
 
 
@@ -555,8 +568,8 @@ fix_code <- sic_results$presence_wide %>%
 #
 #   - Whether the same location outcome spans the complete expected date range.
 #   - Whether multiple location outcomes are associated with the same address.
-#   - Whether multiple location outcomes vary by decennial period or follow
-#     alternative patterns.
+#   - Whether multiple identified location outcomes vary by decennial period or
+#     follow alternative patterns.
 # 
 # Source: https://www.census.gov/content/dam/Census/library/publications/2020/acs/acs_geography_handbook_2020_ch02.pdf
 
@@ -583,14 +596,15 @@ subset <- church_long_form_050926 %>%
 ## --------------------
 ## SUBSECTION C1: Supplementary Location Metadata
 
-# Some of the following fields are stored as numeric. Only longitude and
-# latitude will be retained as numeric going forward; all other fields will
-# be coerced to character. This is because each represents a classification, 
-# regardless of whether it is encoded as a numeric value.
+# The following illustrates the process of condensing additional location 
+# metadata into one line per unique abi and address combination. Although some 
+# of these fields are numeric, they will be coerced to character, as each 
+# represents a classification regardless of whether it is encoded as a numeric 
+# value. Only longitude and latitude will be retained and treated as numeric.
 
 vars_for_loc <- c(
   # Core business location details (8)
-  "census_block", "census_tract", "county_code",  "fips_code", "cbsa_level", 
+  "census_block", "census_tract" , "county_code",  "fips_code", "cbsa_level", 
   "cbsa_code", "csa_code", "area_code"
 )
 
