@@ -159,37 +159,6 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 #       line 2, but we do not worry about this designation. Either one or the
 #       other is suitable. This can be changed in later iterations if need be.
 
-# 1:42000 <-- completed
-# 42001:84000 <-- completed
-# 84001:126000 <-- completed
-# 126001:168000 <-- completed
-# 168001:210000 <-- completed
-# 210001:252000 <-- completed
-# 252001:294000 <-- completed
-# 294001:336000 <-- completed
-# 336001:378000 <-- completed
-# 378001:420000 <-- completed
-# 420001:462000 <-- completed
-# 462001:504000 <-- completed
-# 504001:546000 <-- completed
-# 546001:588000 <-- completed
-# 588001:630000 <-- completed
-# 630001:672000 <-- completed
-# 672001:714000 <-- completed
-# 714001:756000 <-- completed
-# 756001:798000 <-- completed
-# 798001:840000 <-- completed
-# 840001:882000 <-- completed
-# 882001:924000 <-- completed
-# 924001:966000 <-- completed
-# 966001:1008000 <-- completed
-# 1008001:1050000 <-- completed
-# 1050001:1092000 <-- completed
-# 1092001:1134000 <-- completed
-# 1134001:1176000 <-- completed
-# 1176001:1210975
-
-
 
 ## --------------------
 ## SUBSECTION A1: Prepare Subset for HPC
@@ -211,7 +180,7 @@ step_1_subset <- step_1 %>%
   select(rowname, address_line_1, address_line_2, city, state,
          zipcode, zipcode_ext, compiled_address, address_verified)
 
-write.csv(step_1_subset, file = "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 01_HPC Subset_05.01.2026.csv")
+write.csv(step_1_subset, file = "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 01_2023 Format_HPC Subset_05.01.2026.csv")
 
 
 ## --------------------
