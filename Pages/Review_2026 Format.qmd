@@ -139,7 +139,7 @@ Selected code excerpts are provided below. The complete code used to generate th
 
 - `parent_actual_sales_volume and parent_sales_volume_code:` Given as two columns. Provides the total sales for the parent company and a corresponding code representing that number within a size classification range.
 
-- `Unknown variables or code translations:` `address_type_indicator`, `industry_specific_first_byte`, `business_status_code`, `population_code`, `match_code`, ticker, and `idcode`.
+- **Unknown variables or code translations:** `address_type_indicator`, `industry_specific_first_byte`, `business_status_code`, `population_code`, `match_code`, ticker, and `idcode`.
 :::
 
 ## Correspondance to the 2023 Format
@@ -1477,41 +1477,40 @@ area_code_qc <- check_ranges_same_outcome(loc_condensed)
 #| warning: false
 
 # Results copied from "Process Data Update.R" file ~ line 650
+# Simulated to resemble the real output
 data.frame(
   available_year_ranges = c(
-    "2003-2004",
-    "2005-2006",
-    "2007-2011",
-    "2012-2013",
-    "2007-2019, 2023-2025",
-    "2005-2025",
-    "2002-2022",
-    "2004-2025"
+    "1998-2001",
+    "2009-2010",
+    "2014-2017",
+    "1999-2006, 2011-2013, 2018-2025",
+    "2001-2025",
+    "1997-2019",
+    "2006-2012, 2016-2025"
   ),
   census_tract_ranges = c(
-    "012101 (2003-2004)",
-    "012102 (2005-2006)",
-    "012101 (2007-2011)",
-    "012101 (2012-2013)",
-    "275510 (2007-2016), 275500 (2017-2019), 275500 (2023-2025)",
-    "013701 (2005-2023), 013703 (2024-2025)",
-    "000000 (2002), 001700 (2003-2016), 001701 (2017-2022)",
-    "004412 (2004-2025)"
+    "101020 (1998-2001)",
+    "204999 (2009-2010)",
+    "330120 (2014-2017)",
+    "900001 (1999-2002), 900010 (2003-2007), 900010 (2010-2013), 900015 (2018-2025)",
+    "777701 (2001-2012), 777709 (2011-2025)",
+    "000000 (1999), 045600 (2000-2009), 045601 (2010-2019)",
+    "512340 (2006-2009), 512341 (2010-2012), 512341 (2016-2025)"
   ),
-  census_tract_ranges_ok = c(TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, TRUE),
-  census_tract_ranges_decade_ok = c(NA, NA, NA, NA, FALSE, FALSE, FALSE, NA),
+  census_tract_ranges_ok = c(TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE),
+  census_tract_ranges_decade_ok = c(NA, NA, NA, FALSE, FALSE, TRUE, TRUE),
   census_tract_values_seen = c(
-    "012101",
-    "012102",
-    "012101",
-    "012101",
-    "275500, 275510",
-    "013701, 013703",
-    "000000, 001700, 001701",
-    "004412"
+    "101020",
+    "204999",
+    "330120",
+    "900001, 900010, 900015",
+    "777701, 777709",
+    "000000, 045600, 045601",
+    "512340, 512341"
   ),
-  census_tract_missing_years = c("", "", "", "", "", "", "", ""),
-  census_tract_conflict_years = c("", "", "", "", "", "", "", "")
+  census_tract_missing_years  = c("", "", "", "2008-2009", "", "", ""),
+  census_tract_conflict_years = c("", "", "", "", "2011-2012", "", ""),
+  stringsAsFactors = FALSE
 ) |>
   dplyr::mutate(
     dplyr::across(
@@ -1560,57 +1559,49 @@ subset_condensed <- summarize_many_code_ranges_dt(subset, vars_to_sum) %>%
 #| warning: false
 
 # Results copied from "Process Data Update.R" file ~ line 678
+# Simulated to resemble the real output
 data.frame(
   available_year_ranges = c(
-    "2003-2004",
-    "2005-2006",
-    "2007-2011",
-    "2012-2013",
-    "2007-2019, 2023-2025",
-    "2005-2025",
-    "2002-2022",
-    "2004-2025"
+    "1999-2001",
+    "2002-2004",
+    "2008-2010",
+    "2011-2014",
+    "2006-2012, 2016-2018, 2022-2025",
+    "2000-2025"
   ),
   employee_size_location_ranges = c(
-    "4 (2003-2004)",
-    "4 (2005-2006)",
-    "3 (2007-2011)",
-    "3 (2012), 2 (2013)",
-    "3 (2007-2019), 3 (2023), 2 (2024-2025)",
-    "9 (2005-2006), 8 (2007-2025)",
-    "2 (2003), 4 (2004-2006), 1 (2007-2022)",
-    "10 (2004-2005), 9 (2006-2009), 3 (2010), 1 (2011-2025)"
+    "1 (1999-2001)",
+    "2 (2002-2004)",
+    "7 (2008-2010)",
+    "6 (2011-2012), 4 (2013-2014)",
+    "3 (2006-2012), 5 (2016-2018), 9 (2022-2025)",
+    "8 (2000-2009), 9 (2010-2025)"
   ),
   location_employee_size_code_ranges = c(
-    "A (2003-2004)",
-    "A (2005-2006)",
-    "A (2007-2011)",
-    "A (2012-2013)",
-    "A (2007-2019), A (2023-2025)",
-    "B (2005-2025)",
-    "A (2002-2022)",
-    "C (2004-2005), B (2006-2009), A (2010-2025)"
+    "A (1999-2001)",
+    "A (2002-2004)",
+    "C (2008-2010)",
+    "C (2011-2012), B (2013-2014)",
+    "B (2006-2012), C (2016-2018), D (2022-2025)",
+    "D (2000-2025)"
   ),
   business_status_code_ranges = c(
-    "9 (2003-2004)",
-    "9 (2005-2006)",
-    "9 (2007-2011)",
-    "9 (2012-2013)",
-    "9 (2007-2019), 9 (2023-2025)",
-    "9 (2005-2025)",
-    "9 (2003-2022)",
-    "9 (2004-2025)"
+    "1 (1999-2001)",
+    "2 (2002-2004)",
+    "4 (2008-2010)",
+    "4 (2011-2014)",
+    "7 (2006-2012), 7 (2016-2018), 3 (2022-2025)",
+    "9 (2000-2025)"
   ),
   population_code_ranges = c(
-    "6 (2003-2004)",
-    "6 (2005-2006)",
-    "6 (2007-2011)",
-    "6 (2012-2013)",
-    "5 (2007-2015), 7 (2016-2019), 7 (2023-2025)",
-    "6 (2005-2015), 7 (2016-2025)",
-    "1 (2002-2015), 5 (2016-2022)",
-    "8 (2004-2015), 7 (2016-2025)"
-  )
+    "2 (1999-2001)",
+    "8 (2002-2004)",
+    "3 (2008-2010)",
+    "6 (2011-2014)",
+    "1 (2006-2008), 4 (2009-2012), 6 (2016-2018), 5 (2022-2025)",
+    "7 (2000-2007), 6 (2008-2015), 5 (2016-2025)"
+  ),
+  stringsAsFactors = FALSE
 )
 ```
 :::
