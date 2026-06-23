@@ -1,5 +1,5 @@
 ## ----------------------------------------------------------------
-## Define functions used to assess the raw data update.
+## Define functions used in the 2026 Format process update script.
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 11th, 2026
@@ -7,8 +7,8 @@
 ## 
 ## Description: In addition to the general-purpose functions defined in another
 ##              script, the following functions are used to evaluate the
-##              contents of additional data provided by Professor Yusuf Ransome
-##              May 9th, 2026.
+##              contents of 2026 Formatted data provided by Professor Yusuf 
+##              Ransome May 9th, 2026.
 ## 
 ## NOTE: Much of this content was developed with the assistance of Yale's
 ##       AI Clarity.
@@ -635,34 +635,39 @@ clean_sic_descs <- function(df,
                                               "sic6_descriptions_sic2",
                                               "sic6_descriptions_sic3",
                                               "sic6_descriptions_sic4"),
-                            pattern, replacement = "", fixed = TRUE) {
-  #' @description
-  #' Clean SIC description columns with a single string replacement. Applies 
-  #' `stringr::str_replace()` to a set of SIC description columns, replacing
-  #' the first match of `pattern` in each value with `replacement`.
+                            pattern,
+                            replacement = "",
+                            fixed = TRUE) {
+  #' Clean SIC description columns with a boundary-safe replacement.
   #'
-  #' @param df A data.frame (or tibble) containing SIC description columns.
-  #' @param sic_desc_cols Character vector of column names to clean. Any names not
-  #'   present in `df` are ignored.
-  #' @param pattern Pattern to match (string or regex) passed to `stringr::str_replace()`.
-  #' @param replacement Replacement string passed to `stringr::str_replace()`.
-  #'
-  #' @return A data.frame with the specified SIC description columns modified.
-  
-  # Validate basic input types early (fail fast with a clear error)
+  #' Replaces `pattern` only when it occurs as a whole token/phrase (bounded by
+  #' start/end, whitespace, or punctuation), preventing subset replacements.
   stopifnot(is.data.frame(df), is.character(sic_desc_cols))
   
-  # Only modify columns that actually exist in `df` (silently ignore missing names)
   cols <- intersect(sic_desc_cols, names(df))
+  if (length(cols) == 0) return(df)
   
-  # Apply the replacement across all selected description columns
-  pat <- if (fixed) stringr::fixed(pattern) else pattern
+  boundary <- "[\\s\\.,;:/\\-\\(\\)\\[\\]\\{\\}'\"&]"
+  
+  pat_regex <- if (fixed) {
+    # Escape literal text for use inside a regex (works with stringr/stringi ICU engine)
+    stringr::str_replace_all(
+      as.character(pattern),
+      "([\\^\\$\\.\\|\\?\\*\\+\\(\\)\\[\\]\\{\\}\\\\])",
+      "\\\\\\1"
+    )
+  } else {
+    as.character(pattern)
+  }
+  
+  rx   <- paste0("(^|", boundary, ")(", pat_regex, ")($|", boundary, ")")
+  repl <- paste0("\\1", replacement, "\\3")
   
   dplyr::mutate(
     df,
     dplyr::across(
       dplyr::all_of(cols),
-      ~ stringr::str_replace(as.character(.x), pattern = pat, replacement = replacement)
+      ~ stringr::str_replace(as.character(.x), pattern = rx, replacement = repl)
     )
   )
 }

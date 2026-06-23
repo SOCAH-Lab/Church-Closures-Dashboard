@@ -79,7 +79,7 @@ plan(multisession, workers = 4)
 
 # Load in the functions
 source("./Code/Support Functions/General.R")
-source("./Code/Support Functions/For Step 1.R")
+source("./Code/Support Functions/For Step 1_2023 Format.R")
 
 # Define the "not in" operation
 "%!in%" <- function(x,y)!("%in%"(x,y))
@@ -1012,12 +1012,14 @@ table("Clusters" = finish_build$same_num_clusters, "Duplicated" = finish_build$o
 #'              only entries that need to be expanded
 #'              (i.e., same_num_clusters == FALSE).
 #'
-#' @field same_num_clusters Expanded entries represent addresses that were
-#'                          initially collapsed, failed the longitude and
-#'                          latitude similarity test, and were identified as 
-#'                          needing to be expanded for individual address 
-#'                          validation. FALSE entries belong to the same subset 
-#'                          but were not marked for expansion.
+#' @field same_num_clusters Expanded: addresses that were initially collapsed,
+#'                          failed the longitude and latitude similarity test, 
+#'                          and required expansion for individual validation. 
+#'                          TRUE: addresses that also failed the similarity test 
+#'                          but clustered to an exact match and were kept 
+#'                          collapsed. FALSE: other addresses associated with 
+#'                          the same business where expansion assessment is not 
+#'                          applicable.
 
 # # Commit results.
 # write.csv(supplement_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection C1_04.27.2026.csv")

@@ -1,5 +1,5 @@
 ## ----------------------------------------------------------------
-## Define functions used in the Step 1 script.
+## Define functions used in the Step 1 script for the 2023 Formatted data.
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025
@@ -8,7 +8,7 @@
 ## Description: In addition to the general-purpose functions defined in another
 ##              script, the following functions are used to complete Step 1 of
 ##              the data cleaning and validation process, as identified through
-##              exploratory data analysis.
+##              exploratory data analysis. 
 ##
 ## NOTE: Much of this content was developed with the assistance of Yale's
 ##       AI Clarity.

@@ -1,13 +1,13 @@
 ## ----------------------------------------------------------------
-## Define functions used in the data exploration script.
+## Define functions used in the 2023 format data exploration script.
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025
 ## Date Modified: April 10th, 2026
 ## 
 ## Description: In addition to the general-purpose functions defined in another
-##              script, the following functions are used to complete the EDA of
-##              the raw data.
+##              script, the following functions are used to complete the initial
+##              exploratory data analysis (EDA) of the 2023 Formatted raw data.
 ##
 ## Functions:
 ##    1. preprocess_address: This function standardizes the format of an 
