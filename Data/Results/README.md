@@ -2,7 +2,7 @@
 
 **Date Created:** May 12<sup>th</sup>, 2026
 
-**Date Updated:** May 12<sup>th</sup>, 2026
+**Date Updated:** July 2<sup>nd</sup>, 2026
 
 **Purpose:**
 
@@ -10,7 +10,7 @@ Provides an overview of the contents of the `Data/Results` directory and documen
 
 **About:**
 
-During the data cleaning and validation steps (**Step 5** for the 2023 Format and **Step 2.d.** for the 2026 Format) longitude and latitude coordinates were used to assign census boundary designations across the 2000, 2010, and 2020 Decennial Census years. The initial implementation of this spatial assignment method used the `tigris` R package to retrieve decennial-year shapefiles directly from the U.S. Census Bureau's [TIGER/Line Shapefile](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) database. This approach, however, did not scale effectively and introduced processing issues with the 2000 and 2020 decennial years.
+During the data cleaning and validation steps (**Step 5** for the 2023 Format and **Step 2.e.** for the 2026 Format) longitude and latitude coordinates were used to assign census boundary designations across the 2000, 2010, and 2020 Decennial Census years. The initial implementation of this spatial assignment method used the `tigris` R package to retrieve decennial-year shapefiles directly from the U.S. Census Bureau's [TIGER/Line Shapefile](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) database. This approach, however, did not scale effectively and introduced processing issues with the 2000 and 2020 decennial years.
 
 To improve both performance and accuracy in preparation for migration to the Yale High Performance Computing (HPC) environment the relevant TIGER/Line Shapefiles were manually downloaded and preprocessed. Each shapefile was structured to include the desired metadata by decennial year as discrete layers. State block-level shapefiles were used for this purpose, as they contain polygon boundaries capable of associating block, tract, county, and state codes with every longitude/latitude coordinate falling within a given polygon.
 
