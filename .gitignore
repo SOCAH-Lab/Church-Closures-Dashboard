@@ -33,11 +33,18 @@ sites_libs/
 
 **/*.pptx
 
-# The location for all the sensitive data that is individual level
+# The location of US Census Bureau TIGER/Line Shapefiles and GeoPackage's
+
+Data/Raw/Census Bureau TIGER Line Shapefiles/
+Data/Results/Census Bureau TIGER Line Shapefiles/
+**/Census Bureau TIGER Line Shapefiles/
+
+# The location of all the sensitive data that is individual level
 
 Code/KEEP LOCAL/
 Data/Raw/KEEP LOCAL/
 Data/Results/KEEP LOCAL/
+**/KEEP LOCAL/
 
 # API credentials cannot be shared. Add them to the following environment
 # file located in the project root directory and ensure that git is
@@ -48,9 +55,4 @@ Data/Results/KEEP LOCAL/
 # provided in scripts where an API key is loaded.
 
 .Renviron
-
-
-# Catch-all to ensure all KEEP LOCAL directories are ignored
-
-**/KEEP LOCAL/
 
