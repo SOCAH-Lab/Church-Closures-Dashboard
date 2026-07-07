@@ -18,25 +18,25 @@ To improve performance and accuracy in preparation for migration to the Yale Hig
 
 In the 2026 Format workflow, two additional geographic codes representing Core Based Statistical Areas were associated using the same method: Metropolitan/Micropolitan Statistical Areas (denoted as CBSA) and Combined Statistical Areas (CSA). These designations were first introduced in 2003, replacing the Office of Management and Budget's (OMB) prior use of "Standard Metropolitan Areas." CBSA and CSA boundaries are typically updated annually, every five years at mid-decade, and following each decennial census. For the purposes of this processing, the 2010 and 2020 decennial releases were used alongside the earliest available annual release from the 2000s decade (the 2007 vintage) to provide coverage across all relevant time periods.
 
-Additionally, ZIP Code Tabulation Area (ZCTA) national files were obtained for each decennial year and compiled alongside the CBSA/CSA output.
+Additionally, ZIP Code Tabulation Areas (ZCTA) national files were obtained for each decennial year and compiled alongside the CBSA/CSA output. To speed up processing, the state acronym is joined during preparation of the compiled core areas file (containing the combined CBSA/CSA and ZCTA decennial details as layers).
 
 **How to Use:**
 
 Raw data are loaded in their respective scripts. Reference the "LOAD IN THE DATA" section at the beginning of each script in the `Code/` directory to identify which datasets are used.
 
-Five types of shapefiles were downloaded: state block-level, state block group-level, national CBSA, national CSA, and national ZCAT. Each was obtained for the 2000, 2010, and 2020 decennial vintages, except for CBSA and CSA, where the 2007 vintage was substituted for 2000. These shapefiles were processed and compiled as GeoPackage (`*.gpkg`) files in `Data/Results/Census Bureau TIGER Line Shapefiles/`, with state block- and block group-level data organized as layers by decennial year. CBSA, CSA, and ZCTA data were compiled into a single file, with one layer per census boundary type and decennial year combination.
+Six types of census boundary shapefiles are used: state block-level, state block group-level, national CBSA, national CSA, national ZCTA, and national states (and equivalents). Each was obtained for the 2000, 2010, and 2020 decennial vintages, except CBSA and CSA, for which the 2007 vintage was substituted for 2000. These shapefiles were processed and compiled as GeoPackage (`*.gpkg`) files in `Data/Results/Census Bureau TIGER Line Shapefiles/`, with state block- and block group-level data organized as layers by decennial year. CBSA, CSA, and ZCTA data (annotated with the state acronym) were compiled into a single file, with one layer per census boundary type and decennial year combination.
+
+All census boundary files, both the downloaded raw shapefiles and the compiled GeoPackage versions, are too large for effective Git tracking and distribution. New users will need to download the source files independently and generate the GeoPackage files locally. Refer to the notes below for download instructions and links to sources. For the coded implementation, refer to "SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages" in `Clean Raw Data_Step 2_2026 Format.R`.
 
 **Directory Specific Notes:**
 
 1.  Only data that are anonymized, summarized such that they do not contain individual-level data, or public are accessible through GitHub and tracked by Git. A copy of the `KEEP LOCAL` data has been uploaded to the SOCAH Lab OneDrive for this project.
 
-2.  All census boundary files, both the downloaded raw shapefiles and the compiled GeoPackage versions, are too large for effective Git tracking and distribution. New users will need to download the source files independently and generate the GeoPackage files locally. Refer to the notes below for download instructions and sources. For the coded implementation, refer to "SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages" in `Clean Raw Data_Step 2_2026 Format.R`.
+2.  `/simplemaps_uscities_basicv1.90/` was downloaded June/July 2025
 
-3.  `/simplemaps_uscities_basicv1.90/` was downloaded June/July 2025
+3.  `/simplemaps_uscities_basicv1.93/` was downloaded July 1<sup>st</sup>, 2026
 
-4.  `/simplemaps_uscities_basicv1.93/` was downloaded July 1<sup>st</sup>, 2026
-
-5.  `/Census Bureau TIGER Line Shapefiles/` contents were downloaded June/July 2026
+4.  `/Census Bureau TIGER Line Shapefiles/` contents were downloaded June/July 2026
 
     -   Downloaded block-level TIGER/Line shapefiles for every state, where "XX" in the filename denotes the state FIPS code: `tl_2010_XX_tabblock00.zip` ([source](https://www.census.gov/cgi-bin/geo/shapefiles/index.php?year=2010&layergroup=Blocks)); `tl_2010_XX_tabblock10.zip` ([source](https://www.census.gov/cgi-bin/geo/shapefiles/index.php?year=2010&layergroup=Blocks)); `tl_2020_XX_tabblock20.zip` ([source](https://www.census.gov/cgi-bin/geo/shapefiles/index.php?year=2020&layergroup=Blocks+%282020%29)).
 
@@ -46,7 +46,9 @@ Five types of shapefiles were downloaded: state block-level, state block group-l
 
     -   Downloaded national-level ZIP Code Tabulation Areas (ZCTA) files: `tl_2010_us_zcta500.zip` ([source](https://www.census.gov/cgi-bin/geo/shapefiles/index.php?year=2010&layergroup=ZIP+Code+Tabulation+Areas)); `tl_2010_us_zcta510.zip` ([source](https://www.census.gov/cgi-bin/geo/shapefiles/index.php?year=2010&layergroup=ZIP+Code+Tabulation+Areas)); `tl_2020_us_zcta520.zip` ([source](https://www.census.gov/cgi-bin/geo/shapefiles/index.php?year=2020&layergroup=ZIP+Code+Tabulation+Areas)).
 
-6.  `bg00/``tabblock00` vs `bg10/``tabblock10` denotes the decennial block system (IDs/definitions); `tl_2010` denotes the processing/packaging vintage. As a result, 2000 geometries may differ from their original distribution; the raw 2000 shapefiles were unavailable, and rich text alternatives showed signs of corruption (e.g., New Haven, CT). These variations are more likely to affect block and tract levels than county or higher.
+    -   Downloaded national-level States (and equivalent) files for annotating ZCTA: `tl_2010_us_state00.zip` ([source](https://www.census.gov/cgi-bin/geo/shapefiles/index.php?year=2010&layergroup=States+%28and+equivalent%29)); `tl_2010_us_state10.zip` ([source](https://www.census.gov/cgi-bin/geo/shapefiles/index.php?year=2010&layergroup=States+%28and+equivalent%29)); `tl_2020_us_state20.zip` ([source](https://www.census.gov/cgi-bin/geo/shapefiles/index.php?year=2020&layergroup=States+%28and+equivalent%29)).
+
+5.  `bg00/tabblock00` vs `bg10/tabblock10` denotes the decennial block system (IDs/definitions); `tl_2010` denotes the processing/packaging vintage. As a result, 2000 geometries may differ from their original distribution; the raw 2000 shapefiles were unavailable, and rich text alternatives showed signs of corruption (e.g., New Haven, CT). These variations are more likely to affect block and tract levels than county or higher.
 
 **References:**
 

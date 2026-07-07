@@ -16,7 +16,7 @@ To improve performance and accuracy in preparation for migration to the Yale Hig
 
 In the 2026 Format workflow, two additional geographic codes representing Core Based Statistical Areas were associated using the same method: Metropolitan/Micropolitan Statistical Areas (denoted as CBSA) and Combined Statistical Areas (CSA). These designations were first introduced in 2003, replacing the Office of Management and Budget's (OMB) prior use of "Standard Metropolitan Areas." CBSA and CSA boundaries are typically updated annually, every five years at mid-decade, and following each decennial census. For the purposes of this processing, the 2010 and 2020 decennial releases were used alongside the earliest available annual release from the 2000s decade (the 2007 vintage) to provide coverage across all relevant time periods.
 
-Additionally, ZIP Code Tabulation Area (ZCTA) national files were obtained for each decennial year and compiled alongside the CBSA/CSA output.
+Additionally, ZIP Code Tabulation Areas (ZCTA) national files were obtained for each decennial year and compiled alongside the CBSA/CSA output. To speed up processing, the state acronym is joined during preparation of the compiled core areas file (containing the combined CBSA/CSA and ZCTA decennial details as layers).
 
 **How to Use:**
 
@@ -34,15 +34,15 @@ Each directory corresponds to a script following the same naming pattern. For ex
 
 A codebook for each output is provided in the associated script, immediately above the `write.csv(...)` call where the result is written. Each output file is dated to reflect when the result was generated (`\*_mm.dd.yyyy`).
 
-Five types of shapefiles were downloaded: state block-level, state block group-level, national CBSA, national CSA, and national ZCAT. Each was obtained for the 2000, 2010, and 2020 decennial vintages, except for CBSA and CSA, where the 2007 vintage was substituted for 2000. These shapefiles were processed and compiled as GeoPackage (`*.gpkg`) files in `Data/Results/Census Bureau TIGER Line Shapefiles/`, with state block- and block group-level data organized as layers by decennial year. CBSA, CSA, and ZCTA data were compiled into a single file, with one layer per census boundary type and decennial year combination.
+Six types of census boundary shapefiles are used: state block-level, state block group-level, national CBSA, national CSA, national ZCTA, and national states (and equivalents). Each was obtained for the 2000, 2010, and 2020 decennial vintages, except CBSA and CSA, for which the 2007 vintage was substituted for 2000. These shapefiles were processed and compiled as GeoPackage (`*.gpkg`) files in `Data/Results/Census Bureau TIGER Line Shapefiles/`, with state block- and block group-level data organized as layers by decennial year. CBSA, CSA, and ZCTA data (annotated with the state acronym) were compiled into a single file, with one layer per census boundary type and decennial year combination.
+
+All census boundary files, both the downloaded raw shapefiles and the compiled GeoPackage versions, are too large for effective Git tracking and distribution. New users will need to download the source files independently and generate the GeoPackage files locally. Refer to the notes in `Data/Raw/Census Bureau TIGER Line Shapefiles/` for download instructions and links to sources. For the coded implementation, refer to "SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages" in `Clean Raw Data_Step 2_2026 Format.R`.
 
 **Directory Specific Notes:**
 
 1.  Only results that are anonymized or summarized such that they do not contain individual-level data are accessible through GitHub and tracked by Git. A copy of the `KEEP LOCAL` results has been uploaded to the SOCAH Lab OneDrive for this project.
 
-2.  All census boundary files, both the downloaded raw shapefiles and the compiled GeoPackage versions, are too large for effective Git tracking and distribution. New users will need to download the source files independently and generate the GeoPackage files locally. Refer to the notes in `Data/Raw/Census Bureau TIGER Line Shapefiles/` for download instructions and sources. For the coded implementation, refer to "SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages" in `Clean Raw Data_Step 2_2026 Format.R`.
-
-3.  A history of results is maintained in each folder. Earlier versions may not always correspond to what is reflected in their respective script, due to subsequent edits or modifications. These are retained for posterity and to facilitate review of previous results if necessary. Always use the most recent version for analysis and evaluation.
+2.  A history of results is maintained in each folder. Earlier versions may not always correspond to what is reflected in their respective script, due to subsequent edits or modifications. These are retained for posterity and to facilitate review of previous results if necessary. Always use the most recent version for analysis and evaluation.
 
 **References:**
 
