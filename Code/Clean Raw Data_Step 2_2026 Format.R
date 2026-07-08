@@ -10,7 +10,7 @@
 ## 
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 12th, 2026
-## Date Modified: July 7th, 2026
+## Date Modified: July 8th, 2026
 ## 
 ## Description: 
 ## 
@@ -50,11 +50,11 @@
 ## NOTE: This script requires GDAL to run. Verify that GDAL is installed on
 ##       your device using the following commands:
 ##
-##       Check for the TIGER driver (returns one row if installed):
-##       sf::st_drivers() |> subset(name == "TIGER")
+##       Check for the TIGER driver (returns one row if installed)
+##          sf::st_drivers() |> subset(name == "TIGER")
 ##
-##       Confirm the GDAL version (this script was developed using v3.5.3):
-##       sf::sf_extSoftVersion()["GDAL"]
+##       Confirm the GDAL version (this script was developed using v3.5.3)
+##          sf::sf_extSoftVersion()["GDAL"]
 ## 
 ## Sections:
 ##    - SET UP THE ENVIRONMENT
@@ -65,9 +65,9 @@
 ##        * SUBSECTION A2: Set Geocoder Search Priorities
 ##        * SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages
 ## 
-##    - PART B: 
-##        * SUBSECTION B1: 
-##        * SUBSECTION B2: 
+##    - PART B: ALGORITHM TO CLEAN, VALIDATE, AND ANNOTATE ADDRESS DATA
+##        * SUBSECTION B1: Load API Keys and Define Search Space
+##        * SUBSECTION B2: Load Relevant Block-Level GeoPackages by State
 ##        * SUBSECTION B3: 
 
 ## ----------------------------------------------------------------
@@ -80,6 +80,8 @@ renv::restore()
 suppressPackageStartupMessages({
   library("readr")            # Reads in CSV and other delimited files
   library("openxlsx")         # Read/write Excel workbooks (.xlsx) with multiple sheets
+  library("DBI")              # Standard database interface for R (dbConnect, dbWriteTable, dbGetQuery)
+  library("duckdb")           # DuckDB database engine + DBI backend (local .duckdb files, in-memory DBs)
   library("arrow")            # Parquet/Feather & fast I/O (Arrow)
   library("tidyr")            # Tidies/reshapes data (pivot, separate/unnest)
   library("dplyr")            # Data manipulation and transformation
@@ -160,17 +162,17 @@ sf::sf_use_s2(TRUE)
 # https://socah-lab.github.io/Church-Closures-Dashboard/Pages/Review_2023%20Format.html
 
 # Load standardized and converted data
-church_2026_form <- read_parquet("Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2026 Format/church_2026_form_standardized_06.10.2026.parquet")
+church_2026_form <- read_parquet("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2026 Format/church_2026_form_standardized_06.10.2026.parquet")
 
 # Toggle based on whether the zip code field was originally imported as a
 # character type; if not, leading and trailing zeros may have been lost.
 zip_codes_character <- TRUE
 
 # Load core field handling/rename spec.
-core_fields <- read_csv("Data/Results/From Process Data Update/Handling Raw Variables_05.12.2026.csv")
+core_fields <- read_csv("./Data/Results/From Process Data Update/Handling Raw Variables_05.12.2026.csv")
 
 # Load SimpleMaps US cities reference and build ZIP -> city/state lookup.
-uscities_df <- read_csv("Data/Raw/simplemaps_uscities_basicv1.93/uscities.csv") %>% as.data.frame()
+uscities_df <- read_csv("./Data/Raw/simplemaps_uscities_basicv1.93/uscities.csv") %>% as.data.frame()
 zip_city_lookup <- build_zip_city_lookup(uscities_df)
 
 # Load the combined national-level Metropolitan/Micropolitan Statistical Area 
@@ -181,10 +183,10 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 # State block or block group, tract, county, and state geometries are loaded 
 # later in the script, as they depend on which states are present in the 
 # current subset.
-core_areas_layers <- sf::st_layers("Data/Results/Census Bureau TIGER Line Shapefiles/core_areas.gpkg")$name
+core_areas_layers <- sf::st_layers("./Data/Results/Census Bureau TIGER Line Shapefiles/core_areas.gpkg")$name
 
 core_areas <- setNames(
-  lapply(core_areas_layers, function(lyr) st_read("Data/Results/Census Bureau TIGER Line Shapefiles/core_areas.gpkg", layer = lyr, quiet = TRUE)),
+  lapply(core_areas_layers, function(lyr) st_read("./Data/Results/Census Bureau TIGER Line Shapefiles/core_areas.gpkg", layer = lyr, quiet = TRUE)),
   core_areas_layers
 )
 
@@ -192,7 +194,7 @@ core_areas <- setNames(
 
 
 ## ----------------------------------------------------------------
-## PART A: CLEAN, VALIDATE, AND ANNOTATE ADDRESS DATA
+## PART A: 
 
 ## --------------------
 ## SUBSECTION A1: 
@@ -499,7 +501,7 @@ if (status$core_areas_ok && status$states_ok) {
 
 
 ## ----------------------------------------------------------------
-## PART B: Algorithm to Standardize and Validate Entries
+## PART B: ALGORITHM TO CLEAN, VALIDATE, AND ANNOTATE ADDRESS DATA
 
 # Add blurb about what is being validated etc.
 
@@ -530,7 +532,7 @@ consumer_secret <- Sys.getenv("USPS_CONSUMER_SECRET", unset = "<UNSET>")
 church_2026_form_dt <- as.data.table(church_2026_form)  # Convert for efficient data manipulation
 
 #c(53496, 4)
-index <- c(53496:53498)
+index <- c(53496:53498, 1:3)
 
 # Define the search space
 search_space <- unique(church_2026_form$abi)[index]
@@ -559,7 +561,7 @@ states_present <- church_2026_form %>%
 # Load the relevant GeoPackages as a nested list: states at the first level,
 # decennial years at the second.
 blocks_by_state <- read_state_gpkgs_for_data(
-  states_present, "Data/Results/Census Bureau TIGER Line Shapefiles/", 
+  states_present, "./Data/Results/Census Bureau TIGER Line Shapefiles/", 
   geography = block_geography
 )
 
@@ -806,7 +808,6 @@ for (i in 1:length(search_space)) {
   # --------------------
   # LOOP PART C: Resolve Records with No Address Match Found
   
-  
   # Prepare candidate_addresses for QC output:
   candidate_addresses <- candidate_addresses %>%
     #   - Normalize address_verified to a "TRUE"/"FALSE" string.
@@ -852,7 +853,8 @@ for (i in 1:length(search_space)) {
     for(j in 1:nrow(unmatched)) {
       
       # Isolate the addresses for exact test comparison
-      comparisons_line_1 <- c(match_to$address_line_1, unmatched[j, address_line_1])
+      target_line_1 <- unmatched[j, address_line_1]
+      comparisons_line_1 <- c(match_to$address_line_1, target_line_1)
       
       # Exact match tests for the address_line_1 and whole address
       match_line_1 <- find_similar_addresses(comparisons_line_1, threshold = 0)
@@ -860,7 +862,7 @@ for (i in 1:length(search_space)) {
       
       # -- a. Exact Match on address_line_1 with Conflicting Metadata ----------
       
-      if( any(match_to$address_line_1 == unmatched[j, address_line_1]) ) {
+      if( any(match_to$address_line_1 == target_line_1) ) {
         
         # Join verified candidates to unmatched records on address_line_1.
         # `allow.cartesian = TRUE` handles the many-to-many relationship.
@@ -928,29 +930,38 @@ for (i in 1:length(search_space)) {
         threshold_line1 <- 0.2
         
         repeat {
-          # Find candidate matches at the current threshold
           match_line_1 <- find_similar_addresses(comparisons_line_1, threshold = threshold_line1)
           
-          # Check whether the cluster with the unmatched record still has >2 
-          # candidate matches
-          too_many_line1 <- unlist(lapply(match_line_1, function(x) any(x %in% unmatched[j, address_line_1]))) %>%
-            (\(x) {match_line_1[x]})() %>%
-            unlist() %>% 
-            length() > 2
+          # Identify which cluster(s) contain the target
+          target_in_cluster <- vapply(
+            match_line_1,
+            function(cluster) any(cluster %in% target_line_1),
+            logical(1)
+          )
           
-          # Stop when matches are sufficiently narrow, OR threshold hits 0,
-          # OR (threshold < 0.2 and all are singletons)
-          if (!too_many_line1 || threshold_line1 <= 0 || (threshold_line1 < 0.2 && all(vapply(match_line_1, length, integer(1)) == 1))) break
+          # Pull out the target cluster (if present)
+          if (!any(target_in_cluster)) {
+            target_cluster <- character(0)
+          } else {
+            target_cluster <- unlist(match_line_1[target_in_cluster], use.names = FALSE)
+          }
           
-          # Tighten threshold and try again
+          # "Too many" means target cluster still has > 2 addresses
+          too_many_line1 <- length(target_cluster) > 2
+          
+          # Stop when: target cluster is small enough, or threshold bottomed out,
+          # or (after tightening) everything is singleton clusters.
+          if (!too_many_line1 ||
+              threshold_line1 <= 0 ||
+              (threshold_line1 < 0.2 && all(vapply(match_line_1, length, integer(1)) == 1))) {
+            break
+          }
+          
           threshold_line1 <- max(0, threshold_line1 - 0.01)
         }
         
-        # Check if the unmatched address got matched with any verified addresses
-        match_check <- unlist(lapply(match_line_1, function(x) any(x %in% unmatched[j, address_line_1]))) %>%
-          (\(x) {match_line_1[x]})() %>%
-          unlist() %>%
-          length()
+        # How many addresses ended up in the target cluster?
+        match_check <- length(target_cluster)
         
         
         # -- ii.  Associate Candidates and Perform Geolocation Test ------------
@@ -1935,14 +1946,26 @@ colnames(finish_build)[colnames(finish_build) %!in% c(core_fields$Variable, "arc
 c(core_fields$Variable, "archive_version_year")[c(core_fields$Variable, "archive_version_year") %!in% colnames(finish_build)]
 
 
+
+write_list_to_duckdb(
+  qc_geo,
+  db_path = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Step 2 HPC_2026 Format_Geo QC_07.08.2026.duckdb"
+)
+
+
 # Commit results
-write.csv(finish_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 2 Subsection B_Verified Result_04.22.2026.csv")
-write.csv(qc_address, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 2 Subsection B_Address QC_04.22.2026.csv")
-write_list_to_xlsx(qc_geo, path = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 2 Subsection B_Geo QC_04.22.2026.xlsx")
-write_list_to_xlsx(qc_census, path = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 2 Subsection B_Census Boundary QC_04.22.2026.xlsx")
+write_parquet(finish_build, "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Step 2 HPC_2026 Format_Verified Result_07.08.2026.parquet")
+write_parquet(qc_address, "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Step 2 HPC_2026 Format_Address Qc_07.08.2026.parquet")
+
+
+
+write.csv(finish_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Step 2 HPC_2026 Format_Verified Result_07.08.2026.csv")
+write.csv(qc_address, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Step 2 HPC_2026 Format_Address Qc_07.08.2026.csv")
+write_list_to_xlsx(qc_geo, path = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Step 2 HPC_2026 Format_Geo QC_07.08.2026.xlsx")
+write_list_to_xlsx(qc_census, path = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Step 2 HPC_2026 Format_Census Boundary QC_07.08.2026.xlsx")
 
 # Read in previously generated results.
-finish_build <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B_04.22.2026.csv", 
+finish_build <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Step 2 HPC_2026 Format_Verified Result_07.08.2026.csv", 
                          col_types = cols(...1 = col_skip())) %>% as.data.frame()
 
 

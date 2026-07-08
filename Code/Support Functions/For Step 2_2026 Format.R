@@ -212,6 +212,17 @@
 ##       data.frame/tibble/data.table and writes each element to its own 
 ##       worksheet in an Excel file. List names are used as sheet names; 
 ##       unnamed/blank elements are assigned default names.
+## 
+##   23. write_list_to_duckdb: Write a list of tables to a single DuckDB 
+##       database file. A lightweight replacement for writing a multi-sheet 
+##       Excel workbook. Each element of `lst` is written as its own DuckDB 
+##       table (analogous to an XLSX sheet) inside one `.duckdb` file.
+## 
+##       This workflow does not require DuckDB extensions (it uses built-in 
+##       DuckDB functionality). Optionally, the function can verify that the 
+##       user's home directory is writable and, if so, set DuckDB's storage home 
+##       there to provide a stable location for extension caching *if extensions 
+##       are ever used*.
 
 
 ## ----------------------------------------------------------------
@@ -1335,11 +1346,11 @@ select_best_match <- function(parsed_response, street, city, state, zip) {
     }
     
     # -------------------------------------------------------------------------
-    # Rule 3: similarity tie-breaker.
+    # Rule 3: similarity tie-breaker (TARGET-CENTERED).
     # Pass the target address + all candidate addresses to find_similar_addresses().
     # Adaptively tighten the threshold (starting at 0.2, step -0.01) until the
-    # pool is narrowed to a resolvable size, the threshold bottoms out at 0, or
-    # all candidates are already singletons.
+    # *target's* cluster is narrowed to a resolvable size, the threshold bottoms
+    # out at 0, or all candidates are already singletons.
     # -------------------------------------------------------------------------
     comparisons <- c(target_address, cand_addr)
     
@@ -1347,28 +1358,41 @@ select_best_match <- function(parsed_response, street, city, state, zip) {
     repeat {
       match <- find_similar_addresses(comparisons, threshold = threshold)
       
-      too_many_line1 <- any(vapply(match, length, integer(1)) > 2)
+      # Identify the cluster that contains the target address
+      target_in_cluster <- vapply(match, function(x) any(x %in% target_address), logical(1))
       
-      # Exit when sufficiently narrowed, threshold exhausted, or all singletons.
-      if (!too_many_line1 || threshold <= 0 ||
+      # If for some reason the target isn't present in any cluster, bail out
+      if (!any(target_in_cluster)) break
+      
+      target_cluster <- unlist(match[target_in_cluster], use.names = FALSE)
+      
+      # Is the target cluster still too large (> 2 items)?
+      too_many_target <- length(target_cluster) > 2
+      
+      # Exit when target cluster is sufficiently narrow, threshold exhausted,
+      # or (after tightening) everything is singleton clusters.
+      if (!too_many_target || threshold <= 0 ||
           (threshold < 0.2 && all(vapply(match, length, integer(1)) == 1))) break
       
-      # Tighten threshold and retry.
+      # Tighten threshold and retry
       threshold <- max(0, threshold - 0.01)
     }
     
     # -------------------------------------------------------------------------
-    # If similarity produced a cluster of exactly two addresses that includes
-    # the target, the *other* address in that pair is the best candidate.
+    # If similarity produced a target-centered cluster of exactly two addresses,
+    # the *other* address in that pair is the best candidate.
     # -------------------------------------------------------------------------
-    clustered <- which(vapply(match, length, integer(1)) == 2)
+    target_in_cluster <- vapply(match, function(x) any(x %in% target_address), logical(1))
     
-    if (length(clustered) > 0 && any(match[[clustered[1]]] %in% target_address)) {
-      matched <- unlist(match[clustered], use.names = FALSE) %>%
-        .[. %!in% target_address]
+    if (any(target_in_cluster)) {
+      target_cluster <- unlist(match[target_in_cluster], use.names = FALSE)
       
-      hit <- which(cand_addr %in% matched)[1]
-      if (!is.na(hit)) return(api_result[[hit]])
+      if (length(target_cluster) == 2) {
+        matched <- setdiff(target_cluster, target_address)
+        
+        hit <- which(cand_addr %in% matched)[1]
+        if (!is.na(hit)) return(api_result[[hit]])
+      }
     }
     
     # -------------------------------------------------------------------------
@@ -2603,6 +2627,89 @@ write_list_to_xlsx <- function(lst, path = "output.xlsx") {
   
   # Save workbook to disk; overwrite existing file at 'path' if present.
   openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
+  
+  invisible(TRUE)
+}
+
+
+
+
+write_list_to_duckdb <- function(lst,
+                                 path,                      # analogous to xlsx path
+                                 table_names = names(lst),  # optional override
+                                 overwrite = TRUE,
+                                 check_home_writable = TRUE,
+                                 use_home_cache_if_writable = TRUE) {
+  #' Write a list of tables to a single DuckDB database file. A lightweight 
+  #' replacement for writing a multi-sheet Excel workbook. Each element of `lst` 
+  #' is written as its own DuckDB table (analogous to an XLSX sheet) inside one 
+  #' `.duckdb` file.
+  #'
+  #' This workflow does not require DuckDB extensions (it uses built-in DuckDB
+  #' functionality). Optionally, the function can verify that the user's home
+  #' directory is writable and, if so, set DuckDB's storage home there to provide
+  #' a stable location for extension caching *if extensions are ever used*.
+  #'
+  #' @param lst A list of tabular objects, typically `data.frame`/`tibble`.
+  #'   Each list element becomes one DuckDB table.
+  #' @param path File path to the DuckDB database file to create/overwrite, e.g.
+  #'   `"./results/qc_geo.duckdb"`.
+  #' @param table_names Character vector of table names to use. Defaults to
+  #'   `names(lst)`. If missing/blank, names are auto-generated as
+  #'   `"sheet_1"`, `"sheet_2"`, ...
+  #' @param overwrite Logical; passed to `DBI::dbWriteTable()`. If `TRUE`, tables
+  #'   with the same name are replaced.
+  #' @param check_home_writable Logical; if `TRUE`, attempts to create and delete a
+  #'   small temp file under `~` to confirm the home directory is writable in the
+  #'   current environment (useful on HPC compute nodes).
+  #' @param use_home_cache_if_writable Logical; if `TRUE` and the home directory is
+  #'   writable, sets `options(duckdb.storage.home = "~")`. This does not install
+  #'   or load any extensions; it only chooses a stable cache location.
+  #'
+  #' @return Invisibly returns `TRUE` on success.
+  
+  # Basic validation ---------------------------------------------------------
+  stopifnot(is.list(lst), length(lst) > 0)
+  
+  # Table names (like sheet names) ------------------------------------------
+  # Prefer list names; otherwise generate sheet_1, sheet_2, ...
+  if (is.null(table_names) || any(table_names == "")) {
+    table_names <- paste0("sheet_", seq_along(lst))
+  }
+  stopifnot(length(table_names) == length(lst))
+  
+  # Ensure output directory exists ------------------------------------------
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  
+  # Optional: confirm HOME is writable (useful on HPC) -----------------------
+  # If writable, set DuckDB's storage home so any future extension caching
+  # (if you ever use extensions) goes somewhere stable and user-writable.
+  if (check_home_writable) {
+    home <- path.expand("~")
+    test_file <- file.path(home, paste0("duckdb_home_write_test_", Sys.getpid(), ".txt"))
+    
+    home_writable <- tryCatch({
+      writeLines("test", test_file)
+      unlink(test_file)
+      TRUE
+    }, error = function(e) FALSE)
+    
+    message("HOME: ", home)
+    message("HOME writable: ", home_writable)
+    
+    if (home_writable && use_home_cache_if_writable) {
+      options(duckdb.storage.home = home)
+      message("Set options(duckdb.storage.home = \"", home, "\")")
+    }
+  }
+  
+  # Write tables into a single DuckDB file ----------------------------------
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = path, read_only = FALSE)
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  
+  for (i in seq_along(lst)) {
+    DBI::dbWriteTable(con, table_names[[i]], lst[[i]], overwrite = overwrite)
+  }
   
   invisible(TRUE)
 }
