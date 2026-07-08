@@ -200,6 +200,18 @@
 ##       being "spatially constant throughout all geometries" is suppressed; it 
 ##       is benign here because `area_code` and `area_level` are constant per 
 ##       feature.
+## 
+##   21. format_year_ranges: Format a set of years into compact consecutive 
+##       ranges (e.g., "2001:2003, 2006"). Takes a vector of years (possibly 
+##       unsorted and with duplicates) and returns a human-readable string where 
+##       consecutive years are collapsed into "start:end" ranges and separated 
+##       by ", ".
+## 
+##   22. write_list_to_xlsx: Write a named list of tables to a multi-sheet Excel 
+##       workbook (.xlsx). Takes a list where each element is a 
+##       data.frame/tibble/data.table and writes each element to its own 
+##       worksheet in an Excel file. List names are used as sheet names; 
+##       unnamed/blank elements are assigned default names.
 
 
 ## ----------------------------------------------------------------
@@ -2514,22 +2526,90 @@ decode_cbsa_csa <- function(cand_sf,
 
 
 
-
 format_year_ranges <- function(years) {
+  #' Format a set of years into compact consecutive ranges (e.g., "2001:2003, 2006").
+  #' Takes a vector of years (possibly unsorted and with duplicates) and returns a
+  #' human-readable string where consecutive years are collapsed into "start:end"
+  #' ranges and separated by ", ".
+  #'
+  #' @param years A numeric/integer vector of years (e.g., c(2001, 2002, 2004)).
+  #'
+  #' @return A single character string of formatted year ranges.
+  
+  # Sort years and remove duplicates so we can detect consecutive runs reliably.
   years <- sort(unique(years))
-  # Find where consecutive gaps break a run
+  
+  # Identify boundaries between runs:
+  # diff(years) > 1 indicates a gap (e.g., 2003 -> 2006), which breaks a consecutive run.
+  # We store break indices in a way that makes slicing easy in the next step.
   breaks <- c(0L, which(diff(years) > 1L), length(years))
+  
+  # Convert each run into either:
+  # - a single year (e.g., "2006"), or
+  # - a "start:end" range (e.g., "2001:2003").
   runs <- mapply(
     function(start, end) {
       run <- years[(start + 1L):end]
-      if (length(run) == 1L) as.character(run) else paste0(run[1L], ":", run[length(run)])
+      if (length(run) == 1L) {
+        as.character(run)
+      } else {
+        paste0(run[1L], ":", run[length(run)])
+      }
     },
     breaks[-length(breaks)],
     breaks[-1L],
     SIMPLIFY = TRUE
   )
+  
+  # Join multiple runs into a single comma-separated string.
   paste(runs, collapse = ", ")
 }
+
+
+
+
+write_list_to_xlsx <- function(lst, path = "output.xlsx") {
+  #' Write a named list of tables to a multi-sheet Excel workbook (.xlsx). Takes a 
+  #' list where each element is a data.frame/tibble/data.table and writes each 
+  #' element to its own worksheet in an Excel file. List names are used as sheet 
+  #' names; unnamed/blank elements are assigned default names.
+  #'
+  #' @param lst A list of tabular objects (data.frame, tibble, or data.table).
+  #'   Each list element becomes one worksheet.
+  #' @param path Output file path for the Excel workbook. Defaults to "output.xlsx".
+  #'
+  #' @return Invisibly returns $$\texttt{TRUE}$$ on success; called for its side effect
+  #'   (writing an $$\texttt{.xlsx}$$ file to disk).
+  
+  # Ensure the required package is available without attaching it to the search path.
+  if (!requireNamespace("openxlsx", quietly = TRUE)) {
+    stop("Please install openxlsx: install.packages('openxlsx')")
+  }
+  
+  # Ensure every list element has a usable worksheet name.
+  # If names are missing or blank, generate "sheet_1", "sheet_2", ...
+  if (is.null(names(lst)) || any(names(lst) == "")) {
+    names(lst) <- paste0("sheet_", seq_along(lst))
+  }
+  
+  # Create a new in-memory workbook.
+  wb <- openxlsx::createWorkbook()
+  
+  # Add one worksheet per list element and write the corresponding table.
+  for (nm in names(lst)) {
+    openxlsx::addWorksheet(wb, nm)
+    openxlsx::writeData(wb, nm, lst[[nm]])
+  }
+  
+  # Save workbook to disk; overwrite existing file at 'path' if present.
+  openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
+  
+  invisible(TRUE)
+}
+
+
+
+
 
 
 

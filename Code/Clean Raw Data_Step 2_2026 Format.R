@@ -79,6 +79,7 @@ renv::restore()
 
 suppressPackageStartupMessages({
   library("readr")            # Reads in CSV and other delimited files
+  library("openxlsx")         # Read/write Excel workbooks (.xlsx) with multiple sheets
   library("arrow")            # Parquet/Feather & fast I/O (Arrow)
   library("tidyr")            # Tidies/reshapes data (pivot, separate/unnest)
   library("dplyr")            # Data manipulation and transformation
@@ -90,7 +91,7 @@ suppressPackageStartupMessages({
   library("jsonlite")         # Parse/write JSON (fromJSON/toJSON)
   library("future.apply")     # Parallel processing
   library("stringdist")       # Measuring string distances
-  # library("progress")         # Progress bars
+  library("progress")         # Progress bars
   library("data.table")       # High-performance data manipulation
   library("sf")               # Simple Features for spatial data (geometry + CRS operations)
   library("tigris")           # Download/read US Census TIGER/Line shapefiles
@@ -587,11 +588,9 @@ for (i in 1:length(search_space)) {
   # until the validation is completed, then rejoined with the remaining, whole
   # dataset.
   # 
-  # To ensure this information relates back to subset, the following additions
-  # are made:
-  #     - Anchored min/max year to show the span of years that address was
-  #       observed.
-  #     - Geolocation (longitude/latitude) is averaged for each exact address.
+  # To ensure this information relates back to subset an anchored min/max year 
+  # is added to show the span of years that address was observed. Additionally,
+  # the geolocation (longitude/latitude) is averaged for each exact address.
   
   candidate_addresses <- subset %>%
     # Keep only the address fields plus a numeric year we can aggregate (and lat/lon for averaging)
@@ -627,16 +626,16 @@ for (i in 1:length(search_space)) {
     ) %>%
     mutate(address_verified = NA, verified_address = NA)
   
-  # Ensure the rows are ordered by ascending year of observation.
+  # Ensure the rows are ordered by ascending year of observation
   setorder(candidate_addresses, anchor_year_min)
   
   # Prepare candidate_addresses for QC output:
   candidate_addresses <- candidate_addresses %>%
     #   - Initialize attempt_succeeded as NA to track which retry attempt
     #     validated each address and capture any non-hard-stop API errors
-    #     (e.g. HTTP 400 "Address Not Found") for audit.
+    #     (e.g. HTTP 400 "Address Not Found") for audit
     mutate(attempt_succeeded = NA_character_) %>%
-    #   - Initialize geolocation_test as NA for downstream geocoding checks.
+    #   - Initialize geolocation_test as NA for downstream geocoding checks
     mutate(geolocation_test = NA_character_)
 
   
@@ -645,9 +644,7 @@ for (i in 1:length(search_space)) {
   
   for (j in 1:nrow(candidate_addresses)) {
     
-    # ---------------------------------------------------------------------------
-    # Pull the j-th row into variables used by validate_usps_address().
-    # ---------------------------------------------------------------------------
+    # Pull the j-th row into variables used by validate_usps_address()
     address1 <- candidate_addresses$address_line_1[j]
     address2 <- ""
     city     <- candidate_addresses$city[j]
@@ -660,9 +657,9 @@ for (i in 1:length(search_space)) {
     attempt_succeeded <- NA_character_
     attempt_log       <- list()
     
-    # ---------------------------------------------------------------------------
-    # Attempt 1: validate using the original inputs as-is.
-    # ---------------------------------------------------------------------------
+    
+    # -- Attempt 1: validate using the original inputs as-is -------------------
+    
     usps_validated <- validate_usps_address(
       consumer_key, consumer_secret,
       address1, address2, city, state, zip5, zip4
@@ -675,22 +672,22 @@ for (i in 1:length(search_space)) {
                                detail  = usps_validated$status_detail)
     }
     
-    # ---------------------------------------------------------------------------
-    # Attempt 2: if no match, assess/correct city via ZIP lookup, then retry.
-    #
-    # Nuanced so that imports that had the 5-digit code as a numeric, which
-    # would cause the leading and trailing zeros to be stripped.
-    # ---------------------------------------------------------------------------
+    
+    # -- Attempt 2: if no match, assess/correct city via ZIP lookup, then retry
+
+    # Handles the case where ZIP codes were imported as numeric, stripping leading
+    # and trailing zeros.
+
     if (!usps_validated$ok) {
       
       if (zip_codes_character) {
         
-        # Look up the city in the SimpleMaps U.S. Cities dataset.
+        # Look up the city in the SimpleMaps U.S. Cities dataset
         query_result <- zip5 %>%
           ifelse(is.na(.) || . == "", "", .) %>%
           (\(z) get_city_info(z, zip_city_lookup))()
         
-        # If a match is found, re-query the USPS database to confirm.
+        # If a match is found, re-query the USPS database to confirm
         if (!str_detect(query_result, "No Matches")) {
           city <- query_result
           
@@ -711,49 +708,52 @@ for (i in 1:length(search_space)) {
         
       } else if (!zip_codes_character) {
         
-        # Leading/trailing zeros were stripped prior to receiving the raw data.
-        # Some ZIP-to-city sources treat those edge zeros differently, so we test
-        # multiple orientations by "sliding" the same count of edge zeros between
-        # the front and back of the ZIP (still 5 digits).
-        zip5_raw <- zip5 %>% ifelse(is.na(.) || . == "", "", .)
-        zip5_raw <- ifelse(nzchar(zip5_raw),
-                           str_pad(zip5_raw, width = 5, side = "left", pad = "0"), "")
+        # Leading/trailing zeros may have been stripped prior to importing the 
+        # raw data. Some ZIP-to-city sources treat those edge zeros differently, 
+        # so we test multiple orientations by "sliding" the same count of edge 
+        # zeros between the front and back of the ZIP (still 5 digits).
         
+        zip5_raw <- zip5 %>% ifelse(is.na(.) || . == "", "", .)
+        zip5_raw <- ifelse(nzchar(zip5_raw), str_pad(zip5_raw, width = 5, side = "left", pad = "0"), "")
+        
+        # Generate different possible combinations
         zip5_candidates <- make_zip5_candidates(zip5_raw) %>% .[. %!in% zip5]
         
         # Try candidates until one returns a city (then stop); otherwise do nothing.
-        for (z in zip5_candidates) {
-          query_result <- get_city_info(z, zip_city_lookup)
-          
-          if (!str_detect(query_result, "No Matches")) {
-            city <- query_result
-            zip5 <- z
+        if (length(zip5_candidates) > 0) {
+          for (z in zip5_candidates) {
+            query_result <- get_city_info(z, zip_city_lookup)
             
-            suppressWarnings({
-              usps_validated <- validate_usps_address(
-                consumer_key, consumer_secret,
-                address1, address2, city, state, zip5, zip4
-              )
-            })
-            
-            if (usps_validated$ok) {
-              attempt_succeeded <- "With city correction by zip5"
-            } else {
-              attempt_log[[2]] <- list(attempt = 2L, status = usps_validated$status,
-                                       detail  = usps_validated$status_detail)
+            if (!str_detect(query_result, "No Matches")) {
+              city <- query_result
+              zip5 <- z
+              
+              suppressWarnings({
+                usps_validated <- validate_usps_address(
+                  consumer_key, consumer_secret,
+                  address1, address2, city, state, zip5, zip4
+                )
+              })
+              
+              if (usps_validated$ok) {
+                attempt_succeeded <- "With city correction by zip5"
+              } else {
+                attempt_log[[2]] <- list(attempt = 2L, status = usps_validated$status,
+                                         detail  = usps_validated$status_detail)
+              }
+              
+              # Stop after the first candidate that yields a city, regardless of
+              # whether the USPS call succeeded — avoid burning more candidates.
+              break
             }
-            
-            # Stop after the first candidate that yields a city, regardless of
-            # whether the USPS call succeeded — avoid burning more candidates.
-            break
           }
         }
       }
     }
     
-    # ---------------------------------------------------------------------------
-    # Save results back into candidate_addresses (single write block).
-    # ---------------------------------------------------------------------------
+    
+    # -- Save results back into candidate_addresses (single write block) -------
+    
     if (!usps_validated$ok) {
       
       # Nothing matched after all attempts — record failure reason from the last
@@ -806,6 +806,7 @@ for (i in 1:length(search_space)) {
   # --------------------
   # LOOP PART C: Resolve Records with No Address Match Found
   
+  
   # Prepare candidate_addresses for QC output:
   candidate_addresses <- candidate_addresses %>%
     #   - Normalize address_verified to a "TRUE"/"FALSE" string.
@@ -818,38 +819,51 @@ for (i in 1:length(search_space)) {
   # that attempts to associate each record with a verified address:
   # 
   #   a. Exact match on address_line_1 with differing metadata:
-  #         - Link to the nearest chronologically preceding verified match
-  #           (or following if no preceding match exists).
+  #         - First prefer a verified match whose anchor-year interval overlaps 
+  #           (or touches) the unmatched anchor-year window.
+  #         - If no overlap exists, link to the verified match whose anchor-year 
+  #           interval is closest to the unmatched window, whether it falls 
+  #           before or after.
+  #         - “Closest” is based on the smallest non-overlap gap between the two 
+  #           year ranges; for non-overlapping ranges, use the candidate’s end 
+  #           year if it is before the window, or its start year if it is after 
+  #           the window.
   #         - Bypass the geolocation validation step.
   # 
   #   b. Fuzzy match on address_line_1:
-  #         - Link to the nearest chronologically verified match.
+  #         - Link to the verified match whose anchor-year interval overlaps (or 
+  #           touches) the unmatched anchor-year window; if none overlap, choose 
+  #           the verified match with the smallest gap to the window 
+  #           (before/after treated equally). Similar to exact matching.
   #         - Apply the geolocation validation step.
-  #         - If validation fails, retain the record as a separate unverified entry.
+  #         - If validation fails, retain the record as a separate unverified 
+  #           entry.
   
   if(any(candidate_addresses$verified_address %in% "No address match found")) {
     
-    # Separate addresses into two groups: records to be matched and potential match candidates.
+    # Separate addresses into two groups: records to be matched and potential 
+    # match candidates.
     match_to  <- candidate_addresses[address_verified == TRUE, ]
     unmatched <- candidate_addresses[address_verified == FALSE, ]
     
-    # Assign a unique row index.
+    # Assign a unique row index
     unmatched[, u_id := .I]
     
     for(j in 1:nrow(unmatched)) {
       
-      # Isolate the addresses for exact test comparison.
+      # Isolate the addresses for exact test comparison
       comparisons_line_1 <- c(match_to$address_line_1, unmatched[j, address_line_1])
       
-      # Exact match tests for the address_line_1 and whole address.
+      # Exact match tests for the address_line_1 and whole address
       match_line_1 <- find_similar_addresses(comparisons_line_1, threshold = 0)
+      
       
       # -- a. Exact Match on address_line_1 with Conflicting Metadata ----------
       
       if( any(match_to$address_line_1 == unmatched[j, address_line_1]) ) {
         
         # Join verified candidates to unmatched records on address_line_1.
-        # allow.cartesian = TRUE handles the many-to-many relationship.
+        # `allow.cartesian = TRUE` handles the many-to-many relationship.
         cand <- merge(
           match_to,
           unmatched[j, .(u_id, address_line_1, u_min = anchor_year_min, u_max = anchor_year_max)],
@@ -857,33 +871,41 @@ for (i in 1:length(search_space)) {
           allow.cartesian = TRUE
         )
         
-        # Apply preference rules for match selection:
-        #     - Prefer the nearest chronologically preceding verified match.
-        #     - If no preceding match exists, fall back to the nearest 
-        #       following match.
-        cand[, `:=`(
-          is_before = anchor_year_max <= u_min,
-          is_after  = anchor_year_min >= u_max,
-          dist = fifelse(anchor_year_max < u_min, u_min - anchor_year_max,
-                         fifelse(anchor_year_min > u_max, anchor_year_min - u_max, 0))
+        # Classify relative position of candidate interval vs unmatched window
+        cand[, dir := fifelse(
+          anchor_year_max < u_min, "before",
+          fifelse(anchor_year_min > u_max, "after", "overlap")
         )]
         
-        # Select the best verified match per unmatched record using the 
-        # preference rules.
+        # Distance from unmatched window [u_min, u_max] to candidate anchor interval
+        #  - candidate entirely before: distance from its END to u_min
+        #  - candidate entirely after : distance from its START to u_max
+        #  - overlaps/touches         : 0
+        cand[, dist := fifelse(
+          dir == "before", u_min - anchor_year_max,
+          fifelse(dir == "after", anchor_year_min - u_max, 0)
+        )]
+        
+        # Pick best match:
+        #   1) overlaps/touches always win (dir == "overlap")
+        #   2) otherwise choose smallest dist, regardless of before/after
+        #   3) tie-break within direction by the closest boundary:
+        #        - before: larger anchor_year_max (closest end)
+        #        - after : smaller anchor_year_min (closest start)
         best <- cand[
           order(
             u_id,
-            -is_before,                              # prefer prior
-            -is_after,                               # else prefer after
-            fifelse(is_before, -anchor_year_max, 0), # nearest prior
-            fifelse(is_after,  anchor_year_min, 0),  # nearest after
-            dist
+            dir != "overlap",                      # overlaps/touches first
+            dist,                                  # then closest gap (before/after treated equally)
+            fifelse(dir == "before", -anchor_year_max, 0), # tie-break: closest end if before
+            fifelse(dir == "after",   anchor_year_min, 0)  # tie-break: closest start if after
           ),
           .SD[1],
           by = u_id
         ]
         
-        # Update unmatched records with the associated verified address.
+        
+        # Update unmatched records with the associated verified address
         unmatched[j, "verified_address"] <- best[1, verified_address]
         unmatched[j, "address_verified"] <- "Exact match"
         unmatched[j, "geolocation_test"] <- "Override"
@@ -899,7 +921,7 @@ for (i in 1:length(search_space)) {
         
         # Fuzzy matching is run iteratively with decreasing similarity thresholds
         # until each unmatched address resolves to a single best candidate.
-        # If no match is found at any threshold, the record falls through to
+        # If no match is found at any threshold, the record falls skips to
         # section iii.
         
         # Starting string similarity comparator (line_1 only)
@@ -909,7 +931,8 @@ for (i in 1:length(search_space)) {
           # Find candidate matches at the current threshold
           match_line_1 <- find_similar_addresses(comparisons_line_1, threshold = threshold_line1)
           
-          # Check whether the cluster with the unmatched record still has >2 candidate matches
+          # Check whether the cluster with the unmatched record still has >2 
+          # candidate matches
           too_many_line1 <- unlist(lapply(match_line_1, function(x) any(x %in% unmatched[j, address_line_1]))) %>%
             (\(x) {match_line_1[x]})() %>%
             unlist() %>% 
@@ -929,6 +952,7 @@ for (i in 1:length(search_space)) {
           unlist() %>%
           length()
         
+        
         # -- ii.  Associate Candidates and Perform Geolocation Test ------------
         
         if ( match_check == 2 ) {
@@ -943,18 +967,24 @@ for (i in 1:length(search_space)) {
           setDT(cand)
           
           # Apply preference rules for match selection:
-          #     - Prefer the nearest chronologically preceding verified match.
-          #     - If no preceding match exists, fall back to the nearest 
-          #       following match.
+          #     - First prefer a verified match whose anchor-year interval
+          #       overlaps (or touches) the unmatched anchor-year window.
+          #     - If no overlap exists, select the verified match whose 
+          #       anchor-year interval is closest to the unmatched window, 
+          #       regardless of whether it falls before or after.
+          #     - “Closest” is based on the smallest non-overlap gap between the 
+          #       two year ranges (overlap/touch counts as zero); for 
+          #       non-overlapping ranges, use the candidate’s end year if it is 
+          #       before the window, or its start year if it is after the window.
           cand[, `:=`(
-            is_before = anchor_year_max <= u_min,
-            is_after  = anchor_year_min >= u_max,
+            dir = fifelse(anchor_year_max < u_min, "before",
+                          fifelse(anchor_year_min > u_max, "after", "overlap")),
             dist = fifelse(anchor_year_max < u_min, u_min - anchor_year_max,
                            fifelse(anchor_year_min > u_max, anchor_year_min - u_max, 0))
           )]
           
-          # Test how similar the longitude and latitude are.
-          #     negligible_change <- 0.002  # Change in degrees (~222 meters or 728 feet)
+          # Test how similar the longitude and latitude are - 
+          # change in degrees (~222 meters or 728 feet)
           cand[, `:=`(
             lat_diff = abs(latitude_avg  - u_lat),
             lon_diff = abs(longitude_avg - u_lon)
@@ -967,24 +997,24 @@ for (i in 1:length(search_space)) {
           best <- cand[geolocation_test == TRUE][
             order(
               u_id,
-              -is_before,                              # prefer prior
-              -is_after,                               # else prefer after
-              fifelse(is_before, -anchor_year_max, 0), # nearest prior
-              fifelse(is_after,  anchor_year_min, 0),  # nearest after
-              dist
+              dir != "overlap",                      # overlaps/touches first
+              dist,                                  # then closest gap (before/after treated equally)
+              fifelse(dir == "before", -anchor_year_max, 0), # tie-break: closest end if before
+              fifelse(dir == "after",   anchor_year_min, 0)  # tie-break: closest start if after
             ),
             .SD[1],
             by = u_id
           ]
           
+          
           if(nrow(best) == 0L) {
             
-            # No candidate survived the geolocation test — flag as failed.
+            # No candidate survived the geolocation test — flag as failed
             unmatched[j, "geolocation_test"] <- "FALSE"
             
           } else {
             
-            # Geolocation test passed — assign the top candidate as the verified address.
+            # Geolocation test passed — assign the top candidate as the verified address
             unmatched[j, "verified_address"] <- best[1, verified_address]
             unmatched[j, "address_verified"] <- "Fuzzy match"
             unmatched[j, "geolocation_test"] <- "TRUE"
@@ -993,7 +1023,8 @@ for (i in 1:length(search_space)) {
             
           }
           
-          # -- iii. No Fuzzy Match Found ---------------------------------------
+          
+        # -- iii. No Fuzzy Match Found ---------------------------------------
           
         } else if ( threshold_line1 < 0.2 && match_check > 2 ) {
           
@@ -1004,12 +1035,12 @@ for (i in 1:length(search_space)) {
           
         } else if ( match_check == 1 ) {
           
-          # No verified match exists at any threshold.
+          # No verified match exists at any threshold
           unmatched[j, "address_verified"] <- "FALSE"
           
         } else {
           
-          # Fallback: condition was unanticipated — flag for manual review.
+          # Fallback: condition was unanticipated — flag for manual review
           unmatched[j, "address_verified"] <- "Unanticipated Error"
           
         }
@@ -1035,7 +1066,7 @@ for (i in 1:length(search_space)) {
   # --------------------
   # LOOP PART D: Verify Geolocation with the US Census Bureau’s Geocoder Database
   
-  # helper to safely pull a field from each attempt
+  # Helper to safely pull a field from each attempt
   pluck_or_na <- function(x, name) if (!is.null(x[[name]])) as.character(x[[name]]) else NA_character_
   
   out_row <- list()
@@ -1048,9 +1079,10 @@ for (i in 1:length(search_space)) {
         )
       })()
     
+    
     # -- i. Parse the Address into Its Components -----------------------------
     
-    # Split the address into its components (assuming comma-separated format).
+    # Split the address into its components (assuming comma-separated format)
     parts <- trimws(strsplit(address_to_check, ",")[[1]])
     
     if (length(parts) < 3) {
@@ -1072,8 +1104,9 @@ for (i in 1:length(search_space)) {
       zip   <- state_zip[2]
       
     } else {
-      # street may contain commas (address line 2), and state/zip may be split by commas.
-      # Take the last tokens as state + zip, and the one before them as city.
+      # The street may contain commas (address line 2), and state/zip may be 
+      # split by commas. Take the last tokens as state + zip, and the one before 
+      # them as city.
       last <- parts[length(parts)]
       
       # Case A: ... , ST ZIP
@@ -1294,7 +1327,7 @@ for (i in 1:length(search_space)) {
   
   
   # --------------------
-  # LOOP PART F: Add Back to Main Dataset\
+  # LOOP PART F: Add Back to Main Dataset
   
   # Define column structure
   combined_cols <- c(
@@ -1361,7 +1394,6 @@ for (i in 1:length(search_space)) {
   # --------------------
   # LOOP PART G: Quality Checks — Address Validation Results
 
-  
   # Address verification proceeds in two stages, summarised across three columns:
   #
   #   Stage 1 — USPS API (attempt_succeeded): each address is submitted to the
@@ -1390,8 +1422,8 @@ for (i in 1:length(search_space)) {
       reported_address,
       
       # ---- verification ----
-      address_verified, attempt_succeeded,   # validation cols
-      geolocation_test, verified_address,    # validation cols
+      address_verified, attempt_succeeded,
+      geolocation_test, verified_address,
     ) %>%
     group_by(across(-archive_version_year)) %>%
     summarise(
@@ -1437,29 +1469,62 @@ for (i in 1:length(search_space)) {
   
   # (a) Query QC: number of attempts, API status code, vintage used
   qc_geo$qc1[[i]] <- qc_geo_df %>%
-    select(-latitude, -longitude, -latitude_avg, -longitude_avg, 
-           -latitude_ver, -longitude_ver) %>%
+    # Drop lat/lon fields here so QC focuses on request/response + matching metadata.
+    # (Those coordinates may be analyzed in a separate QC stage.)
+    select(
+      -latitude, -longitude, -latitude_avg, -longitude_avg,
+      -latitude_ver, -longitude_ver
+    ) %>%
     mutate(
+      # all_200:
+      #   TRUE  = every recorded attempt returned HTTP 200
+      #   FALSE = at least one attempt was non-200
+      #   NA    = insufficient information to evaluate (missing statuses, or 
+      #           fewer parsed statuses than the number of configured tries)
+      #
+      # query_statuses is assumed to be a single string like "200 | 200 | unverified".
+      # geocoder_census_tries is assumed to represent how many attempts were made/allowed.
       all_200 = ifelse(
-        is.na(query_statuses) | lengths(strsplit(query_statuses, " \\| ")) < length(geocoder_census_tries),
+        is.na(query_statuses) |
+          lengths(strsplit(query_statuses, " \\| ")) < length(geocoder_census_tries),
         NA,
-        sapply(strsplit(query_statuses, " \\| "), function(x) all(trimws(x) == "200"))
+        sapply(
+          strsplit(query_statuses, " \\| "),
+          function(x) all(trimws(x) == "200")
+        )
       ),
+      
+      # matched_address_same:
+      #   TRUE  = input address and matched_address are effectively the same after
+      #           light normalization
+      #   FALSE = they differ after normalization
+      #   NA    = cannot evaluate due to missing address fields
+      #
+      # Normalization performed:
+      #   - squish whitespace
+      #   - drop trailing ZIP+4 (e.g., "-1234")
+      #   - remove comma immediately before the 5-digit ZIP (to avoid punctuation-only diffs)
       matched_address_same = case_when(
         is.na(address) | is.na(matched_address) ~ NA,
         TRUE ~ str_remove_all(str_remove(str_squish(address), "-\\d{4}$"), ",(?=\\s*\\d{5})") ==
           str_remove_all(str_remove(str_squish(matched_address), "-\\d{4}$"), ",(?=\\s*\\d{5})")
       )
     ) %>%
+    # Collapse across archive vintages:
+    # For each unique record (everything except archive_version_year), collect 
+    # the set of archive years observed and format them into compact ranges 
+    # (e.g., "2000:2002, 2005").
     group_by(across(-archive_version_year)) %>%
     summarise(
       archive_versions_present = format_year_ranges(archive_version_year),
       .groups = "drop"
     ) %>%
+    # Reorder columns to make QC outputs easier to scan
     relocate(archive_versions_present, .after = address) %>%
     relocate(all_200, .after = query_statuses) %>%
     relocate(matched_address_same, .after = matched_address) %>%
-    (\(x) {setDT(x)} )()
+    # Convert tibble -> data.table (without breaking the pipe)
+    (\(x) { setDT(x) })()
   
   
   # (b) Deviation QC: how far validated coords are from averaged coords (rounded)
@@ -1526,7 +1591,11 @@ for (i in 1:length(search_space)) {
   # --------------------
   # LOOP PART I: Quality Checks — Variation with Census Information
   
-  # Assesses the reliability of reported census boundry values for each address.
+  # Preliminary assessments of the raw data indicated that the reported census
+  # boundary values do not follow the expected pattern of decennial-only changes.
+  # This QC step evaluates the reliability/consistency of census boundary values
+  # reported for each address across query attempts and archive vintages.
+  
   
   # Prep a consistent address field and keep only needed columns for QC
   qc_census_df <- combined %>%
@@ -1802,7 +1871,7 @@ for (i in 1:length(search_space)) {
   
   # The final table retains only verified outcomes plus the original address, as
   # the latter may be used differentially in the subsequent reformatting step.
-  #
+  # 
   # All intermediate columns — including population patterns, API success/failures,
   # deviations from originally reported values, and all variable versions
   # (original, averaged, verified, and matched) — are preserved in the QC tables.
@@ -1849,17 +1918,16 @@ for (i in 1:length(search_space)) {
 }
 
 
-# Combine all data tables in the list into one data table.
+# Combine all data tables in the list into one data table
 finish_build <- rbindlist(finish_build, use.names = TRUE, fill = TRUE)
-
 qc_address <- rbindlist(qc_address, use.names = TRUE, fill = TRUE)
 
-qc_geo$qc1 <- dplyr::bind_rows(qc_geo$qc1, .id = "i")
-qc_geo$qc2 <- dplyr::bind_rows(qc_geo$qc2, .id = "i")
-qc_geo$qc3 <- dplyr::bind_rows(qc_geo$qc3, .id = "i")
+qc_geo$qc1 <- bind_rows(qc_geo$qc1, .id = "i")
+qc_geo$qc2 <- bind_rows(qc_geo$qc2, .id = "i")
+qc_geo$qc3 <- bind_rows(qc_geo$qc3, .id = "i")
 
-qc_census$qc1 <- dplyr::bind_rows(qc_census$qc1, .id = "i")
-qc_census$qc2 <- dplyr::bind_rows(qc_census$qc2, .id = "i")
+qc_census$qc1 <- bind_rows(qc_census$qc1, .id = "i")
+qc_census$qc2 <- bind_rows(qc_census$qc2, .id = "i")
 
 
 # Confirm column inclusion/exclusion is correct
@@ -1867,8 +1935,11 @@ colnames(finish_build)[colnames(finish_build) %!in% c(core_fields$Variable, "arc
 c(core_fields$Variable, "archive_version_year")[c(core_fields$Variable, "archive_version_year") %!in% colnames(finish_build)]
 
 
-# Commit results.
-write.csv(finish_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B_04.22.2026.csv")
+# Commit results
+write.csv(finish_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 2 Subsection B_Verified Result_04.22.2026.csv")
+write.csv(qc_address, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 2 Subsection B_Address QC_04.22.2026.csv")
+write_list_to_xlsx(qc_geo, path = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 2 Subsection B_Geo QC_04.22.2026.xlsx")
+write_list_to_xlsx(qc_census, path = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 2 Subsection B_Census Boundary QC_04.22.2026.xlsx")
 
 # Read in previously generated results.
 finish_build <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B_04.22.2026.csv", 
