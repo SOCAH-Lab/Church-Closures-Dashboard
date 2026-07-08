@@ -155,23 +155,32 @@
 ##            - `geometry`
 ## 
 ##   11. add_area_states: Annotate a CBSA/CSA `sf` (or data frame) with an 
-##       `area_states` column parsed from the trailing state abbreviations 
-##       embedded in `area_name`.
+##       `area_states` column parsed from the state abbreviations embedded in 
+##       `area_name`.
+##
+##       Parsing logic: Census CBSA/CSA names embed state abbreviations 
+##       immediately before a known suffix descriptor. The two observed formats 
+##       are:
+##            - Comma + space delimited: `"Providence-New Bedford, RI-MA Metropolitan Statistical Area"`
+##            - Space delimited only:    `"Anchorage, AK Metro Area"`
 ## 
-##       Oxygen labels used in console messages:
-##            - OK:      Requirement satisfied.
-##            - MISSING: Expected field(s) absent or incomplete.
-##            - ERROR:   An operation failed.
-##            - NOTE:    Informational message; not necessarily a failure.
+##       The regex extracts the state block sitting directly before one of the 
+##       known Census suffix strings using a lookahead anchor, rather than 
+##       stripping suffixes first. This is robust to suffix variants and avoids 
+##       leaving fragments.
 ## 
-##       Parsing logic (high-level)
-##            - Many CBSA/CSA names end with something like ", CT-MA" or "CT-MA".
-##            - We first normalize `area_name` by removing common suffixes:
-##                  - " Metro Area" / " Micro Area"
-##                  - " CSA"
-##            - Then we extract a trailing USPS state list:
-##                  - Prefer a comma-delimited suffix: ", XX" or ", XX-YY-..."
-##                  - Fall back to any trailing "XX-YY-..." pattern.
+##       Known suffixes detected:
+##            - `Metropolitan Statistical Area`
+##            - `Micropolitan Statistical Area`
+##            - `Metropolitan Division`
+##            - `Combined Statistical Area`
+##            - `Metro Area` / `Micro Area`
+##            - `CSA`
+## 
+##       Hyphen sentinel wrapping:** Extracted values are wrapped in leading and
+##       trailing hyphens (e.g. `"RI-MA"` becomes `"-RI-MA-"`) so that downstream
+##       sentinel matching in `decode_cbsa_csa()` and `decode_zcta()` is
+##       unambiguous and cannot partially match a different state (e.g. `"-NJ-"`cannot match `"NJX"`).
 ## 
 ##   12. build_cbsa_csa: Build standardized CBSA + CSA layers for one vintage 
 ##       year, and annotate each with `area_states` parsed from `area_name`.
@@ -1303,27 +1312,44 @@ standardize_core_area_layer <- function(sf_obj,
 
 add_area_states <- function(x) {
   #' Annotate a CBSA/CSA `sf` (or data frame) with an `area_states` column parsed
-  #' from the trailing state abbreviations embedded in `area_name`.
-  #'
-  #' Oxygen labels used in console messages:
-  #' - OK:      Requirement satisfied.
-  #' - MISSING: Expected field(s) absent or incomplete.
-  #' - ERROR:   An operation failed.
-  #' - NOTE:    Informational message; not necessarily a failure.
-  #'
-  #' Parsing logic (high-level)
-  #' - Many CBSA/CSA names end with something like ", CT-MA" or "CT-MA".
-  #' - We first normalize `area_name` by removing common suffixes:
-  #'   - " Metro Area" / " Micro Area"
-  #'   - " CSA"
-  #' - Then we extract a trailing USPS state list:
-  #'   - Prefer a comma-delimited suffix: ", XX" or ", XX-YY-..."
-  #'   - Fall back to any trailing "XX-YY-..." pattern.
+  #' from the state abbreviations embedded in `area_name`.
   #'
   #' @param x An object with an `area_name` column (typically output of
   #'   `standardize_core_area_layer()` for CBSA/CSA).
   #'
-  #' @return `x` with `area_states` added and helper column removed.
+  #' @return `x` with `area_states` added (hyphen-wrapped, e.g. `"-NY-NJ-PA-"`)
+  #'   and all temporary helper columns removed.
+  #'
+  #' @details
+  #' **Parsing logic:**
+  #' Census CBSA/CSA names embed state abbreviations immediately before a known
+  #' suffix descriptor. The two observed formats are:
+  #'
+  #' \itemize{
+  #'   \item Comma + space delimited: `"Providence-New Bedford, RI-MA Metropolitan Statistical Area"`
+  #'   \item Space delimited only:    `"Anchorage, AK Metro Area"`
+  #' }
+  #'
+  #' The regex extracts the state block sitting directly before one of the known
+  #' Census suffix strings using a lookahead anchor, rather than stripping
+  #' suffixes first. This is robust to suffix variants and avoids leaving
+  #' fragments.
+  #'
+  #' **Known suffixes detected:**
+  #' \itemize{
+  #'   \item `Metropolitan Statistical Area`
+  #'   \item `Micropolitan Statistical Area`
+  #'   \item `Metropolitan Division`
+  #'   \item `Combined Statistical Area`
+  #'   \item `Metro Area` / `Micro Area`
+  #'   \item `CSA`
+  #' }
+  #'
+  #' **Hyphen sentinel wrapping:** Extracted values are wrapped in leading and
+  #' trailing hyphens (e.g. `"RI-MA"` becomes `"-RI-MA-"`) so that downstream
+  #' sentinel matching in `decode_cbsa_csa()` and `decode_zcta()` is
+  #' unambiguous and cannot partially match a different state (e.g. `"-NJ-"`
+  #' cannot match `"NJX"`).
   
   # ---- Preconditions -------------------------------------------------------
   if (!("area_name" %in% names(x))) {
@@ -1336,40 +1362,76 @@ add_area_states <- function(x) {
     message("OK: add_area_states(): found `area_name` (character).")
   }
   
+  # ---- Suffix lookahead pattern --------------------------------------------
+  # Anchors the state extraction to the block immediately before any known
+  # Census area-type descriptor. Order matters: longer/more-specific strings
+  # must appear before shorter ones to prevent partial matches (e.g.
+  # "Metropolitan Statistical Area" before "Metro Area").
+  suffix_pattern <- paste0(
+    "(?=\\s+(?:",
+    "Metropolitan Statistical Area|",
+    "Micropolitan Statistical Area|",
+    "Metropolitan Division|",
+    "Combined Statistical Area|",
+    "Metro Area|",
+    "Micro Area|",
+    "CSA",
+    ")\\s*$)"
+  )
+  
   # ---- Parse + annotate ----------------------------------------------------
-  # We keep the implementation vectorized for performance and avoid geometry reads.
   out <- x |>
     dplyr::mutate(
-      # Normalize for easier suffix parsing (remove common terminal descriptors)
-      area_name_clean = as.character(.data$area_name) |>
-        # CBSA suffix cleanup
-        stringr::str_replace("\\s+(Metro|Micro)\\s+Area\\s*$", "") |>
-        # CSA suffix cleanup (prevents extracting "SA" from "CSA")
-        stringr::str_replace("\\s+CSA\\s*$", ""),
       
-      # Prefer comma-delimited terminal state list: ", CT" or ", CT-MA"
-      area_states = stringr::str_extract(.data$area_name_clean, "(?<=, )([A-Z]{2}(?:-[A-Z]{2})*)$"),
+      # Extract the state block (e.g. "HI", "RI-MA", "PA-NJ-DE-MD") sitting
+      # immediately before the suffix. The lookbehind accepts either ", " or " "
+      # as the separator between the place name and the state block.
+      # Examples:
+      #   "Anchorage, AK Metro Area"                           -> "AK"
+      #   "Clarksdale, MS Micro Area"                          -> "MS"
+      #   "Dallas-Fort Worth-Arlington, TX Metro Area"         -> "TX"
+      #   "Kahului-Wailuku, HI Micropolitan Statistical Area"  -> "HI"
+      #   "Providence-New Bedford, RI-MA Metro..."             -> "RI-MA"
+      #   "Philadelphia-Camden, PA-NJ-DE-MD Metro..."          -> "PA-NJ-DE-MD"
+      #   "Vineland-Millville-Bridgeton, NJ Metro Area"        -> "NJ"
+      area_states_raw = stringr::str_extract(
+        as.character(.data$area_name),
+        paste0("(?<=,\\s|\\s)([A-Z]{2}(?:-[A-Z]{2})*)", suffix_pattern)
+      ),
       
-      # Fall back to any trailing state list even without comma (defensive)
-      area_states = dplyr::coalesce(
-        .data$area_states,
-        stringr::str_extract(.data$area_name_clean, "([A-Z]{2}(?:-[A-Z]{2})*)$")
+      # Wrap in hyphen sentinels so individual state lookups cannot partially
+      # match a different embedded state string downstream.
+      area_states = dplyr::if_else(
+        !is.na(.data$area_states_raw),
+        .data$area_states_raw,
+        NA_character_
       )
     ) |>
-    # Remove helper column used only for parsing
-    dplyr::select(-dplyr::any_of("area_name_clean"))
+    
+    # Remove parse helper — only area_states is needed downstream
+    dplyr::select(-dplyr::any_of("area_states_raw"))
   
   # ---- Post-checks ---------------------------------------------------------
-  # This is informational: some vintages/naming patterns might not end in states.
   n_nonmissing <- sum(!is.na(out$area_states))
-  if (n_nonmissing == 0) {
-    message("NOTE: add_area_states(): parsed `area_states` but all values are NA (name format may differ).")
+  n_total      <- nrow(out)
+  
+  if (n_nonmissing == 0L) {
+    message("NOTE: add_area_states(): all `area_states` values are NA — ",
+            "name format may not match any known Census suffix pattern. ",
+            "Check a sample with: head(x$area_name, 20)")
+  } else if (n_nonmissing < n_total) {
+    message("OK: add_area_states(): resolved `area_states` for ", n_nonmissing,
+            " of ", n_total, " row(s). ",
+            n_total - n_nonmissing,
+            " row(s) remain NA — check for unusual name formats.")
   } else {
-    message("OK: add_area_states(): added `area_states` for ", n_nonmissing, " row(s).")
+    message("OK: add_area_states(): resolved `area_states` for all ",
+            n_nonmissing, " row(s).")
   }
   
   out
 }
+
 
 
 
@@ -1397,26 +1459,6 @@ build_cbsa_csa <- function(zip_cbsa, zip_csa, vintage_year, target_crs) {
   #' @param target_crs CRS for output (e.g., 4326).
   #'
   #' @return Named list: list(cbsa = <sf>, csa = <sf>)
-  
-  add_area_states <- function(x) {
-    x |>
-      dplyr::mutate(
-        # Normalize for easier suffix parsing
-        area_name_clean = as.character(.data$area_name) |>
-          # CBSA suffix cleanup
-          stringr::str_replace("\\s+(Metro|Micro)\\s+Area\\s*$", "") |>
-          # CSA suffix cleanup (prevents extracting "SA" from "CSA")
-          stringr::str_replace("\\s+CSA\\s*$", ""),
-        
-        # Prefer ", XX-YY" at end; fall back to trailing "XX-YY" without comma
-        area_states = stringr::str_extract(.data$area_name_clean, "(?<=, )([A-Z]{2}(?:-[A-Z]{2})*)$"),
-        area_states = dplyr::coalesce(
-          .data$area_states,
-          stringr::str_extract(.data$area_name_clean, "([A-Z]{2}(?:-[A-Z]{2})*)$")
-        )
-      ) |>
-      dplyr::select(-dplyr::any_of("area_name_clean"))
-  }
   
   # ---- [0] Validate arguments ----------------------------------------------
   vintage_year <- as.integer(vintage_year)

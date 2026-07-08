@@ -10,7 +10,7 @@
 ## 
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 12th, 2026
-## Date Modified: July 2nd, 2026
+## Date Modified: July 7th, 2026
 ## 
 ## Description: 
 ## 
@@ -110,8 +110,11 @@ source("./Code/Support Functions/For Step 2_Compile Decennial Data.R")
 # Define the "if else" for null options operation
 "%||%" <- function(a, b) if (!is.null(a)) a else b
 
-# Enable TIGRIS caching
+# Cache TIGRIS shapefiles locally to avoid re-downloading each session
 options(tigris_use_cache = TRUE)
+
+# Use S2 spherical geometry engine for correct lon/lat distance calculations
+sf::sf_use_s2(TRUE)
 
 
 
@@ -310,19 +313,21 @@ geocoder_census_tries <- census_geo_make_tries(spec)
 ## --------------------
 ## SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages
 
-# In the 2023 Format, the tigris R package was used to retrieve relevant
-# decennial data from the U.S. Census Bureau's TIGER/Line Shapefiles API.
-# This approach had difficulty scaling, failed to associate 2020 decennial
+# When processing the 2023 Format, the tigris R package was used to retrieve 
+# relevant decennial data from the U.S. Census Bureau's TIGER/Line Shapefiles 
+# API. This approach had difficulty scaling, failed to associate 2020 decennial
 # data as reliably as desired, and experienced timeouts due to slow query
 # responses.
 #
-# To address these issues, state block-level shapefiles were individually
-# downloaded and precompiled into GeoPackage (*.gpkg) files containing all
-# desired metadata (block, tract, county, and state) as layers by decennial
-# year. The 2026 Format additionally incorporated Core Based Statistical
-# Areas, which were downloaded and included in the annotation process. Further 
-# details can be found in the ~/Census Bureau TIGER Line Shapefiles/ directory 
-# under ./Data/Raw or ./Data/Results.
+# To address these issues, state block- and block group-level shapefiles were 
+# individually downloaded and precompiled into GeoPackage (*.gpkg) files 
+# containing all desired metadata (block, tract, county, and state) as layers 
+# by decennial year. The 2026 Format additionally incorporated Core Based 
+# Statistical Areas and ZIP Code Tabulation Areas (ZCTA), which were downloaded a
+# nd included in the annotation process. Further details can be found in the 
+# ~/Census Bureau TIGER Line Shapefiles/ directory under ./Data/Raw or 
+# ./Data/Results in the project GitHub: 
+# https://github.com/SOCAH-Lab/Church-Closures-Dashboard/
 #
 # This section generates the compiled shapefiles used in the algorithm. To
 # regenerate any existing files, delete the relevant GeoPackages in
@@ -343,7 +348,10 @@ geocoder_census_tries <- census_geo_make_tries(spec)
 # 
 # NOTE: This may take a few minutes to run.
 
+# Optionally choose to process block- or block group-level shapefiles. Block-level
+# files take longer to handle, but do contain block group-level details.
 status <- preflight_tiger_outputs(geography = "block groups")
+
 
 # Set the root directories
 raw_root_raw <- "Data/Raw/Census Bureau TIGER Line Shapefiles"
@@ -499,8 +507,9 @@ if (status$core_areas_ok && status$states_ok) {
 # PART D: Verify Geolocation with the US Census Bureau’s Geocoder Database
 # PART E: Add Census Information by GEO Coordinates
 # PART F: Add Back to Main Dataset
-# PART G: Quality Checks — Variation with Geolocation
-# PART H: Quality Checks — Variation with Census Information
+# PART G: Quality Checks — Address Validation Results
+# PART H: Quality Checks — Variation with Geolocation
+# PART I: Quality Checks — Variation with Census Information
 
 
 ## --------------------
@@ -522,11 +531,6 @@ index <- c(53496:53498)
 
 # Define the search space
 search_space <- unique(church_2026_form$abi)[index]
-
-# Initialize the empty lists
-finish_build <- vector("list", length(search_space))
-qc_geo       <- list(qc1 = list(), qc2 = list())
-qc_census    <- list(qc1 = list(), qc2 = list())
 
 
 ## --------------------
@@ -560,13 +564,19 @@ blocks_by_state <- read_state_gpkgs_for_data(
 ## --------------------
 ## SUBSECTION B3: 
 
+# Initialize the empty lists
+finish_build <- vector("list", length(search_space))
+qc_address   <- vector("list", length(search_space))
+qc_geo       <- list(qc1 = list(), qc2 = list(), qc3 = list())
+qc_census    <- list(qc1 = list(), qc2 = list())
+
 # Initialize progress bar
 pb = txtProgressBar(min = 0, max = length(search_space), style = 3)
 
 for (i in 1:length(search_space)) {
   # Subset to only entries associated with one business ABI.
   subset <- church_2026_form_dt[abi %in% search_space[i]]
-
+  
   # --------------------
   # PART A: Isolate Unique Candidate Addresses
   
@@ -620,15 +630,22 @@ for (i in 1:length(search_space)) {
   
   # Prepare candidate_addresses for QC output:
   candidate_addresses <- candidate_addresses %>%
+    #   - Initialize attempt_succeeded as NA to track which retry attempt
+    #     validated each address and capture any non-hard-stop API errors
+    #     (e.g. HTTP 400 "Address Not Found") for audit.
+    mutate(attempt_succeeded = NA_character_) %>%
     #   - Initialize geolocation_test as NA for downstream geocoding checks.
-    mutate(geolocation_test = "NA")
+    mutate(geolocation_test = NA_character_)
 
   
   # --------------------
   # PART B: Correct Addresses with USPS Database
   
-  for(j in 1:nrow(candidate_addresses)) {
-    # 1) Pull the j-th row into variables used by validate_usps_address()
+  for (j in 1:nrow(candidate_addresses)) {
+    
+    # ---------------------------------------------------------------------------
+    # Pull the j-th row into variables used by validate_usps_address().
+    # ---------------------------------------------------------------------------
     address1 <- candidate_addresses$address_line_1[j]
     address2 <- ""
     city     <- candidate_addresses$city[j]
@@ -636,40 +653,73 @@ for (i in 1:length(search_space)) {
     zip5     <- candidate_addresses$zipcode[j]
     zip4     <- ifelse(is.na(candidate_addresses$zip4[j]), "", candidate_addresses$zip4[j])
     
-    # 2) Attempt #1: Validate using the original inputs
-    suppressWarnings({
-      usps_validated <- validate_usps_address(consumer_key, consumer_secret, address1, address2, city, state, zip5, zip4)
-    })
+    # Track which attempt succeeded and collect non-hard-stop failure reasons
+    # across all attempts for audit/debugging purposes.
+    attempt_succeeded <- NA_character_
+    attempt_log       <- list()
     
-    # 3) Attempt #2: If no match, assess/correct city, then retry
-    if (all(dim(usps_validated) == 0)) {
-      # Nuanced so that imports that had the 5-digit code as a numeric, which
-      # would cause the leading and trailing zeros to be stripped.
+    # ---------------------------------------------------------------------------
+    # Attempt 1: validate using the original inputs as-is.
+    # ---------------------------------------------------------------------------
+    usps_validated <- validate_usps_address(
+      consumer_key, consumer_secret,
+      address1, address2, city, state, zip5, zip4
+    )
+    
+    if (usps_validated$ok) {
+      attempt_succeeded <- "First try"
+    } else {
+      attempt_log[[1]] <- list(attempt = 1L, status = usps_validated$status,
+                               detail  = usps_validated$status_detail)
+    }
+    
+    # ---------------------------------------------------------------------------
+    # Attempt 2: if no match, assess/correct city via ZIP lookup, then retry.
+    #
+    # Nuanced so that imports that had the 5-digit code as a numeric, which
+    # would cause the leading and trailing zeros to be stripped.
+    # ---------------------------------------------------------------------------
+    if (!usps_validated$ok) {
       
-      if(zip_codes_character) {
-        # Look up the city in the SimpleMaps U.S. Cities dataset
-        query_result <- zip5 %>% ifelse(is.na(.) || . == "", "", .) %>%
-          (\(z) {get_city_info(z, zip_city_lookup)} )()
+      if (zip_codes_character) {
         
-        # If a match is found, re-query the USPS database to confirm
+        # Look up the city in the SimpleMaps U.S. Cities dataset.
+        query_result <- zip5 %>%
+          ifelse(is.na(.) || . == "", "", .) %>%
+          (\(z) get_city_info(z, zip_city_lookup))()
+        
+        # If a match is found, re-query the USPS database to confirm.
         if (!str_detect(query_result, "No Matches")) {
           city <- query_result
           
           suppressWarnings({
-            usps_validated <- validate_usps_address(consumer_key, consumer_secret, address1, address2, city, state, zip5, zip4)
+            usps_validated <- validate_usps_address(
+              consumer_key, consumer_secret,
+              address1, address2, city, state, zip5, zip4
+            )
           })
+          
+          if (usps_validated$ok) {
+            attempt_succeeded <- "With city correction by zip5"
+          } else {
+            attempt_log[[2]] <- list(attempt = 2L, status = usps_validated$status,
+                                     detail  = usps_validated$status_detail)
+          }
         }
-      } else if(!zip_codes_character) {
-        zip5_raw <- zip5 %>% ifelse(is.na(.) || . == "", "", .)
-        zip5_raw <- ifelse(nzchar(zip5_raw), str_pad(zip5_raw, width = 5, side = "left", pad = "0"), "")
+        
+      } else if (!zip_codes_character) {
         
         # Leading/trailing zeros were stripped prior to receiving the raw data.
-        # Some ZIP-to-city sources treat those edge zeros differently, so we test 
-        # multiple orientations by "sliding" the same count of edge zeros between 
+        # Some ZIP-to-city sources treat those edge zeros differently, so we test
+        # multiple orientations by "sliding" the same count of edge zeros between
         # the front and back of the ZIP (still 5 digits).
-        zip5_candidates <- make_zip5_candidates(zip5_raw) %>% .[. %!in% zip5_raw]
+        zip5_raw <- zip5 %>% ifelse(is.na(.) || . == "", "", .)
+        zip5_raw <- ifelse(nzchar(zip5_raw),
+                           str_pad(zip5_raw, width = 5, side = "left", pad = "0"), "")
         
-        # Try candidates until one returns a city (then stop); otherwise do nothing
+        zip5_candidates <- make_zip5_candidates(zip5_raw) %>% .[. %!in% zip5]
+        
+        # Try candidates until one returns a city (then stop); otherwise do nothing.
         for (z in zip5_candidates) {
           query_result <- get_city_info(z, zip_city_lookup)
           
@@ -678,41 +728,48 @@ for (i in 1:length(search_space)) {
             zip5 <- z
             
             suppressWarnings({
-              usps_validated <- validate_usps_address(consumer_key, consumer_secret, address1, address2, city, state, zip5, zip4)
+              usps_validated <- validate_usps_address(
+                consumer_key, consumer_secret,
+                address1, address2, city, state, zip5, zip4
+              )
             })
             
-            # Stop after the first candidate that yields a result
+            if (usps_validated$ok) {
+              attempt_succeeded <- "With city correction by zip5"
+            } else {
+              attempt_log[[2]] <- list(attempt = 2L, status = usps_validated$status,
+                                       detail  = usps_validated$status_detail)
+            }
+            
+            # Stop after the first candidate that yields a city, regardless of
+            # whether the USPS call succeeded — avoid burning more candidates.
             break
           }
         }
       }
     }
     
-    # 4) Attempt #3: if still no match, swap address lines, then retry
-    if (all(dim(usps_validated) == 0)) {
-      # Move address_line_1 into address2 and leave address1 blank
-      address1 <- ""
-      address2 <- candidate_addresses$address_line_1[j]
+    # ---------------------------------------------------------------------------
+    # Save results back into candidate_addresses (single write block).
+    # ---------------------------------------------------------------------------
+    if (!usps_validated$ok) {
       
-      suppressWarnings({
-        usps_validated <- validate_usps_address(consumer_key, consumer_secret, address1, address2 = address2, city, state, zip5, zip4 = zip4)
-      })
-    }
-    
-    # 5) Save results back into step_1 (single write block)
-    if (all(dim(usps_validated) == 0)) {
+      # Nothing matched after all attempts — record failure reason from the last
+      # non-empty attempt log entry for the most actionable status message.
+      last_log <- Filter(Negate(is.null), attempt_log)
+      last_log <- if (length(last_log) > 0) last_log[[length(last_log)]] else NULL
       
-      # Nothing matched after all attempts
-      candidate_addresses$address_verified[j] <- FALSE
-      candidate_addresses$verified_address[j] <- "No address match found"
+      candidate_addresses$address_verified[j]  <- FALSE
+      candidate_addresses$verified_address[j]  <- "No address match found"
+      candidate_addresses$attempt_succeeded[j] <- "None"
       
     } else {
       
-      # Mark as verified
-      candidate_addresses$address_verified[j] <- TRUE
-      
       # Build a formatted address string ("line1, line2, city, state ZIP-EXT"),
       # treating blank/whitespace-only fields as NA to omit them from the output.
+      candidate_addresses$address_verified[j]  <- TRUE
+      candidate_addresses$attempt_succeeded[j] <- attempt_succeeded
+      
       candidate_addresses$verified_address[j] <-
         paste(
           stringr::str_c(
@@ -781,11 +838,9 @@ for (i in 1:length(search_space)) {
       
       # Isolate the addresses for exact test comparison.
       comparisons_line_1 <- c(match_to$address_line_1, unmatched[j, address_line_1])
-      comparisons_whole  <- c(match_to$combined_address, unmatched[j, combined_address])
       
       # Exact match tests for the address_line_1 and whole address.
       match_line_1 <- find_similar_addresses(comparisons_line_1, threshold = 0)
-      match_whole  <- find_similar_addresses(comparisons_whole, threshold = 0)
       
       # -- a. Exact Match on address_line_1 with Conflicting Metadata ----------
       
@@ -828,13 +883,14 @@ for (i in 1:length(search_space)) {
         
         # Update unmatched records with the associated verified address.
         unmatched[j, "verified_address"] <- best[1, verified_address]
-        unmatched[j, "address_verified"] <- "Exact Match"
+        unmatched[j, "address_verified"] <- "Exact match"
         unmatched[j, "geolocation_test"] <- "Override"
+        unmatched[j, "latitude_avg"] <- best[1, latitude_avg]
+        unmatched[j, "longitude_avg"] <- best[1, longitude_avg]
         
         
       # -- b. Fuzzy Match on address_line_1 -----------------------------------
         
-      # all(vapply(match_line_1, length, integer(1)) == 1)  
       } else {
         
         # -- i. Identify Candidate Fuzzy Matches -------------------------------
@@ -851,8 +907,11 @@ for (i in 1:length(search_space)) {
           # Find candidate matches at the current threshold
           match_line_1 <- find_similar_addresses(comparisons_line_1, threshold = threshold_line1)
           
-          # Check whether any record still has >2 candidate matches
-          too_many_line1 <- any(vapply(match_line_1, length, integer(1)) > 2)
+          # Check whether the cluster with the unmatched record still has >2 candidate matches
+          too_many_line1 <- unlist(lapply(match_line_1, function(x) any(x %in% unmatched[j, address_line_1]))) %>%
+            (\(x) {match_line_1[x]})() %>%
+            unlist() %>% 
+            length() > 2
           
           # Stop when matches are sufficiently narrow, OR threshold hits 0,
           # OR (threshold < 0.2 and all are singletons)
@@ -862,10 +921,15 @@ for (i in 1:length(search_space)) {
           threshold_line1 <- max(0, threshold_line1 - 0.01)
         }
         
+        # Check if the unmatched address got matched with any verified addresses
+        match_check <- unlist(lapply(match_line_1, function(x) any(x %in% unmatched[j, address_line_1]))) %>%
+          (\(x) {match_line_1[x]})() %>%
+          unlist() %>%
+          length()
         
         # -- ii.  Associate Candidates and Perform Geolocation Test ------------
         
-        if ( threshold_line1 > 0 & any(vapply(match_line_1, length, integer(1)) != 1) ) {
+        if ( match_check == 2 ) {
           
           # Bind the fuzzy-matched address_line_1 candidates to the unmatched 
           # record, retaining only the fields needed for geolocation testing.
@@ -920,26 +984,25 @@ for (i in 1:length(search_space)) {
             
             # Geolocation test passed — assign the top candidate as the verified address.
             unmatched[j, "verified_address"] <- best[1, verified_address]
-            unmatched[j, "address_verified"] <- "Fuzzy Match"
+            unmatched[j, "address_verified"] <- "Fuzzy match"
             unmatched[j, "geolocation_test"] <- "TRUE"
+            unmatched[j, "latitude_avg"] <- best[1, latitude_avg]
+            unmatched[j, "longitude_avg"] <- best[1, longitude_avg]
             
           }
           
           # -- iii. No Fuzzy Match Found ---------------------------------------
           
-        } else if ( threshold_line1 == 0 ||
-                   (threshold_line1 > 0 && threshold_line1 < 0.2 &&
-                    all(vapply(match_line_1, length, integer(1)) == 1)) ) {
+        } else if ( threshold_line1 < 0.2 && match_check > 2 ) {
           
           # Threshold reached 0 before candidates could be separated, or the
           # step-wise threshold failed to resolve to a single candidate —
           # no single best match could be isolated.
           unmatched[j, "address_verified"] <- "No Separable Match"
           
-        } else if (threshold_line1 == 0.2 && all(vapply(match_line_1, length, integer(1)) == 1)) {
+        } else if ( match_check == 1 ) {
           
-          # Threshold never dropped below 0.2 and all records returned exactly
-          # one candidate — no verified match exists at any threshold.
+          # No verified match exists at any threshold.
           unmatched[j, "address_verified"] <- "FALSE"
           
         } else {
@@ -959,7 +1022,8 @@ for (i in 1:length(search_space)) {
   
   # Organize columns
   candidate_addresses <- candidate_addresses %>%
-    relocate(geolocation_test, .after = address_verified)
+    relocate(attempt_succeeded, .after = address_verified) %>%
+    relocate(geolocation_test, .after = attempt_succeeded)
   setDT(candidate_addresses)
   
   # Ensure the rows are ordered by ascending year of observation.
@@ -1118,152 +1182,59 @@ for (i in 1:length(search_space)) {
   
   setDT(census_results)
   
-  sf::sf_use_s2(TRUE)
-  
   # --- Add METRO/MICRO areas (CBSA) and CSA codes for each vintage ---
-  # Adds: cbsa_2007/csa_2007, cbsa_2010/csa_2010, cbsa_2020/csa_2020
-  cbsa_csa_results <- add_cbsa_csa_codes(cand_sf, core_areas)
-  setDT(cbsa_csa_results)
+  # Adds: cbsa_2007/csa_2007, cbsa_2010/csa_2010, and cbsa_2020/csa_2020
+  # Adds: zcta_2000, zcta_2010, and zcta_2020
   
+  vintages <- list(
+    list(cbsa_csa_year = 2007, cbsa_csa = core_areas$cbsa_csa_2007, zcta_year = "zcta_2000", zcta = core_areas$zcta_2000),
+    list(cbsa_csa_year = 2010, cbsa_csa = core_areas$cbsa_csa_2010, zcta_year = "zcta_2010", zcta = core_areas$zcta_2010),
+    list(cbsa_csa_year = 2020, cbsa_csa = core_areas$cbsa_csa_2020, zcta_year = "zcta_2020", zcta = core_areas$zcta_2020)
+  )
   
-  
-  #' Decode (assign) CBSA + CSA codes (and CBSA level) to points for one vintage (fast sf join).
-  #'
-  #' Given candidate point locations and a combined CBSA/CSA polygon layer for a single vintage
-  #' (e.g. `core_areas$cbsa_csa_2007`), this function assigns:
-  #' - $$\text{CBSA code}$$ (area_code where area_type == "cbsa")
-  #' - $$\text{CBSA level}$$ (area_level where area_type == "cbsa")
-  #' - $$\text{CSA code}$$ (area_code where area_type == "csa")
-  #'
-  #' The function returns a geometry-free data.frame keyed by `row_id` with three year-suffixed
-  #' columns:
-  #' - cbsa_code_<year>
-  #' - cbsa_level_<year>
-  #' - csa_code_<year>
-  #'
-  #' Notes:
-  #' - Points are transformed to the CRS of the CBSA/CSA layer prior to spatial operations.
-  #' - We do two joins (CBSA and CSA) rather than trying to pivot; this keeps the logic simple.
-  #' - `largest = TRUE` keeps only one match per point if multiple polygons match.
-  #' - If your polygon layer includes an `area_states` field and it is populated, you can
-  #'   optionally enforce a state match by supplying `state_col`. (Many of your examples show
-  #'   `area_states` is `<NA>`, so this is off by default.)
-  #'
-  #' @param cand_sf An `sf` object with POINT geometry. Must include a unique `row_id` column.
-  #' @param cbsa_csa_sf An `sf` object with (MULTI)POLYGON geometry containing both CBSA and CSA
-  #'   features for one year. Must include columns: `area_type`, `area_code`, `area_level`.
-  #' @param year Integer scalar (e.g., 2007) used to suffix output column names.
-  #' @param state_col Optional character scalar naming a state column in `cand_sf` (e.g. "state").
-  #'   If provided AND `cbsa_csa_sf$area_states` exists with non-missing values, matches will be
-  #'   filtered so point state is contained in polygon `area_states` (supports "PA-NJ-DE-MD").
-  #'
-  #' @return A data.frame with columns:
-  #' \describe{
-  #'   \item{row_id}{Candidate identifier copied from `cand_sf$row_id`.}
-  #'   \item{cbsa_code_<year>}{CBSA code (character) or `NA`.}
-  #'   \item{cbsa_level_<year>}{CBSA level (character) or `NA`.}
-  #'   \item{csa_code_<year>}{CSA code (character) or `NA`.}
-  #' }
-  decode_cbsa_csa <- function(cand_sf,
-                                   cbsa_csa_sf,
-                                   year,
-                                   state_col = NULL) {
+  # Process each vintage and collect results
+  core_areas_list <- lapply(vintages, function(v) {
     
-    # ---- Input checks ----
-    if (!inherits(cand_sf, "sf")) stop("`cand_sf` must be an sf object.")
-    if (!inherits(cbsa_csa_sf, "sf")) stop("`cbsa_csa_sf` must be an sf object.")
-    if (!("row_id" %in% names(cand_sf))) stop("`cand_sf` must contain column: row_id.")
-    if (!is.numeric(year) || length(year) != 1L) stop("`year` must be a single number (e.g., 2007).")
+    out <- list()
     
-    need <- c("area_type", "area_code", "area_level")
-    miss <- setdiff(need, names(cbsa_csa_sf))
-    if (length(miss) > 0) stop("`cbsa_csa_sf` is missing columns: ", paste(miss, collapse = ", "))
-    
-    if (!is.null(state_col) && !(state_col %in% names(cand_sf))) {
-      stop("`state_col` was provided but is not a column in `cand_sf`: ", state_col)
-    }
-    
-    # ---- CRS alignment ----
-    pts <- sf::st_transform(cand_sf, sf::st_crs(cbsa_csa_sf))
-    
-    # ---- Split polygons into CBSA vs CSA ----
-    type_chr <- tolower(as.character(cbsa_csa_sf$area_type))
-    cbsa_sf <- cbsa_csa_sf[type_chr == "cbsa", c("area_code", "area_level",
-                                                 intersect("area_states", names(cbsa_csa_sf))),
-                           drop = FALSE]
-    csa_sf  <- cbsa_csa_sf[type_chr == "csa",  c("area_code",
-                                                 intersect("area_states", names(cbsa_csa_sf))),
-                           drop = FALSE]
-    
-    # Optional state filtering helper
-    filter_by_state <- function(joined_df, poly_states_col, point_states) {
-      # Keep rows where polygon states include the point state; if polygon state is NA, keep it.
-      ps <- as.character(joined_df[[poly_states_col]])
-      ok <- is.na(ps) | stringr::str_detect(paste0("-", ps, "-"), paste0("-", point_states, "-"))
-      joined_df[ok, , drop = FALSE]
-    }
-    
-    # ---- Join to CBSA polygons ----
-    suppressWarnings({
-      cbsa_joined <- sf::st_join(
-        pts,
-        cbsa_sf,
-        join = sf::st_within,
-        left = TRUE,
-        largest = TRUE
+    # Decode CBSA/CSA for this vintage if a layer is provided
+    if (!is.null(v$cbsa_csa)) {
+      out$cbsa_csa <- decode_cbsa_csa(
+        cand_sf     = cand_sf,
+        cbsa_csa_sf = v$cbsa_csa,
+        year        = v$cbsa_csa_year,
+        state_col   = "state"
       )
-    })
-    cbsa_df <- sf::st_drop_geometry(cbsa_joined)
-    
-    # Optional state match (only if we have both state_col and area_states with some data)
-    if (!is.null(state_col) && ("area_states" %in% names(cbsa_df)) && any(!is.na(cbsa_df$area_states))) {
-      cbsa_df <- filter_by_state(cbsa_df, "area_states", as.character(cbsa_df[[state_col]]))
     }
     
-    # ---- Join to CSA polygons ----
-    suppressWarnings({
-      csa_joined <- sf::st_join(
-        pts,
-        csa_sf,
-        join = sf::st_within,
-        left = TRUE,
-        largest = TRUE
+    # Decode ZCTA for this vintage if a layer is provided
+    if (!is.null(v$zcta)) {
+      out$zcta <- decode_zcta(
+        cand_sf      = cand_sf,
+        zcta_sf      = v$zcta,
+        zcta_colname = v$zcta_year,
+        state_col    = "state"
       )
-    })
-    csa_df <- sf::st_drop_geometry(csa_joined)
-    
-    if (!is.null(state_col) && ("area_states" %in% names(csa_df)) && any(!is.na(csa_df$area_states))) {
-      csa_df <- filter_by_state(csa_df, "area_states", as.character(csa_df[[state_col]]))
     }
-    
-    # ---- Assemble output ----
-    out <- data.frame(
-      row_id = cbsa_df$row_id,
-      stringsAsFactors = FALSE
-    )
-    
-    out[[paste0("cbsa_code_",  year)]]  <- as.character(cbsa_df$area_code)
-    out[[paste0("cbsa_level_", year)]]  <- as.character(cbsa_df$area_level)
-    out[[paste0("csa_code_",   year)]]  <- as.character(csa_df$area_code)
     
     out
+  })
+  
+  # Join all results back onto cand_sf
+  core_areas_results <- sf::st_drop_geometry(cand_sf)
+  
+  for (v in core_areas_list) {
+    
+    if (!is.null(v$cbsa_csa)) {
+      core_areas_results <- dplyr::left_join(core_areas_results, v$cbsa_csa, by = "row_id")
+    }
+    
+    if (!is.null(v$zcta)) {
+      core_areas_results <- dplyr::left_join(core_areas_results, v$zcta, by = "row_id")
+    }
   }
   
-  # Example usage:
-  # cbsa2007 <- decode_cbsa_csa_fast(cand_sf, core_areas$cbsa_csa_2007, year = 2007)
-  # out <- dplyr::left_join(sf::st_drop_geometry(cand_sf), cbsa2007, by = "row_id")
-  
-  
-  
-  
-  
-  
-  decode_zcta(cand_sf, core_areas$zcta_2000, "zcta_2000")
-  decode_cbsa_csa(cand_sf, core_areas$cbsa_csa_2007, year = 2007)
-  
-  
-  
-  
+  setDT(core_areas_results)
   
   # Join DECENNIAL block GEOIDs back onto candidate_addresses
   cols_to_add <- c("row_id", "geoid_2000", "geoid_2010", "geoid_2020")
@@ -1279,9 +1250,10 @@ for (i in 1:length(search_space)) {
     "row_id",
     "cbsa_code_2007", "cbsa_level_2007", "csa_code_2007",
     "cbsa_code_2010", "cbsa_level_2010", "csa_code_2010",
-    "cbsa_code_2020", "cbsa_level_2020", "csa_code_2020"
+    "cbsa_code_2020", "cbsa_level_2020", "csa_code_2020",
+    "zcta_2000", "zcta_2010", "zcta_2020"
   )
-  candidate_addresses[cbsa_csa_results[, ..cols_to_add], on = "row_id",
+  candidate_addresses[core_areas_results[, ..cols_to_add], on = "row_id",
                       `:=`(
                         cbsa_code_2007  = i.cbsa_code_2007,
                         cbsa_level_2007 = i.cbsa_level_2007,
@@ -1291,8 +1263,11 @@ for (i in 1:length(search_space)) {
                         csa_code_2010   = i.csa_code_2010,
                         cbsa_code_2020  = i.cbsa_code_2020,
                         cbsa_level_2020 = i.cbsa_level_2020,
-                        csa_code_2020   = i.csa_code_2020
-                        )]
+                        csa_code_2020   = i.csa_code_2020,
+                        zcta_2000       = i.zcta_2000,
+                        zcta_2010       = i.zcta_2010,
+                        zcta_2020       = i.zcta_2020
+                      )]
   
   # Summarize match completeness across the three decennial block vintages
   candidate_addresses[, geoid_match :=
@@ -1328,7 +1303,8 @@ for (i in 1:length(search_space)) {
     
     # ---- address ----
     "address_line_1", "city", "state", "zipcode", "zip4", "combined_address",
-    "address_verified", "geolocation_test", "verified_address",    # validation cols
+    "address_verified", "attempt_succeeded",   # validation cols
+    "geolocation_test", "verified_address",    # validation cols
     
     # ---- industry codes / descriptions ----
     "primary_sic_code", "sic6_descriptions",
@@ -1345,15 +1321,15 @@ for (i in 1:length(search_space)) {
     "matched_address", "benchmark", "vintage_input",              # validation cols
     "latitude_ver", "longitude_ver",                              # validation cols
     
-    # ---- census geography ----
+    # ---- census geography (current + vintages) ----
     "census_block", "census_tract", "county_code", "fips_code",
     "geoid_match", "geoid_2000", "geoid_2010", "geoid_2020",      # validation cols
     
-    # ---- CBSA/CSA (current + vintages) ----
+    # ---- CBSA/CSA (current + vintages) and ZCTA (new) ----
     "cbsa_level", "cbsa_code", "csa_code",
-    "cbsa_code_2007", "cbsa_level_2007", "csa_code_2007",         # validation cols
-    "cbsa_code_2010", "cbsa_level_2010", "csa_code_2010",         # validation cols
-    "cbsa_code_2020", "cbsa_level_2020", "csa_code_2020",         # validation cols
+    "cbsa_code_2007", "cbsa_level_2007", "csa_code_2007", "zcta_2000",  # validation cols
+    "cbsa_code_2010", "cbsa_level_2010", "csa_code_2010", "zcta_2010",  # validation cols
+    "cbsa_code_2020", "cbsa_level_2020", "csa_code_2020", "zcta_2020",  # validation cols
     
     # ---- other firmographic fields ----
     "area_code", "site_number", "yellow_page_code", "office_size_code",
@@ -1381,13 +1357,55 @@ for (i in 1:length(search_space)) {
   
   
   # --------------------
-  # PART G: Quality Checks — Variation with Geolocation
+  # PART G: Quality Checks — Address Validation Results
+  
+  # Address verification proceeds in two stages, summarised across three columns:
+  #
+  #   Stage 1 — USPS API (attempt_succeeded): each address is submitted to the
+  #   USPS API with up to two attempts. The second attempt corrects the city via
+  #   ZIP lookup before retrying.
+  #
+  #   Stage 2 — String matching (geolocation_test): addresses that failed Stage 1
+  #   are matched against verified addresses using address_line_1 string
+  #   comparisons to inherit a verified result.
+  #
+  #   address_verified reflects the final outcome of both stages.
+  
+  # Address QC: summarize verification stages
+  qc_address[[i]] <- combined %>%
+    mutate(
+      # Treat the "no match" sentinel as missing so it doesn't override the fallback
+      verified_address = na_if(verified_address, "No address match found"),
+      # Prefer verified/standardized address; fall back to combined_address
+      address = coalesce(verified_address, combined_address)
+    ) %>%
+    select(
+      abi, archive_version_year, address,
+      
+      # ---- address ----
+      combined_address,
+      
+      # ---- verification ----
+      address_verified, attempt_succeeded,   # validation cols
+      geolocation_test, verified_address,    # validation cols
+    ) %>%
+    group_by(across(-archive_version_year)) %>%
+    summarise(
+      archive_versions_present = format_year_ranges(archive_version_year),
+      .groups = "drop"
+    ) %>%
+    relocate(archive_versions_present, .after = address) %>%
+    (\(x) {setDT(x)} )()
+  
+  
+  # --------------------
+  # PART H: Quality Checks — Variation with Geolocation
     
   # Assesses the reliability of reported geolocation values for each address
   # using two approaches:
   #
-  #   a) Deviation test: compare validated coordinates to reported/averaged coords.
-  #   b) Dispersion test: measure spread of reported coords for the same address
+  #   1) Deviation test: compare validated coordinates to reported/averaged coords.
+  #   2) Dispersion test: measure spread of reported coords for the same address
   #      when the address appears multiple times.
   
   # Prep a consistent address field and keep only needed columns for QC
@@ -1399,14 +1417,48 @@ for (i in 1:length(search_space)) {
       address = coalesce(verified_address, combined_address)
     ) %>%
     select(
-      abi, address,
+      abi, archive_version_year, address,
+      
+      # ---- geocoding ----
       latitude, longitude,              # reported coords (if present)
       latitude_avg, longitude_avg,      # averaged coords
-      latitude_ver, longitude_ver       # validated coords
+      latitude_ver, longitude_ver,      # validated coords
+      
+      # ---- verification ----
+      geolocation_verified, n_attempts, query_statuses, 
+      matched_address, benchmark, vintage_input
     )
   
-  # (a) Deviation QC: how far validated coords are from averaged coords (rounded)
+  
+  # (a) Query QC: number of attempts, API status code, vintage used
   qc_geo$qc1[[i]] <- qc_geo_df %>%
+    select(-latitude, -longitude, -latitude_avg, -longitude_avg, 
+           -latitude_ver, -longitude_ver) %>%
+    mutate(
+      all_200 = ifelse(
+        is.na(query_statuses) | lengths(strsplit(query_statuses, " \\| ")) < length(geocoder_census_tries),
+        NA,
+        sapply(strsplit(query_statuses, " \\| "), function(x) all(trimws(x) == "200"))
+      ),
+      matched_address_same = case_when(
+        is.na(address) | is.na(matched_address) ~ NA,
+        TRUE ~ stringr::str_remove_all(stringr::str_remove(stringr::str_squish(address),        "-\\d{4}$"), ",(?=\\s*\\d{5})") ==
+          stringr::str_remove_all(stringr::str_remove(stringr::str_squish(matched_address), "-\\d{4}$"), ",(?=\\s*\\d{5})")
+      )
+    ) %>%
+    group_by(across(-archive_version_year)) %>%
+    summarise(
+      archive_versions_present = format_year_ranges(archive_version_year),
+      .groups = "drop"
+    ) %>%
+    relocate(archive_versions_present, .after = address) %>%
+    relocate(all_200, .after = query_statuses) %>%
+    relocate(matched_address_same, .after = matched_address) %>%
+    (\(x) {setDT(x)} )()
+  
+  
+  # (b) Deviation QC: how far validated coords are from averaged coords (rounded)
+  qc_geo$qc2[[i]] <- qc_geo_df %>%
     # Only evaluate deviation when validated coordinates exist
     filter(!is.na(latitude_ver), !is.na(longitude_ver)) %>%
     mutate(
@@ -1419,13 +1471,19 @@ for (i in 1:length(search_space)) {
       lon_gt_002 = if_else(!is.na(lon_abs_diff), lon_abs_diff > 0.002, NA)
     ) %>%
     # Keep only QC outputs + identifiers
-    select(-latitude, -longitude, -latitude_avg, -longitude_avg,
-           -latitude_ver, -longitude_ver) %>%
-    distinct()  %>%
+    select(abi, archive_version_year, address,
+           lat_abs_diff, lat_gt_002, lon_abs_diff, lon_gt_002) %>%
+    group_by(across(-archive_version_year)) %>%
+    summarise(
+      archive_versions_present = format_year_ranges(archive_version_year),
+      .groups = "drop"
+    ) %>%
+    relocate(lat_gt_002, .after = lat_abs_diff) %>%
+    relocate(archive_versions_present, .after = address) %>%
     (\(x) {setDT(x)} )()
   
-  # (b) Dispersion QC: summarize the spread of reported coords within (abi, address)
-  qc_geo$qc2[[i]] <- qc_geo_df %>%
+  # (c) Dispersion QC: summarize the spread of reported coords within (abi, address)
+  qc_geo$qc3[[i]] <- qc_geo_df %>%
     transmute(abi, address, latitude, longitude) %>%
     group_by(abi, address) %>%
     summarise(
@@ -1448,10 +1506,15 @@ for (i in 1:length(search_space)) {
       lon_q3     = ifelse(sum(!is.na(longitude)) > 0, quantile(longitude, 0.75, na.rm = TRUE, names = FALSE, type = 7), NA_real_),
       lon_max    = ifelse(sum(!is.na(longitude)) > 0, max(longitude, na.rm = TRUE), NA_real_),
       
+      # Flag if the spread of lat or lon across observations exceeds 0.02 degrees
+      lat_spread_gt_002 = abs(max(latitude, na.rm = TRUE) - min(latitude, na.rm = TRUE)) > 0.02,
+      lon_spread_gt_002 = abs(max(longitude, na.rm = TRUE) - min(longitude, na.rm = TRUE)) > 0.02,
+      
       .groups = "drop"
     ) %>%
     # Only keep addresses with multiple geo observations (so "spread" is meaningful)
     filter(n_geo > 1) %>%
+    relocate(lat_spread_gt_002, .after = lat_max) %>%
     (\(x) {setDT(x)} )()
   
   
@@ -1469,39 +1532,45 @@ for (i in 1:length(search_space)) {
       address = coalesce(verified_address, combined_address)
     ) %>%
     select(
-      abi, address,
+      abi, archive_version_year, address,
       
       # ---- census geography ----
-      census_block, census_tract, county_code, fips_code,
-      geoid_match, geoid_2000, geoid_2010, geoid_2020,
+      census_block, census_tract, county_code, fips_code,   # reported coords (if present)
+      geoid_match, geoid_2000, geoid_2010, geoid_2020,      # validated coords
       
       # ---- CBSA/CSA (current + vintages) ----
-      cbsa_level, cbsa_code, csa_code,
-      cbsa_code_2007, cbsa_level_2007, csa_code_2007,
-      cbsa_code_2010, cbsa_level_2010, csa_code_2010,
-      cbsa_code_2020, cbsa_level_2020, csa_code_2020
+      cbsa_level, cbsa_code, csa_code,                   # reported coords (if present)
+      cbsa_code_2007, cbsa_level_2007, csa_code_2007,    # validated coords
+      cbsa_code_2010, cbsa_level_2010, csa_code_2010,    # validated coords
+      cbsa_code_2020, cbsa_level_2020, csa_code_2020     # validated coords
     )
   
   
+  # Determined once before the pipeline — drives substring width for all vintages.
+  #   "Blocks"       -> substr(geoid, 12, 15)  matches 4-character block code
+  #   "Block Groups" -> substr(geoid, 12, 12)  matches 1-character block group code
+  block_substr_end <- if (block_geography == "blocks") 15L else 12L
+  
+  # (a) Census Boundaries QC: compare given and verified census boundaries
   qc_census$qc1[[i]] <- qc_census_df %>%
     filter(geoid_match %in% "Matched") %>%
     mutate(
       # ---- coerce + standardize ----
-      fips_code_chr    = as.character(fips_code),                 # expect 5
-      county_code_chr  = as.character(county_code),               # expect 3
-      census_tract_chr = as.character(census_tract),              # expect 6
-      census_block_chr = str_pad(as.character(census_block), 4, pad = "0"),  # expect 4 after pad
+      fips_code_chr    = as.character(fips_code),           # expect 5
+      county_code_chr  = as.character(county_code),         # expect 3
+      census_tract_chr = as.character(census_tract),        # expect 6
+      census_block_chr = as.character(census_block),        # expect 4 (Block) or 1 (Block Group)
       
-      fips_ok   = str_length(fips_code_chr)    == 5,
-      county_ok = str_length(county_code_chr)  == 3,
-      tract_ok  = str_length(census_tract_chr) == 6,
-      block_ok  = str_length(census_block_chr) == 4,
+      # ---- length checks ----
+      fips_ok         = str_length(fips_code_chr)    == 5,
+      county_ok       = str_length(county_code_chr)  == 3,
+      tract_ok        = str_length(census_tract_chr) == 6,
       
       # ---- fips_code (positions 1-5) ----
       fips_match_2000 = fips_ok & substr(geoid_2000, 1, 5) == fips_code_chr,
       fips_match_2010 = fips_ok & substr(geoid_2010, 1, 5) == fips_code_chr,
       fips_match_2020 = fips_ok & substr(geoid_2020, 1, 5) == fips_code_chr,
-      
+
       fips_code_any_match = if_else(fips_ok, fips_match_2000 | fips_match_2010 | fips_match_2020, FALSE),
       fips_vintages_raw = paste0(
         if_else(fips_match_2000, "2000, ", ""),
@@ -1513,12 +1582,12 @@ for (i in 1:length(search_space)) {
         !fips_code_any_match ~ "None",
         TRUE ~ str_remove(fips_vintages_raw, ", $")
       ),
-      
+
       # ---- county_code (positions 3-5) ----
       county_match_2000 = county_ok & substr(geoid_2000, 3, 5) == county_code_chr,
       county_match_2010 = county_ok & substr(geoid_2010, 3, 5) == county_code_chr,
       county_match_2020 = county_ok & substr(geoid_2020, 3, 5) == county_code_chr,
-      
+
       county_code_any_match = if_else(county_ok, county_match_2000 | county_match_2010 | county_match_2020, FALSE),
       county_vintages_raw = paste0(
         if_else(county_match_2000, "2000, ", ""),
@@ -1530,12 +1599,12 @@ for (i in 1:length(search_space)) {
         !county_code_any_match ~ "None",
         TRUE ~ str_remove(county_vintages_raw, ", $")
       ),
-      
+
       # ---- census_tract (positions 6-11) ----
       tract_match_2000 = tract_ok & substr(geoid_2000, 6, 11) == census_tract_chr,
       tract_match_2010 = tract_ok & substr(geoid_2010, 6, 11) == census_tract_chr,
       tract_match_2020 = tract_ok & substr(geoid_2020, 6, 11) == census_tract_chr,
-      
+
       census_tract_any_match = if_else(tract_ok, tract_match_2000 | tract_match_2010 | tract_match_2020, FALSE),
       tract_vintages_raw = paste0(
         if_else(tract_match_2000, "2000, ", ""),
@@ -1548,31 +1617,57 @@ for (i in 1:length(search_space)) {
         TRUE ~ str_remove(tract_vintages_raw, ", $")
       ),
       
-      # ---- census_block (positions 12-15) ----
-      block_match_2000 = block_ok & substr(geoid_2000, 12, 15) == census_block_chr,
-      block_match_2010 = block_ok & substr(geoid_2010, 12, 15) == census_block_chr,
-      block_match_2020 = block_ok & substr(geoid_2020, 12, 15) == census_block_chr,
+      # Classify block resolution based on the length of the raw block code:
+      #   str_length == 4  -> full block-level precision
+      #   str_length == 1  -> block-group-level precision
+      #   anything else    -> NA (unexpected format, surfaces upstream issues)
+      block_ok = case_when(
+        str_length(census_block_chr) == 4 ~ "Block",
+        str_length(census_block_chr) == 1 ~ "Block Group",
+        TRUE                              ~ "FALSE"
+      ),
       
-      census_block_any_match = if_else(block_ok, block_match_2000 | block_match_2010 | block_match_2020, FALSE),
+      # ---- census_block ----
+      block_match_2000 = block_ok != "FALSE" &
+        substr(geoid_2000, 12, block_substr_end) == census_block_chr,
+      block_match_2010 = block_ok != "FALSE" &
+        substr(geoid_2010, 12, block_substr_end) == census_block_chr,
+      block_match_2020 = block_ok != "FALSE" &
+        substr(geoid_2020, 12, block_substr_end) == census_block_chr,
+      
+      census_block_any_match = if_else(
+        block_ok != "FALSE",
+        block_match_2000 | block_match_2010 | block_match_2020,
+        FALSE
+      ),
+      
       block_vintages_raw = paste0(
         if_else(block_match_2000, "2000, ", ""),
         if_else(block_match_2010, "2010, ", ""),
         if_else(block_match_2020, "2020, ", "")
       ),
+      
       block_vintages = case_when(
-        !block_ok ~ NA_character_,
+        block_ok == "FALSE"     ~ NA_character_,
         !census_block_any_match ~ "None",
-        TRUE ~ str_remove(block_vintages_raw, ", $")
+        TRUE                    ~ str_remove(block_vintages_raw, ", $")
       )
     ) %>%
-    select(abi, address, census_block, census_tract, county_code, fips_code, 
-           geoid_2000, geoid_2010, geoid_2020, fips_code_any_match,
-           fips_vintages, county_code_any_match, county_vintages, 
-           census_tract_any_match, tract_vintages, census_block_any_match, 
-           block_vintages) %>%
+    select(abi, archive_version_year, address, census_block, census_tract, 
+           county_code, fips_code, geoid_2000, geoid_2010, geoid_2020, 
+           fips_code_any_match, fips_vintages, county_code_any_match,
+           county_vintages, census_tract_any_match, tract_vintages, block_ok, 
+           census_block_any_match, block_vintages) %>%
+    group_by(across(-archive_version_year)) %>%
+    summarise(
+      archive_versions_present = format_year_ranges(archive_version_year),
+      .groups = "drop"
+    ) %>%
+    relocate(archive_versions_present, .after = address) %>%
     (\(x) {setDT(x)} )()
   
   
+  # (b) Metro/Micro QC: compare given and verified micro/metro census boundaries
   qc_census$qc2[[i]] <- qc_census_df %>% 
     mutate(
       # ---- coerce to character for safe comparisons ----
@@ -1678,7 +1773,7 @@ for (i in 1:length(search_space)) {
       )
     ) %>%
     select(
-      abi, address,
+      abi, archive_version_year, address,
       cbsa_level, cbsa_code, csa_code,
       cbsa_level_2007, cbsa_code_2007, csa_code_2007,
       cbsa_level_2010, cbsa_code_2010, csa_code_2010,
@@ -1687,7 +1782,13 @@ for (i in 1:length(search_space)) {
       cbsa_level_any_match, cbsa_level_vintages,
       csa_code_any_match, csa_code_vintages
     ) %>%
-    (\(x) { setDT(x) })()
+    group_by(across(-archive_version_year)) %>%
+    summarise(
+      archive_versions_present = format_year_ranges(archive_version_year),
+      .groups = "drop"
+    ) %>%
+    relocate(archive_versions_present, .after = address) %>%
+    (\(x) {setDT(x)} )()
 
 
   # --------------------
@@ -1704,11 +1805,15 @@ for (i in 1:length(search_space)) {
 # Combine all data tables in the list into one data table.
 finish_build <- rbindlist(finish_build, use.names = TRUE, fill = TRUE)
 
+qc_address <- rbindlist(qc_address, use.names = TRUE, fill = TRUE)
+
 qc_geo$qc1 <- dplyr::bind_rows(qc_geo$qc1, .id = "i")
 qc_geo$qc2 <- dplyr::bind_rows(qc_geo$qc2, .id = "i")
+qc_geo$qc3 <- dplyr::bind_rows(qc_geo$qc3, .id = "i")
 
 qc_census$qc1 <- dplyr::bind_rows(qc_census$qc1, .id = "i")
 qc_census$qc2 <- dplyr::bind_rows(qc_census$qc2, .id = "i")
+
 
 # Commit results.
 write.csv(finish_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B_04.22.2026.csv")
@@ -1716,6 +1821,7 @@ write.csv(finish_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/St
 # Read in previously generated results.
 finish_build <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 1 Subsection B_04.22.2026.csv", 
                          col_types = cols(...1 = col_skip())) %>% as.data.frame()
+
 
 
 
