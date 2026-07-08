@@ -502,14 +502,16 @@ if (status$core_areas_ok && status$states_ok) {
 
 # Add blurb about what is being validated etc.
 
-# PART B: Correct Addresses with USPS Database
-# PART C: Resolve Records with No Address Match Found
-# PART D: Verify Geolocation with the US Census Bureau’s Geocoder Database
-# PART E: Add Census Information by GEO Coordinates
-# PART F: Add Back to Main Dataset
-# PART G: Quality Checks — Address Validation Results
-# PART H: Quality Checks — Variation with Geolocation
-# PART I: Quality Checks — Variation with Census Information
+# LOOP PART A: Isolate Unique Candidate Addresses
+# LOOP PART B: Correct Addresses with USPS Database
+# LOOP PART C: Resolve Records with No Address Match Found
+# LOOP PART D: Verify Geolocation with the US Census Bureau’s Geocoder Database
+# LOOP PART E: Add Census Information by GEO Coordinates
+# LOOP PART F: Add Back to Main Dataset
+# LOOP PART G: Quality Checks — Address Validation Results
+# LOOP PART H: Quality Checks — Variation with Geolocation
+# LOOP PART I: Quality Checks — Variation with Census Information
+# LOOP PART J: Commit Results
 
 
 ## --------------------
@@ -578,7 +580,7 @@ for (i in 1:length(search_space)) {
   subset <- church_2026_form_dt[abi %in% search_space[i]]
   
   # --------------------
-  # PART A: Isolate Unique Candidate Addresses
+  # LOOP PART A: Isolate Unique Candidate Addresses
   
   # For this script, it is not necessary to process each individually listed
   # address. Instead, they will be compressed down to the exact unique addresses
@@ -639,7 +641,7 @@ for (i in 1:length(search_space)) {
 
   
   # --------------------
-  # PART B: Correct Addresses with USPS Database
+  # LOOP PART B: Correct Addresses with USPS Database
   
   for (j in 1:nrow(candidate_addresses)) {
     
@@ -802,7 +804,7 @@ for (i in 1:length(search_space)) {
   
   
   # --------------------
-  # PART C: Resolve Records with No Address Match Found
+  # LOOP PART C: Resolve Records with No Address Match Found
   
   # Prepare candidate_addresses for QC output:
   candidate_addresses <- candidate_addresses %>%
@@ -1031,7 +1033,7 @@ for (i in 1:length(search_space)) {
   
   
   # --------------------
-  # PART D: Verify Geolocation with the US Census Bureau’s Geocoder Database
+  # LOOP PART D: Verify Geolocation with the US Census Bureau’s Geocoder Database
   
   # helper to safely pull a field from each attempt
   pluck_or_na <- function(x, name) if (!is.null(x[[name]])) as.character(x[[name]]) else NA_character_
@@ -1148,7 +1150,7 @@ for (i in 1:length(search_space)) {
   
   
   # --------------------
-  # PART E: Add Census Information by GEO Coordinates
+  # LOOP PART E: Add Census Information by GEO Coordinates
   
   candidate_addresses <- candidate_addresses %>%
     mutate(
@@ -1292,7 +1294,7 @@ for (i in 1:length(search_space)) {
   
   
   # --------------------
-  # PART F: Add Back to Main Dataset
+  # LOOP PART F: Add Back to Main Dataset\
   
   # Define column structure
   combined_cols <- c(
@@ -1357,7 +1359,8 @@ for (i in 1:length(search_space)) {
   
   
   # --------------------
-  # PART G: Quality Checks — Address Validation Results
+  # LOOP PART G: Quality Checks — Address Validation Results
+
   
   # Address verification proceeds in two stages, summarised across three columns:
   #
@@ -1377,13 +1380,14 @@ for (i in 1:length(search_space)) {
       # Treat the "no match" sentinel as missing so it doesn't override the fallback
       verified_address = na_if(verified_address, "No address match found"),
       # Prefer verified/standardized address; fall back to combined_address
-      address = coalesce(verified_address, combined_address)
+      address = str_remove(coalesce(verified_address, combined_address), ",(?=\\s*\\d{5})"),
+      reported_address = str_remove(combined_address, ",(?=\\s*\\d{5})")
     ) %>%
     select(
       abi, archive_version_year, address,
       
       # ---- address ----
-      combined_address,
+      reported_address,
       
       # ---- verification ----
       address_verified, attempt_succeeded,   # validation cols
@@ -1395,11 +1399,12 @@ for (i in 1:length(search_space)) {
       .groups = "drop"
     ) %>%
     relocate(archive_versions_present, .after = address) %>%
+    relocate(reported_address, .after = archive_versions_present) %>%
     (\(x) {setDT(x)} )()
   
   
   # --------------------
-  # PART H: Quality Checks — Variation with Geolocation
+  # LOOP PART H: Quality Checks — Variation with Geolocation
     
   # Assesses the reliability of reported geolocation values for each address
   # using two approaches:
@@ -1414,7 +1419,7 @@ for (i in 1:length(search_space)) {
       # Treat the "no match" sentinel as missing so it doesn't override the fallback
       verified_address = na_if(verified_address, "No address match found"),
       # Prefer verified/standardized address; fall back to combined_address
-      address = coalesce(verified_address, combined_address)
+      address = str_remove(coalesce(verified_address, combined_address), ",(?=\\s*\\d{5})")
     ) %>%
     select(
       abi, archive_version_year, address,
@@ -1442,8 +1447,8 @@ for (i in 1:length(search_space)) {
       ),
       matched_address_same = case_when(
         is.na(address) | is.na(matched_address) ~ NA,
-        TRUE ~ stringr::str_remove_all(stringr::str_remove(stringr::str_squish(address),        "-\\d{4}$"), ",(?=\\s*\\d{5})") ==
-          stringr::str_remove_all(stringr::str_remove(stringr::str_squish(matched_address), "-\\d{4}$"), ",(?=\\s*\\d{5})")
+        TRUE ~ str_remove_all(str_remove(str_squish(address), "-\\d{4}$"), ",(?=\\s*\\d{5})") ==
+          str_remove_all(str_remove(str_squish(matched_address), "-\\d{4}$"), ",(?=\\s*\\d{5})")
       )
     ) %>%
     group_by(across(-archive_version_year)) %>%
@@ -1519,7 +1524,7 @@ for (i in 1:length(search_space)) {
   
   
   # --------------------
-  # PART H: Quality Checks — Variation with Census Information
+  # LOOP PART I: Quality Checks — Variation with Census Information
   
   # Assesses the reliability of reported census boundry values for each address.
   
@@ -1529,7 +1534,7 @@ for (i in 1:length(search_space)) {
       # Treat the "no match" sentinel as missing so it doesn't override the fallback
       verified_address = na_if(verified_address, "No address match found"),
       # Prefer verified/standardized address; fall back to combined_address
-      address = coalesce(verified_address, combined_address)
+      address = str_remove(coalesce(verified_address, combined_address), ",(?=\\s*\\d{5})")
     ) %>%
     select(
       abi, archive_version_year, address,
@@ -1622,8 +1627,8 @@ for (i in 1:length(search_space)) {
       #   str_length == 1  -> block-group-level precision
       #   anything else    -> NA (unexpected format, surfaces upstream issues)
       block_ok = case_when(
-        str_length(census_block_chr) == 4 ~ "Block",
-        str_length(census_block_chr) == 1 ~ "Block Group",
+        str_length(census_block_chr) == 4 ~ "Blocks",
+        str_length(census_block_chr) == 1 ~ "Block groups",
         TRUE                              ~ "FALSE"
       ),
       
@@ -1653,10 +1658,11 @@ for (i in 1:length(search_space)) {
         TRUE                    ~ str_remove(block_vintages_raw, ", $")
       )
     ) %>%
+    rename(block_type = block_ok) %>%
     select(abi, archive_version_year, address, census_block, census_tract, 
            county_code, fips_code, geoid_2000, geoid_2010, geoid_2020, 
            fips_code_any_match, fips_vintages, county_code_any_match,
-           county_vintages, census_tract_any_match, tract_vintages, block_ok, 
+           county_vintages, census_tract_any_match, tract_vintages, block_type, 
            census_block_any_match, block_vintages) %>%
     group_by(across(-archive_version_year)) %>%
     summarise(
@@ -1792,15 +1798,56 @@ for (i in 1:length(search_space)) {
 
 
   # --------------------
-  # PART I: Commit Results
+  # LOOP PART J: Commit Results
+  
+  # The final table retains only verified outcomes plus the original address, as
+  # the latter may be used differentially in the subsequent reformatting step.
+  #
+  # All intermediate columns — including population patterns, API success/failures,
+  # deviations from originally reported values, and all variable versions
+  # (original, averaged, verified, and matched) — are preserved in the QC tables.
+  
   
   finish_build[[i]] <- combined %>%
-    select(-latitude, -longitude, -n_geo, -census_block, -census_tract,
-           -county_code, -fips_code, -cbsa_level, -cbsa_code, -csa_code)
+    # Remove originally reported longitude/latitude in favor of verified/averaged.
+    select(-longitude, -latitude) %>%
+    mutate(
+      # Treat "no match" sentinel as NA so it doesn't suppress the fallback.
+      verified_address = na_if(verified_address, "No address match found"),
+      # Prefer verified address; fall back to combined_address.
+      address = str_remove(coalesce(verified_address, combined_address), ",(?=\\s*\\d{5})"),
+      reported_address = str_remove(combined_address, ",(?=\\s*\\d{5})"),
+      # Prefer verified geolocation; fall back to averaged coordinates.
+      longitude = coalesce(longitude_ver, longitude_avg),
+      latitude  = coalesce(latitude_ver,  latitude_avg),
+    ) %>%
+    select(
+      # ---- Address: drop raw inputs and verification columns ----
+      -address_line_1, -city, -state, -zipcode, -zip4, -attempt_succeeded, 
+      -geolocation_test, -combined_address, -verified_address,
+      
+      # ---- Geolocation: drop raw geocoding and verification columns ----
+      -latitude_avg, -longitude_avg, -latitude_ver, -longitude_ver,
+      -n_geo, -n_attempts, -query_statuses, -matched_address,
+      -benchmark, -vintage_input,
+      
+      # ---- Census Boundaries: drop raw boundary codes ----
+      -census_block, -census_tract, -county_code, -fips_code,
+      -cbsa_level, -cbsa_code, -csa_code
+    ) %>%
+    # Organize columns
+    relocate(address, .after = company_holding_status) %>%
+    relocate(address_verified, .after = address) %>%
+    relocate(reported_address, .after = address_verified) %>%
+    relocate(longitude, .after = sic6_descriptions_sic4) %>%
+    relocate(latitude, .after = longitude) %>%
+    relocate(geoid_match, .after = geoid_2020)
+  
   
   # Print the for loop's progress.
   setTxtProgressBar(pb, i)
 }
+
 
 # Combine all data tables in the list into one data table.
 finish_build <- rbindlist(finish_build, use.names = TRUE, fill = TRUE)
@@ -1813,6 +1860,11 @@ qc_geo$qc3 <- dplyr::bind_rows(qc_geo$qc3, .id = "i")
 
 qc_census$qc1 <- dplyr::bind_rows(qc_census$qc1, .id = "i")
 qc_census$qc2 <- dplyr::bind_rows(qc_census$qc2, .id = "i")
+
+
+# Confirm column inclusion/exclusion is correct
+colnames(finish_build)[colnames(finish_build) %!in% c(core_fields$Variable, "archive_version_year")]
+c(core_fields$Variable, "archive_version_year")[c(core_fields$Variable, "archive_version_year") %!in% colnames(finish_build)]
 
 
 # Commit results.
