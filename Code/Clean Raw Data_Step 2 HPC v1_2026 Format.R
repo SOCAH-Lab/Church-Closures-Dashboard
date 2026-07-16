@@ -47,28 +47,22 @@
 ##         "Clean Raw Data_Step 2 HPC v2_2026 Format.R".
 ## 
 ## NOTE: The USPS API requires a user account and API key to submit requests.
-##       These credentials are strictly private and must not be shared. To
-##       protect them, API keys are stored in a ".Renviron" file, which is
-##       automatically loaded at runtime, preventing them from being hard-coded
-##       into the script. Instructions for creating your own API client key and
-##       secret are provided in the "Clean Raw Data_2023 Format_Step 2.R" file.
-## 
-##       If you are running this script locally and experience issues loading 
-##       your environment variables, try running the following code to 
-##       explicitly set the ".Renviron" file location using rprojroot:
-## 
+##       These credentials are strictly private and must never be hard-coded
+##       into scripts or shared. API keys are stored in a project-level
+##       ".Renviron" file that is loaded automatically at runtime. Instructions
+##       for creating your own API client key and secret are provided in the
+##       script header of "Clean Raw Data_Step 2_2026 Format.R".
+##
+##       LOCAL USERS — if environment variables fail to load, explicitly point
+##       R to the ".Renviron" file using rprojroot:
+##
 ##          rprojroot::find_rstudio_root_file()
 ##          readRenviron(rprojroot::find_rstudio_root_file(".Renviron"))
-## 
-##       The HPC batch script includes a command that points to the ".Renviron"
-##       file. However, you may still encounter issues setting this location. 
-##       To resolve this, open the "Shell Access" application and run the 
-##       following code, updating the R module version as needed.
-## 
-##          module avail R/
-##          module reset
-##          module load R/4.4.2-gfbf-2024a
-##          normalizePath("~/FILE-PATH/.Renviron", mustWork = FALSE)
+##
+##       HPC USERS — the batch submission script includes a command that sets
+##       the ".Renviron" path automatically. If environment variables still
+##       fail to resolve in that context, follow the full environment
+##       configuration steps documented in "PART A: UTILIZING THE HPC".
 ## 
 ## NOTE: This script requires GDAL to run. Verify that GDAL is installed on
 ##       your local device using the following commands:

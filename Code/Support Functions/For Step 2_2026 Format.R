@@ -94,9 +94,10 @@
 ##   12. pick_best: Select the Best Anchor Row from a Pool of Candidate Address 
 ##       Records. Given a pool of candidate rows sharing the same 
 ##       \code{address_line_1}, \code{pick_best()} scores each candidate by its 
-##       geo and temporal compatibility with all other rows in the pool and 
-##       returns the single most representative row to serve as the anchor for 
-##       downstream matching.
+##       geo and temporal compatibility with all rows in \code{reference_pool} 
+##       (or \code{dt} itself if no reference pool is supplied) and returns the 
+##       single most representative row to serve as the anchor for downstream 
+##       matching.
 ## 
 ##   13. census_geo_show_options: Show available Census Geocoder benchmarks and 
 ##       vintages. Downloads the Census Geocoder benchmark list, optionally 
@@ -1179,14 +1180,15 @@ zip_to_pred_city <- function(zip5, zip_city_lookup) {
 
 
 
-pick_best <- function(dt, geo_tol = 0.02) {
+pick_best <- function(dt, geo_tol = 0.02, reference_pool = NULL) {
   #' Select the Best Anchor Row from a Pool of Candidate Address Records.
   #' Given a pool of candidate rows sharing the same \code{address_line_1},
   #' \code{pick_best()} scores each candidate by its geo and temporal compatibility
-  #' with all other rows in the pool and returns the single most representative row
-  #' to serve as the anchor for downstream matching.
+  #' with all rows in \code{reference_pool} (or \code{dt} itself if no reference
+  #' pool is supplied) and returns the single most representative row to serve as
+  #' the anchor for downstream matching.
   #'
-  #' @param dt  A \code{data.table} of candidate rows. Expected columns:
+  #' @param dt  A \code{data.table} of candidate rows to score and rank. Expected columns:
   #'   \itemize{
   #'     \item \code{latitude_avg}, \code{longitude_avg} – average coordinates (may be \code{NA})
   #'     \item \code{anchor_year_min}, \code{anchor_year_max} – year span of the record
@@ -1197,14 +1199,19 @@ pick_best <- function(dt, geo_tol = 0.02) {
   #' @param geo_tol Numeric scalar. Maximum allowable difference in decimal degrees
   #'   for both longitude and latitude when assessing geo compatibility between two
   #'   rows. Default \code{0.02} (~2 km).
+  #' @param reference_pool Optional \code{data.table}. When supplied, each candidate
+  #'   in \code{dt} is scored against the rows in \code{reference_pool} rather than
+  #'   against the other rows in \code{dt}. Use this when the anchor must be optimised
+  #'   for compatibility with a broader pool (e.g. all \code{dtT} + \code{dtF} rows)
+  #'   rather than just its own subset.
   #'
   #' @return A single-row \code{data.table} representing the best anchor candidate,
   #'   with additional scoring columns attached:
   #'   \itemize{
   #'     \item \code{has_geo}        – \code{TRUE} if the row has valid coordinates
-  #'     \item \code{geo_agree}      – number of other pool rows within \code{geo_tol}
-  #'     \item \code{year_overlap}   – number of other pool rows with overlapping year spans
-  #'     \item \code{year_gap_total} – sum of year gaps to non-overlapping rows (0 if all overlap)
+  #'     \item \code{geo_agree}      – number of reference pool rows within \code{geo_tol}
+  #'     \item \code{year_overlap}   – number of reference pool rows with overlapping year spans
+  #'     \item \code{year_gap_total} – sum of year gaps to non-overlapping reference rows
   #'     \item \code{has_zip4}       – \code{TRUE} if a 4-digit ZIP extension is present
   #'   }
   #'
@@ -1218,58 +1225,59 @@ pick_best <- function(dt, geo_tol = 0.02) {
   #'   \item \strong{n_geo}          – prefer rows backed by more geocoded observations
   #'   \item \strong{combined_address} – alphabetic stable tie-break
   #' }
-  #' All scoring is pairwise against the pool; a single-row pool is returned immediately.
-  #'
-  #' @note Modifies \code{dt} in place (via \code{data.table} \code{:=}) before
-  #'   returning the top row. Pass \code{copy(dt)} if the original must be preserved.
+  #' When \code{reference_pool} is supplied, self-comparisons are excluded by
+  #' dropping any reference row whose \code{combined_address} matches the candidate.
   
   n <- nrow(dt)
-  
   if (n == 1L) return(dt)
   
-  # ── 1. Geo compatibility score ───────────────────────────────────────────
-  # For each candidate, count how many OTHER rows in the pool pass the
-  # lon/lat proximity test (i.e. are within geo_tol degrees).
-  # A candidate that geo-agrees with the most others is preferred.
-  has_geo_vec <- !is.na(dt$latitude_avg) & !is.na(dt$longitude_avg)
+  # Use reference_pool for scoring if provided, otherwise score within dt
+  ref <- if (!is.null(reference_pool)) reference_pool else dt
   
+  has_geo_vec <- !is.na(dt$latitude_avg) & !is.na(dt$longitude_avg)
+  ref_has_geo <- !is.na(ref$latitude_avg) & !is.na(ref$longitude_avg)
+  
+  # ── 1. Geo compatibility score ───────────────────────────────────────────
+  # For each candidate in dt, count how many rows in ref (excluding self)
+  # are within geo_tol degrees.
   geo_agree <- vapply(seq_len(n), function(i) {
     if (!has_geo_vec[i]) return(0L)
-    sum(vapply(seq_len(n), function(k) {
-      if (k == i || !has_geo_vec[k]) return(0L)
-      lon_ok <- abs(dt$longitude_avg[i] - dt$longitude_avg[k]) <= geo_tol
-      lat_ok <- abs(dt$latitude_avg[i]  - dt$latitude_avg[k])  <= geo_tol
+    ca_i <- dt$combined_address[i]
+    sum(vapply(seq_len(nrow(ref)), function(k) {
+      if (ref$combined_address[k] == ca_i) return(0L)   # exclude self
+      if (!ref_has_geo[k]) return(0L)
+      lon_ok <- abs(dt$longitude_avg[i] - ref$longitude_avg[k]) <= geo_tol
+      lat_ok <- abs(dt$latitude_avg[i]  - ref$latitude_avg[k])  <= geo_tol
       as.integer(lon_ok & lat_ok)
     }, integer(1L)))
   }, integer(1L))
   
   # ── 2. Temporal compatibility score ─────────────────────────────────────
-  # year_overlap:   number of other rows whose anchor year span overlaps this row's span.
-  # year_gap_total: for non-overlapping rows, sum of the nearest-edge year distances.
-  #                 Rows with full overlap contribute 0.
+  # year_overlap:   number of ref rows (excluding self) whose year span overlaps.
+  # year_gap_total: sum of nearest-edge year distances to non-overlapping ref rows.
   year_overlap <- vapply(seq_len(n), function(i) {
-    sum(vapply(seq_len(n), function(k) {
-      if (k == i) return(0L)
-      overlaps <- dt$anchor_year_min[i] <= dt$anchor_year_max[k] &
-        dt$anchor_year_min[k] <= dt$anchor_year_max[i]
+    ca_i <- dt$combined_address[i]
+    sum(vapply(seq_len(nrow(ref)), function(k) {
+      if (ref$combined_address[k] == ca_i) return(0L)   # exclude self
+      overlaps <- dt$anchor_year_min[i] <= ref$anchor_year_max[k] &
+        ref$anchor_year_min[k] <= dt$anchor_year_max[i]
       as.integer(overlaps)
     }, integer(1L)))
   }, integer(1L))
   
   year_gap_total <- vapply(seq_len(n), function(i) {
-    sum(vapply(seq_len(n), function(k) {
-      if (k == i) return(0L)
-      overlaps <- dt$anchor_year_min[i] <= dt$anchor_year_max[k] &
-        dt$anchor_year_min[k] <= dt$anchor_year_max[i]
+    ca_i <- dt$combined_address[i]
+    sum(vapply(seq_len(nrow(ref)), function(k) {
+      if (ref$combined_address[k] == ca_i) return(0L)   # exclude self
+      overlaps <- dt$anchor_year_min[i] <= ref$anchor_year_max[k] &
+        ref$anchor_year_min[k] <= dt$anchor_year_max[i]
       if (overlaps) return(0L)
-      min(abs(dt$anchor_year_min[i] - dt$anchor_year_max[k]),
-          abs(dt$anchor_year_min[k] - dt$anchor_year_max[i]))
+      min(abs(dt$anchor_year_min[i] - ref$anchor_year_max[k]),
+          abs(ref$anchor_year_min[k] - dt$anchor_year_max[i]))
     }, integer(1L)))
   }, integer(1L))
   
   # ── 3. Attach scores and sort ────────────────────────────────────────────
-  # Scores are attached in place then sorted by the priority order defined
-  # in @details. The top row after sorting is returned as the anchor.
   dt[, `:=`(
     has_zip4       = !is.na(zip4),
     has_geo        = has_geo_vec,
@@ -1288,6 +1296,7 @@ pick_best <- function(dt, geo_tol = 0.02) {
   
   dt[1L]
 }
+
 
 
 
