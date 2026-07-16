@@ -1,5 +1,5 @@
 ## ----------------------------------------------------------------
-## Consolidate reduplicate records caused by minor address typographical variations.
+## Consolidate Reduplicate Records Caused by Minor Address Typographical Variations
 ## 
 ## NOTE: This script was designed for the 2023 raw data format. An updated
 ##       version has been created to handle the 2026 format. Refer to
@@ -8,7 +8,6 @@
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025
-## Date Modified: May 12th, 2026
 ## 
 ## Description: During review of the raw data, it was identified that multiple
 ##              records are associated with the same address, attributed to
@@ -158,11 +157,11 @@ mb <- microbenchmark(
 autoplot(mb)
 
 
-#' @description Codebook for the output fields produced by the evaluation.
+#' @description 
+#' Codebook for the output fields produced by the evaluation.
 #'
 #' @field expr Codename identifying the subsetting method applied.
-#'
-#' @field time Computational time elapsed to complete the operation, measured 
+#' @field time Computational time elapsed to complete the operation, measured
 #'             in milliseconds.
 
 mb_result <- data.table("expr" = mb$expr, "time" = mb$time)
@@ -243,10 +242,10 @@ mb <- microbenchmark(
 autoplot(mb)
 
 
-#' @description Codebook for the output fields produced by the evaluation.
+#' @description 
+#' Codebook for the output fields produced by the evaluation.
 #'
 #' @field expr Codename identifying the data combination method applied.
-#'
 #' @field time Computational time elapsed to complete the operation, measured 
 #'             in milliseconds.
 
@@ -403,16 +402,15 @@ write.csv(as.data.frame(mb_result), "./Data/Results/From Clean Raw Data/Step 1_2
 # finish_build <- rbindlist(finish_build, use.names = TRUE, fill = TRUE)
 
 
-#' @description Codebook for the new output fields produced by the data
-#'              cleaning and validation step. All other fields were present
-#'              in the in-progress form of the raw data imported at the
-#'              start of the step.
+#' @description 
+#' Codebook for the new output fields produced by the data cleaning and 
+#' validation step. All other fields were present in the in-progress form of 
+#' the raw data imported at the start of the step.
 #'
-#' @field compiled_address  Formatted, combined version of all address elements.
-#'
-#' @field lonLat_test  Boolean. TRUE if the difference between the maximum and 
-#'                     minimum longitude and latitude values did not exceed the 
-#'                     0.002 degree threshold.
+#' @field compiled_address Formatted, combined version of all address elements.
+#' @field lonLat_test Boolean. TRUE if the difference between the maximum and 
+#'                    minimum longitude and latitude values did not exceed the 
+#'                    0.002 degree threshold.
 
 # # Commit results.
 # write.csv(finish_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B_04.22.2026.csv")
@@ -465,15 +463,14 @@ round(nrow(finish_build)/(church_wide %>% filter(abi %in% duplicates_detected$ab
 #   as.data.frame()
 
 
-#' @description Codebook for the output fields produced by the evaluation.
+#' @description 
+#' Codebook for the output fields produced by the evaluation.
 #'
 #' @field abi Unique business identifier. Evaluation is performed over each 
 #'            unique business ID.
-#'
 #' @field `2001:2021` Column-wise sum of all entries associated with the given 
 #'                    business ID.
-#'
-#' @field all_counts_0_or_1 Boolean. TRUE if all date entry sums for the given
+#' @field all_counts_0_or_1 Boolean. TRUE if all date entry sums for the given 
 #'                          business ID are equal to 0 or 1.
 
 # # Commit results.
@@ -726,16 +723,16 @@ finish_build <- finish_build %>%
   select(-override_duplicate_from_new)
 
 
-#' @description Codebook for the new output fields produced by the data
-#'              cleaning and validation step. All other fields were present
-#'              in the in-progress form of the data generated in SUBSECTION B.
+#' @description 
+#' Codebook for the new output fields produced by the data cleaning and 
+#' validation step. All other fields were present in the in-progress form of 
+#' the data generated in SUBSECTION B.
 #'
-#' @field override_duplicate Boolean. TRUE if the address was manually
-#'                           identified as the same physical address,
-#'                           indicating that the failed longitude and latitude 
-#'                           similarity test should be overridden. FALSE if 
-#'                           the failed test still applies. NA if this 
-#'                           evaluation did not apply.
+#' @field override_duplicate Boolean. TRUE if the address was manually 
+#'                           identified as the same physical address, indicating 
+#'                           that the failed longitude and latitude similarity 
+#'                           test should be overridden. FALSE if the failed test 
+#'                           still applies. NA if this evaluation did not apply.
 
 # # Commit results.
 # write.csv(finish_build, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B2_04.26.2026.csv")
@@ -1005,14 +1002,14 @@ table("Clusters" = finish_build$same_num_clusters, "Duplicated" = finish_build$o
 # supplement_build <- rbindlist(supplement_build, use.names = TRUE, fill = TRUE)
 
 
-#' @description Codebook for the new output fields produced by the data
-#'              cleaning and validation step. All other fields were present
-#'              in the in-progress form of the data generated in
-#'              Subsection B2. This is a subset of finish_build, containing
-#'              only entries that need to be expanded
-#'              (i.e., same_num_clusters == FALSE).
+#' @description 
+#' Codebook for the new output fields produced by the data cleaning and 
+#' validation step. All other fields were present in the in-progress form of 
+#' the data generated in Subsection B2. This is a subset of finish_build, 
+#' containing only entries that need to be expanded 
+#' (i.e., same_num_clusters == FALSE).
 #'
-#' @field same_num_clusters Expanded: addresses that were initially collapsed,
+#' @field same_num_clusters Expanded: addresses that were initially collapsed, 
 #'                          failed the longitude and latitude similarity test, 
 #'                          and required expansion for individual validation. 
 #'                          TRUE: addresses that also failed the similarity test 
@@ -1176,10 +1173,10 @@ step_1[str_length(step_1$zipcode) %in% 1, "zipcode"] <- "00000"
 step_1 <- mutate(step_1, across(all_of(names(step_1)[14:34]), ~ coalesce(.x, 0)))
 
 
-#' @description Codebook for the new output fields produced by the data
-#'              cleaning and validation step. All other fields were present
-#'              in the in-progress form of the data generated in
-#'              Subsection C1.
+#' @description 
+#' Codebook for the new output fields produced by the data cleaning and 
+#' validation step. All other fields were present in the in-progress form of 
+#' the data generated in Subsection C1.
 #'              
 #' NO NEW FIELDS ADDED
 

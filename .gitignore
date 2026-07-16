@@ -4,27 +4,30 @@
 .
 ..
 .DS_Store
+.Rproj.user
 .Rhistory
 .Rprofile
-.Rproj.user
-.httr-oauth
+.Rapp.history
 .Ruserdata
 .RData
 
 # --------------------
 # General for the site
 
+.httr-oauth
 /.quarto/
 /docs/
 /_site/
 /_includes/
-sites_libs/
+/sites_libs/
 
 # --------------------
 # Exclude file types and incompletely rendered page outputs
 
 *_files
 *.html
+*.pptx
+
 /_quarto_internal_scss_error.scss
 **/*.quarto_ipynb
 
@@ -32,6 +35,9 @@ sites_libs/
 # Project-specific exclusions
 
 **/*.pptx
+**/*.bib
+**/formatted_bash.tex
+/Images/
 
 # The location of US Census Bureau TIGER/Line Shapefiles and GeoPackage's
 

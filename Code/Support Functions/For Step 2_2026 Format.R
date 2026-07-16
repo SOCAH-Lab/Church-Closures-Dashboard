@@ -49,7 +49,24 @@
 ##       occurs. Used for arranging the rows associated with one ABI 
 ##       in descending order: i.e. older address to recent address.
 ## 
-##    7. make_zip5_candidates: USPS/lookup data sometimes disagrees when a ZIP 
+##    7. usps_quota_mark_api: Select groups for API processing under a quota 
+##       (all-or-nothing per group). This helper marks records for an external 
+##       API call while respecting a hard quota measured in *unique* $$ (group, 
+##       item) $$ pairs (e.g., unique addresses per group).
+## 
+##       Key behavior:
+##          - **All-or-nothing per group**: if a group is selected, all eligible 
+##            records in that group are marked.
+##          - **Quota unit**: quota is consumed by the number of *unique items* 
+##            within each group among eligible records (not raw row count).
+##          - **Selection**:
+##          - If $$quota = "all"$$ (or $$Inf$$ or $$NULL$$), all eligible groups/items are selected.
+##          - If $$quota$$ is numeric, groups are considered in random order and 
+##            added greedily until quota is exhausted (not guaranteed optimal).
+##          - **Reproducibility**: set $$seed$$ to make randomized selection 
+##            deterministic.
+## 
+##    8. make_zip5_candidates: USPS/lookup data sometimes disagrees when a ZIP 
 ##       has leading/trailing zeros. This helper:
 ##          1) normalizes input to a 5-digit ZIP (keeps leading zeros),
 ##          2) counts edge zeros (leading + trailing),
@@ -57,10 +74,10 @@
 ##          4) rebuilds a sequence of candidate ZIPs by moving zeros one-by-one
 ##             from the front to the back.
 ## 
-##    8. generate_usps_token: Requests an OAuth access token from USPS using the 
+##    9. generate_usps_token: Requests an OAuth access token from USPS using the 
 ##       client credentials grant. Intended for use by `validate_usps_address()`.
 ##       
-##    9. validate_usps_address: Validate and standardize a US address via the 
+##   10. validate_usps_address: Validate and standardize a US address via the 
 ##       USPS Addresses API (v3). Obtains an OAuth token via 
 ##       \code{generate_usps_token()} (client credentials flow), then calls the 
 ##       USPS Addresses v3 endpoint to validate and standardize the supplied 
@@ -70,24 +87,35 @@
 ##       Source: https://developers.usps.com/addressesv3
 ##       Example: https://github.com/USPS/api-examples
 ##       
-##   10. census_geo_show_options: Show available Census Geocoder benchmarks and 
+##   11. zip_to_pred_city: Given a ZIP5, look up the predicted city by trying 
+##       the original ZIP and any generated alternatives (e.g., shifting leading 
+##       zeros) until a match is found.
+## 
+##   12. pick_best: Select the Best Anchor Row from a Pool of Candidate Address 
+##       Records. Given a pool of candidate rows sharing the same 
+##       \code{address_line_1}, \code{pick_best()} scores each candidate by its 
+##       geo and temporal compatibility with all other rows in the pool and 
+##       returns the single most representative row to serve as the anchor for 
+##       downstream matching.
+## 
+##   13. census_geo_show_options: Show available Census Geocoder benchmarks and 
 ##       vintages. Downloads the Census Geocoder benchmark list, optionally 
 ##       filters it, then downloads the vintages available for each benchmark 
 ##       displayed. Results are printed and also returned invisibly as a list 
 ##       of tibbles.
 ## 
-##   11. census_geo_make_tries: Build a `tries` list from benchmarkName + 
+##   14. census_geo_make_tries: Build a `tries` list from benchmarkName + 
 ##       vintageName pairs, Converts a human-readable specification 
 ##       (benchmarkName + vintageName strings) into the `tries` structure 
 ##       required by `validate_geolocation()`.
 ##       
-##   12. build_addr_geo_url: Build a U.S. Census Geocoder request URL for 
+##   15. build_addr_geo_url: Build a U.S. Census Geocoder request URL for 
 ##       structured address geographies Constructs the URL for the Census 
 ##       Geocoder endpoint \code{/geocoder/geographies/address} using a 
 ##       structured address (street/city/state/zip) and an explicit benchmark 
 ##       + vintage.
 ##       
-##   13. call_census_geocoder: Call the Census Geocoder and parse the JSON 
+##   16. call_census_geocoder: Call the Census Geocoder and parse the JSON 
 ##       response. Issues a GET request to the provided Census Geocoder URL and 
 ##       parses the returned JSON payload. The function marks the call as 
 ##       successful (\code{ok=TRUE}) only if:
@@ -95,14 +123,14 @@
 ##          - \code{result$addressMatches} exists and contains at least 
 ##                    one match.
 ## 
-##   14. select_best_match: Select the best candidate address match from a Census 
+##   17. select_best_match: Select the best candidate address match from a Census 
 ##       Geocoder response. Given a parsed Census Geocoder API response 
 ##       containing one or more candidate address matches, applies a prioritized 
 ##       decision procedure to select a single best match. Designed to be called 
 ##       immediately after a successful \code{call_census_geocoder()} result 
 ##       inside \code{validate_geolocation()}.
 ## 
-##   15. resolve_vintage_id: Resolve a Census Geocoder vintage value to a 
+##   18. resolve_vintage_id: Resolve a Census Geocoder vintage value to a 
 ##       numeric vintage id. Converts a vintage value — either a numeric id or 
 ##       a vintage name string — into the numeric id expected by the Census 
 ##       Geocoder API. When a name string is supplied, the function hits the 
@@ -111,7 +139,7 @@
 ##       environment so the endpoint is only hit once per unique benchmark per 
 ##       \code{validate_geolocation()} call.
 ##       
-##   16. validate_geolocation: GGeocode an address (Census Geocoder) and return 
+##   19. validate_geolocation: GGeocode an address (Census Geocoder) and return 
 ##       the best match, trying multiple benchmark/vintage pairs. Queries the 
 ##       U.S. Census Geocoder "geographies/address" endpoint using a structured 
 ##       address (street/city/state/zip). Tries a prioritized sequence of 
@@ -127,12 +155,12 @@
 ##       you later assign decennial geographies via TIGER/Line shapefiles 
 ##       (point-in-polygon).
 ## 
-##   17. read_state_gpkgs_for_data: Read per-state TIGER block GeoPackages for 
+##   20. read_state_gpkgs_for_data: Read per-state TIGER block GeoPackages for 
 ##       the unique states present in a dataset. This helper finds the unique 
 ##       states represented in `data`, locates each state's output GeoPackage 
 ##       in `out_root`, and reads *all layers* from each GeoPackage.
 ## 
-##   18. add_decennial_geoid_block: Add decennial Census block GEOIDs 
+##   21. add_decennial_geoid_block: Add decennial Census block GEOIDs 
 ##       (2000/2010/2020) to candidate addresses. Given point locations 
 ##       (lon/lat already converted to an $$sf$$ POINT object), this function 
 ##       spatially assigns each point to its containing Census block for 
@@ -143,7 +171,7 @@
 ##          - avoid mixing CRSs across states/years,
 ##          - align with your per-state GeoPackage storage pattern.
 ## 
-##   19. decode_zcta: Decode (Assign) ZCTA Codes to Point Locations. Given a 
+##   22. decode_zcta: Decode (Assign) ZCTA Codes to Point Locations. Given a 
 ##       set of candidate point locations and a ZCTA polygon layer (e.g. 2000, 
 ##       2010, or 2020 vintage), this function performs a point-in-polygon 
 ##       spatial join and returns the ZCTA code for each point.
@@ -165,7 +193,7 @@
 ##       being "spatially constant throughout all geometries" is suppressed; it 
 ##       is benign for ZCTA layers because `area_code` is constant per feature.
 ## 
-##   20. decode_cbsa_csa: Decode (Assign) CBSA and CSA Codes to Point Locations. 
+##   23. decode_cbsa_csa: Decode (Assign) CBSA and CSA Codes to Point Locations. 
 ##       Given a set of candidate point locations and a combined CBSA/CSA 
 ##       polygon layer, this function performs two point-in-polygon spatial 
 ##       joins — one for Core Based Statistical Areas (CBSAs) and one for 
@@ -201,19 +229,43 @@
 ##       is benign here because `area_code` and `area_level` are constant per 
 ##       feature.
 ## 
-##   21. format_year_ranges: Format a set of years into compact consecutive 
+##   24. format_year_ranges: Format a set of years into compact consecutive 
 ##       ranges (e.g., "2001:2003, 2006"). Takes a vector of years (possibly 
 ##       unsorted and with duplicates) and returns a human-readable string where 
 ##       consecutive years are collapsed into "start:end" ranges and separated 
 ##       by ", ".
 ## 
-##   22. write_list_to_xlsx: Write a named list of tables to a multi-sheet Excel 
+##   25. parse_years: Parse a formatted year-range string into an integer vector 
+##       of individual years.
+## 
+##   26. expected_vintages: Map a vector of years to their corresponding 
+##       decennial census vintage labels. Uses the standard decennial period 
+##       boundaries: 2000 -> 2000-2009, 2010 -> 2010-2019, 2020 -> 2020-2029.
+##
+##   27. parse_vintages: Parse a comma-separated vintage string into an integer 
+##       vector.
+## 
+##   28. check_alignment: Check whether a boundary's recorded vintages cover all 
+##       decennial periods implied by the archive year range.
+## 
+##       Intended for use with `mapply()` over rows of a summarised data.table 
+##       where `archive_versions_present` has already been formatted by 
+##       `format_year_ranges()`.
+## 
+##   29. check_alignment_cbsa: Check whether a CBSA/CSA boundary's recorded 
+##       vintages cover all periods implied by the archive year range.
+## 
+##       Mirrors `check_alignment()` but resolves archive years against
+##       `cbsa_vintage_map` so the 2000-2009 period maps to the `2007` vintage 
+##       label rather than `2000`.
+## 
+##   30. write_list_to_xlsx: Write a named list of tables to a multi-sheet Excel 
 ##       workbook (.xlsx). Takes a list where each element is a 
 ##       data.frame/tibble/data.table and writes each element to its own 
 ##       worksheet in an Excel file. List names are used as sheet names; 
 ##       unnamed/blank elements are assigned default names.
 ## 
-##   23. write_list_to_duckdb: Write a list of tables to a single DuckDB 
+##   31. write_list_to_duckdb: Write a list of tables to a single DuckDB 
 ##       database file. A lightweight replacement for writing a multi-sheet 
 ##       Excel workbook. Each element of `lst` is written as its own DuckDB 
 ##       table (analogous to an XLSX sheet) inside one `.duckdb` file.
@@ -223,6 +275,16 @@
 ##       user's home directory is writable and, if so, set DuckDB's storage home 
 ##       there to provide a stable location for extension caching *if extensions 
 ##       are ever used*.
+## 
+##   32. read_list_from_duckdb: Read tables from a DuckDB database file into a 
+##       named list. Companion to write_list_to_duckdb(): each DuckDB table is 
+##       returned as one list element (analogous to reading sheets from an XLSX 
+##       workbook).
+## 
+##   33. make_ranges: Create 1,000-row index ranges (start/end) plus labels 
+##       (no scientific notation). Like `make_1k_indices()`, but returns a 
+##       `data.table` with numeric `start` and `end` columns, plus a 
+##       human-readable `label` column.
 
 
 ## ----------------------------------------------------------------
@@ -513,6 +575,151 @@ find_first_one <- function(...) {
 
 
 
+usps_quota_mark_api <- function(df,
+                                quota = NULL,        # NULL/"all"/Inf => select all eligible
+                                group_col = "abi",
+                                item_col = "combined_address",
+                                mark_col = "do_api",
+                                already_flag_col = NULL,
+                                exclude_already = TRUE,
+                                seed = NULL,
+                                verbose = TRUE) {
+  #' Select groups for API processing under a quota (all-or-nothing per group)
+  #' This helper marks records for an external API call while respecting a hard 
+  #' quota measured in *unique* $$ (group, item) $$ pairs (e.g., unique addresses 
+  #' per group).
+  #'
+  #' Key behavior:
+  #' - **All-or-nothing per group**: if a group is selected, all eligible records in that
+  #'   group are marked.
+  #' - **Quota unit**: quota is consumed by the number of *unique items* within each group
+  #'   among eligible records (not raw row count).
+  #' - **Selection**:
+  #'   - If $$quota = "all"$$ (or $$Inf$$ or $$NULL$$), all eligible groups/items are selected.
+  #'   - If $$quota$$ is numeric, groups are considered in random order and added greedily
+  #'     until quota is exhausted (not guaranteed optimal).
+  #' - **Reproducibility**: set $$seed$$ to make randomized selection deterministic.
+  #'
+  #' @param df A data.frame/tibble containing at least a group column and an item column.
+  #' @param quota Either a single non-negative number (max unique $$ (group,item) $$ pairs),
+  #'   or one of $$NULL$$ / $$Inf$$ / `"all"` to select everything eligible.
+  #' @param group_col Character scalar. Name of the grouping column (e.g., ABI, customer_id).
+  #' @param item_col Character scalar. Name of the item column used to count unique units
+  #'   against quota (e.g., address, identifier).
+  #' @param mark_col Character scalar. Name of the logical output column to create (TRUE = selected).
+  #' @param already_flag_col Optional character scalar. Name of a logical flag column indicating
+  #'   items already processed previously.
+  #' @param exclude_already Logical. If TRUE, exclude rows with $$already\_flag\_col = TRUE$$ from
+  #'   costing/selection.
+  #' @param seed Optional integer. If provided, controls random ordering used in selection.
+  #' @param verbose Logical. If TRUE, emit a summary message about what was selected.
+  
+  stopifnot(is.data.frame(df))
+  
+  # Build a lightweight working view for costing/selection (do not alter df yet)
+  dat <- df %>%
+    dplyr::mutate(.group = .data[[group_col]],
+                  .item  = .data[[item_col]])
+  
+  # Optionally exclude records already processed (for costing and selection only)
+  if (!is.null(already_flag_col) && exclude_already) {
+    dat <- dat %>% dplyr::filter(!isTRUE(.data[[already_flag_col]]))
+  }
+  
+  # Only non-missing items can be sent to an API; these define eligibility
+  dat_elig <- dat %>% dplyr::filter(!is.na(.item))
+  
+  # Quota is consumed by unique (group,item) pairs
+  combos <- dat_elig %>% dplyr::distinct(.group, .item)
+  
+  # Cost per group = number of unique items in that group
+  costs <- combos %>%
+    dplyr::group_by(.group) %>%
+    dplyr::summarise(n_item = dplyr::n_distinct(.item), .groups = "drop") %>%
+    dplyr::mutate(n_item = as.integer(n_item))
+  
+  total_units  <- as.integer(sum(costs$n_item))
+  total_groups <- as.integer(nrow(costs))
+  
+  # Interpret quota
+  select_all <- is.null(quota) ||
+    identical(quota, Inf) ||
+    (is.character(quota) && length(quota) == 1L && tolower(quota) %in% c("all", "everything"))
+  
+  if (!select_all) {
+    stopifnot(is.numeric(quota), length(quota) == 1, !is.na(quota), quota >= 0)
+    quota <- as.integer(quota)
+  }
+  
+  # ---- Select groups ----
+  if (select_all) {
+    
+    picked <- as.character(costs$.group)
+    picked_unit_n <- total_units
+    remaining <- 0L
+    
+    # if (isTRUE(verbose)) {
+    #   message(sprintf(
+    #     "Selected ALL eligible units: %s unique (group,item) pairs across %s groups.",
+    #     format(picked_unit_n, big.mark = ","),
+    #     format(total_groups, big.mark = ",")
+    #   ))
+    # }
+    
+  } else {
+    
+    if (!is.null(seed)) set.seed(seed)
+    
+    # Randomize group order, then greedily add while quota allows
+    ordered <- costs %>%
+      dplyr::filter(n_item <= quota) %>%
+      dplyr::mutate(rand = stats::runif(dplyr::n())) %>%
+      dplyr::arrange(rand) %>%
+      dplyr::select(.group, n_item)
+    
+    picked <- character(0)
+    remaining <- as.integer(quota)
+    
+    for (i in seq_len(nrow(ordered))) {
+      need <- ordered$n_item[i]
+      if (need <= remaining) {
+        picked <- c(picked, ordered$.group[i])
+        remaining <- remaining - need
+        if (remaining == 0L) break
+      }
+    }
+    
+    picked_unit_n <- as.integer(sum(ordered$n_item[ordered$.group %in% picked]))
+    
+    # if (isTRUE(verbose)) {
+    #   message(sprintf(
+    #     "Quota = %s; selected %s unique units across %s groups (remaining quota = %s).",
+    #     format(quota, big.mark = ","),
+    #     format(picked_unit_n, big.mark = ","),
+    #     format(length(picked), big.mark = ","),
+    #     format(remaining, big.mark = ",")
+    #   ))
+    # }
+  }
+  
+  # Mark records in the original df: selected group AND non-missing item
+  out <- df %>%
+    dplyr::mutate(
+      !!mark_col := (.data[[group_col]] %in% picked) & !is.na(.data[[item_col]])
+    )
+  
+  list(
+    data = out,
+    picked_groups = picked,
+    picked_unit_n = picked_unit_n,
+    remaining_quota = remaining,
+    group_costs = costs %>% dplyr::rename(!!group_col := .group)
+  )
+}
+
+
+
+
 make_zip5_candidates <- function(zip5_raw) {
   #' @description
   #' USPS/lookup data sometimes disagrees when a ZIP has leading/trailing zeros.
@@ -616,6 +823,7 @@ generate_usps_token <- function(consumer_key, consumer_secret) {
   
   token
 }
+
 
 
 
@@ -907,6 +1115,179 @@ validate_usps_address <- function(consumer_key, consumer_secret,
   )
 }
 
+
+
+
+
+zip_to_pred_city <- function(zip5, zip_city_lookup) {
+  #' Given a ZIP5, look up the predicted city by trying the original ZIP and any
+  #' generated alternatives (e.g., shifting leading zeros) until a match is found.
+  #'
+  #' @param zip5 A single ZIP value (character or numeric). May be NA/blank.
+  #' @param zip_city_lookup Lookup object/table used by get_city_info().
+  #'
+  #' @return
+  #' - NA_character_ if the input ZIP is missing/blank (no lookup attempted)
+  #' - Otherwise, the first successful city returned by get_city_info()
+  #' - "No Matches" if all candidates fail
+  #'
+  #' @details
+  #' Candidate ZIPs are generated by make_zip5_candidates(zip5_raw). Candidates are
+  #' tried in the order returned; the first "successful" result wins.
+  
+  # ---- OXYGEN: Step 1 — Normalize ZIP input ----------------------------------
+  # Normalize input to a 5-character ZIP5:
+  # - coerce to character
+  # - trim whitespace
+  # - left-pad with zeros to width 5 (e.g., "4123" -> "04123")
+  zip5_raw <- ifelse(is.na(zip5) || zip5 == "", "", as.character(zip5))
+  zip5_raw <- trimws(zip5_raw)
+  zip5_raw <- ifelse(
+    nzchar(zip5_raw),
+    stringr::str_pad(zip5_raw, width = 5, side = "left", pad = "0"),
+    ""
+  )
+  
+  # If ZIP is still blank after normalization, stop early (no lookup attempted).
+  if (!nzchar(zip5_raw)) return(NA_character_)
+  
+  # ---- OXYGEN: Step 2 — Generate candidate ZIPs ------------------------------
+  # Generate ZIP5 alternatives to try (e.g., move stripped zero, etc.).
+  # NOTE: If you need zip5_raw tried first, ensure make_zip5_candidates() returns
+  # it first, or wrap with unique(c(zip5_raw, ...)).
+  zip5_candidates <- make_zip5_candidates(zip5_raw)
+  
+  # ---- OXYGEN: Step 3 — Try lookup(s) in order -------------------------------
+  # First successful lookup wins. "Successful" means:
+  # - not NA
+  # - not empty string
+  # - not the sentinel "No Matches"
+  for (z in zip5_candidates) {
+    res <- get_city_info(z, zip_city_lookup = zip_city_lookup)
+    
+    ok <- !is.na(res) &&
+      nzchar(res) &&
+      !stringr::str_detect(res, stringr::regex("^\\s*No\\s*Matches\\b", ignore_case = TRUE))
+    
+    if (ok) return(res)
+  }
+  
+  # ---- OXYGEN: Step 4 — Nothing worked ---------------------------------------
+  "No Matches"
+}
+
+
+
+
+pick_best <- function(dt, geo_tol = 0.02) {
+  #' Select the Best Anchor Row from a Pool of Candidate Address Records.
+  #' Given a pool of candidate rows sharing the same \code{address_line_1},
+  #' \code{pick_best()} scores each candidate by its geo and temporal compatibility
+  #' with all other rows in the pool and returns the single most representative row
+  #' to serve as the anchor for downstream matching.
+  #'
+  #' @param dt  A \code{data.table} of candidate rows. Expected columns:
+  #'   \itemize{
+  #'     \item \code{latitude_avg}, \code{longitude_avg} – average coordinates (may be \code{NA})
+  #'     \item \code{anchor_year_min}, \code{anchor_year_max} – year span of the record
+  #'     \item \code{zip4}       – 4-digit ZIP extension (may be \code{NA})
+  #'     \item \code{n_geo}      – count of geocoded observations backing the coordinates
+  #'     \item \code{combined_address} – full address string used as a stable tie-break key
+  #'   }
+  #' @param geo_tol Numeric scalar. Maximum allowable difference in decimal degrees
+  #'   for both longitude and latitude when assessing geo compatibility between two
+  #'   rows. Default \code{0.02} (~2 km).
+  #'
+  #' @return A single-row \code{data.table} representing the best anchor candidate,
+  #'   with additional scoring columns attached:
+  #'   \itemize{
+  #'     \item \code{has_geo}        – \code{TRUE} if the row has valid coordinates
+  #'     \item \code{geo_agree}      – number of other pool rows within \code{geo_tol}
+  #'     \item \code{year_overlap}   – number of other pool rows with overlapping year spans
+  #'     \item \code{year_gap_total} – sum of year gaps to non-overlapping rows (0 if all overlap)
+  #'     \item \code{has_zip4}       – \code{TRUE} if a 4-digit ZIP extension is present
+  #'   }
+  #'
+  #' @details
+  #' Scoring priority (descending):
+  #' \enumerate{
+  #'   \item \strong{geo_agree}      – maximise geo-compatible neighbours within \code{geo_tol}
+  #'   \item \strong{year_overlap}   – maximise temporally overlapping neighbours
+  #'   \item \strong{year_gap_total} – minimise total year distance to non-overlapping rows
+  #'   \item \strong{has_zip4}       – prefer rows with a ZIP+4 extension
+  #'   \item \strong{n_geo}          – prefer rows backed by more geocoded observations
+  #'   \item \strong{combined_address} – alphabetic stable tie-break
+  #' }
+  #' All scoring is pairwise against the pool; a single-row pool is returned immediately.
+  #'
+  #' @note Modifies \code{dt} in place (via \code{data.table} \code{:=}) before
+  #'   returning the top row. Pass \code{copy(dt)} if the original must be preserved.
+  
+  n <- nrow(dt)
+  
+  if (n == 1L) return(dt)
+  
+  # ── 1. Geo compatibility score ───────────────────────────────────────────
+  # For each candidate, count how many OTHER rows in the pool pass the
+  # lon/lat proximity test (i.e. are within geo_tol degrees).
+  # A candidate that geo-agrees with the most others is preferred.
+  has_geo_vec <- !is.na(dt$latitude_avg) & !is.na(dt$longitude_avg)
+  
+  geo_agree <- vapply(seq_len(n), function(i) {
+    if (!has_geo_vec[i]) return(0L)
+    sum(vapply(seq_len(n), function(k) {
+      if (k == i || !has_geo_vec[k]) return(0L)
+      lon_ok <- abs(dt$longitude_avg[i] - dt$longitude_avg[k]) <= geo_tol
+      lat_ok <- abs(dt$latitude_avg[i]  - dt$latitude_avg[k])  <= geo_tol
+      as.integer(lon_ok & lat_ok)
+    }, integer(1L)))
+  }, integer(1L))
+  
+  # ── 2. Temporal compatibility score ─────────────────────────────────────
+  # year_overlap:   number of other rows whose anchor year span overlaps this row's span.
+  # year_gap_total: for non-overlapping rows, sum of the nearest-edge year distances.
+  #                 Rows with full overlap contribute 0.
+  year_overlap <- vapply(seq_len(n), function(i) {
+    sum(vapply(seq_len(n), function(k) {
+      if (k == i) return(0L)
+      overlaps <- dt$anchor_year_min[i] <= dt$anchor_year_max[k] &
+        dt$anchor_year_min[k] <= dt$anchor_year_max[i]
+      as.integer(overlaps)
+    }, integer(1L)))
+  }, integer(1L))
+  
+  year_gap_total <- vapply(seq_len(n), function(i) {
+    sum(vapply(seq_len(n), function(k) {
+      if (k == i) return(0L)
+      overlaps <- dt$anchor_year_min[i] <= dt$anchor_year_max[k] &
+        dt$anchor_year_min[k] <= dt$anchor_year_max[i]
+      if (overlaps) return(0L)
+      min(abs(dt$anchor_year_min[i] - dt$anchor_year_max[k]),
+          abs(dt$anchor_year_min[k] - dt$anchor_year_max[i]))
+    }, integer(1L)))
+  }, integer(1L))
+  
+  # ── 3. Attach scores and sort ────────────────────────────────────────────
+  # Scores are attached in place then sorted by the priority order defined
+  # in @details. The top row after sorting is returned as the anchor.
+  dt[, `:=`(
+    has_zip4       = !is.na(zip4),
+    has_geo        = has_geo_vec,
+    geo_agree      = geo_agree,
+    year_overlap   = year_overlap,
+    year_gap_total = year_gap_total
+  )]
+  
+  setorder(dt,
+           -geo_agree,
+           -year_overlap,
+           year_gap_total,
+           -has_zip4,
+           -n_geo,
+           combined_address)
+  
+  dt[1L]
+}
 
 
 
@@ -1739,8 +2120,6 @@ resolve_vintage_id <- function(benchmark, vintage, vintage_cache) {
 #'   # No attempt matched.
 #'   list(ok = FALSE, best = NULL, parsed_response = NULL, attempts = all_attempts)
 #' }
-
-
 
 
 
@@ -2592,6 +2971,129 @@ format_year_ranges <- function(years) {
 
 
 
+parse_years <- function(avp) {
+  #' Parse a formatted year-range string into an integer vector of individual years
+  #'
+  #' @param avp A single character string produced by `format_year_ranges()`,
+  #'   e.g. `"2000:2023"`, `"2025"`, or `"2024:2025"`. Comma-separated segments
+  #'   are supported (e.g. `"2000:2009, 2015"`).
+  
+  unlist(lapply(
+    strsplit(avp, ",\\s*")[[1]],
+    function(rng) {
+      # Split on ":" to detect a range (two elements) vs. a single year (one element)
+      parts <- as.integer(strsplit(trimws(rng), ":")[[1]])
+      if (length(parts) == 2L) parts[1]:parts[2] else parts
+    }
+  ))
+}
+
+
+
+
+expected_vintages <- function(years) {
+  #' Map a vector of years to their corresponding decennial census vintage labels.
+  #' Uses the standard decennial period boundaries:
+  #'   2000 -> 2000-2009, 2010 -> 2010-2019, 2020 -> 2020-2029
+  #'
+  #' @param years An integer vector of years, typically produced by `parse_years()`.
+  #' @return A unique integer vector of decennial vintage labels (e.g. `c(2000L, 2010L)`).
+  #'   Years outside all defined periods return `NA` from `fcase()` and are silently dropped
+  #'   by `unique()`.
+  
+  unique(fcase(
+    years >= 2000L & years <= 2009L, 2000L,
+    years >= 2010L & years <= 2019L, 2010L,
+    years >= 2020L & years <= 2029L, 2020L
+  ))
+}
+
+
+
+
+parse_vintages <- function(v) {
+  #' Parse a comma-separated vintage string into an integer vector
+  #'
+  #' @param v A character string of vintage years, e.g. `"2000, 2010"`. Handles
+  #'   the sentinel values `NA` and `"None"` by returning an empty integer vector
+  #'   so downstream `%in%` checks fail gracefully rather than erroring.
+  #' @return An integer vector of vintage years, or `integer(0)` if `v` is `NA`
+  #'   or `"None"`.
+  
+  if (is.na(v) || v == "None") return(integer(0))
+  as.integer(strsplit(trimws(v), ",\\s*")[[1]])
+}
+
+
+
+
+check_alignment <- function(avp, vintages_str) {
+  #' Check whether a boundary's recorded vintages cover all decennial periods
+  #' implied by the archive year range.
+  #'
+  #' Intended for use with `mapply()` over rows of a summarised data.table where
+  #' `archive_versions_present` has already been formatted by `format_year_ranges()`.
+  #'
+  #' @param avp A single character string of formatted archive years
+  #'   (e.g. `"2000:2023"`), passed to `parse_years()`.
+  #' @param vintages_str A single character string of recorded vintage years
+  #'   (e.g. `"2000, 2010"`), passed to `parse_vintages()`. `NA` or `"None"`
+  #'   returns `NA`.
+  #' @return `TRUE` if every expected decennial vintage is present in
+  #'   `vintages_str`; `FALSE` if one or more are missing; `NA` if no expected
+  #'   vintages could be derived (e.g. years outside all defined periods).
+  
+  yrs <- parse_years(avp)
+  exp <- expected_vintages(yrs)
+  rec <- parse_vintages(vintages_str)
+  # No mappable vintages -> alignment is indeterminate
+  if (length(exp) == 0L) return(NA)
+  all(exp %in% rec)
+}
+
+
+
+
+check_alignment_cbsa <- function(avp, vintages_str) {
+  #' Check whether a CBSA/CSA boundary's recorded vintages cover all periods
+  #' implied by the archive year range.
+  #'
+  #' Mirrors `check_alignment()` but resolves archive years against
+  #' `cbsa_vintage_map` so the 2000-2009 period maps to the `2007` vintage label
+  #' rather than `2000`.
+  #'
+  #' @param avp A single character string of formatted archive years
+  #'   (e.g. `"2000:2023"`), parsed identically to `check_alignment()`.
+  #' @param vintages_str A single character string of recorded CBSA/CSA vintage
+  #'   years (e.g. `"2007, 2010"`). `NA` or `"None"` returns `NA`.
+  #' @return `TRUE` if every expected CBSA vintage is present in `vintages_str`;
+  #'   `FALSE` if one or more are missing; `NA` if `vintages_str` is `NA`/`"None"`
+  #'   or no expected vintages could be derived.
+  
+  if (is.na(vintages_str) || vintages_str == "None") return(NA)
+  years <- unlist(lapply(
+    strsplit(avp, ",\\s*")[[1]],
+    function(rng) {
+      # Split on ":" to detect a range (two elements) vs. a single year (one element)
+      parts <- as.integer(strsplit(trimws(rng), ":")[[1]])
+      if (length(parts) == 2L) parts[1]:parts[2] else parts
+    }
+  ))
+  # Join years against cbsa_vintage_map using a non-equi join on the period boundaries
+  expected <- unique(cbsa_vintage_map[
+    data.table(year = years),
+    on = .(year_start <= year, year_end >= year),
+    vintage
+  ])
+  recorded <- as.integer(strsplit(trimws(vintages_str), ",\\s*")[[1]])
+  # No mappable vintages -> alignment is indeterminate
+  if (length(expected) == 0L) return(NA)
+  all(expected %in% recorded)
+}
+
+
+
+
 write_list_to_xlsx <- function(lst, path = "output.xlsx") {
   #' Write a named list of tables to a multi-sheet Excel workbook (.xlsx). Takes a 
   #' list where each element is a data.frame/tibble/data.table and writes each 
@@ -2717,6 +3219,104 @@ write_list_to_duckdb <- function(lst,
 
 
 
+read_list_from_duckdb <- function(path,
+                                  tables = NULL,            # NULL = read all tables
+                                  check_home_writable = TRUE,
+                                  use_home_cache_if_writable = TRUE) {
+  #' Read tables from a DuckDB database file into a named list.
+  #' Companion to write_list_to_duckdb(): each DuckDB table is returned as one
+  #' list element (analogous to reading sheets from an XLSX workbook).
+  #'
+  #' @param path File path to the DuckDB database file, e.g. "./results/qc_geo.duckdb".
+  #' @param tables Character vector of table names to read. If NULL, reads all tables.
+  #' @param check_home_writable Logical; same intent as in write_list_to_duckdb().
+  #' @param use_home_cache_if_writable Logical; same intent as in write_list_to_duckdb().
+  #'
+  #' @return A named list of data.frames (one per table).
+  
+  # Optional: confirm HOME is writable (useful on HPC) -----------------------
+  if (check_home_writable) {
+    home <- path.expand("~")
+    test_file <- file.path(home, paste0("duckdb_home_write_test_", Sys.getpid(), ".txt"))
+    
+    home_writable <- tryCatch({
+      writeLines("test", test_file)
+      unlink(test_file)
+      TRUE
+    }, error = function(e) FALSE)
+    
+    message("HOME: ", home)
+    message("HOME writable: ", home_writable)
+    
+    if (home_writable && use_home_cache_if_writable) {
+      options(duckdb.storage.home = home)
+      message("Set options(duckdb.storage.home = \"", home, "\")")
+    }
+  }
+  
+  # Connect read-only and pull tables ---------------------------------------
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = path, read_only = TRUE)
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  
+  available <- DBI::dbListTables(con)
+  
+  if (is.null(tables)) {
+    tables <- available
+  } else {
+    missing <- setdiff(tables, available)
+    if (length(missing) > 0) {
+      stop("These tables were not found in the DuckDB file: ",
+           paste(missing, collapse = ", "))
+    }
+  }
+  
+  out <- setNames(vector("list", length(tables)), tables)
+  for (nm in tables) {
+    out[[nm]] <- DBI::dbReadTable(con, nm)
+  }
+  out
+}
+
+
+
+
+make_ranges <- function(dt, chunk_size = 1000) {
+  #' Create 1,000-row index ranges (start/end) plus labels (no scientific notation).
+  #' Like `make_1k_indices()`, but returns a `data.table` with numeric `start` and
+  #' `end` columns, plus a human-readable `label` column.
+  #'
+  #' @param dt A `data.table` or `data.frame` to be indexed into row chunks.
+  #' @param chunk_size Integer chunk size (defaults to 1000).
+  #'
+  #' @return A `data.table` with columns `start`, `end`, and `label`.
+  
+  # Determine number of rows
+  n <- nrow(dt)
+  
+  # Return an empty, correctly-typed table when there's nothing to index
+  if (is.null(n) || is.na(n) || n == 0) {
+    return(data.table::data.table(
+      start = integer(),
+      end   = integer(),
+      label = character()
+    ))
+  }
+  
+  # Compute start/end row numbers for each chunk
+  starts <- seq.int(1L, n, by = as.integer(chunk_size))
+  ends   <- pmin.int(starts + as.integer(chunk_size) - 1L, n)
+  
+  # Return ranges + label (formatted with no scientific notation)
+  data.table::data.table(
+    start = starts,
+    end   = ends,
+    label = paste0(
+      format(starts, scientific = FALSE, trim = TRUE),
+      " to ",
+      format(ends,   scientific = FALSE, trim = TRUE)
+    )
+  )
+}
 
 
 

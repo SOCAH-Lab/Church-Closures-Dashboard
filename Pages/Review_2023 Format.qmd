@@ -1,6 +1,7 @@
 ---
 title: "Prior Data Processing and Raw Data Quality Assessment"
-editor: source
+bibliography: references.bib
+csl: nature.csl
 ---
 
 ```{r}
@@ -70,6 +71,8 @@ Selected code excerpts are provided below. The complete code used to generate th
 **Number of rows:** 2,601,599\
 **Number of columns:** 31
 
+Details were sourced from the Environmental Systems Research Institute (ESRI) documentation on the Data Axle dataset utilized in this study\ [@data_axle_data_dictionary].
+
 ::: scrollable-output-terms
 - `abi:` American Business Identifier (ABI): The unique identifier for each business, used to associate addresses with a specific organization.
 
@@ -83,7 +86,7 @@ Selected code excerpts are provided below. The complete code used to generate th
 
 - `address_line_1:` The primary address line associated with the ABI entry.
 
-- `primary_naics_code:` This dataset combines the six-digit 2022 vintage [North American Industry Classification System (NAICS)](https://www.census.gov/naics/?input=813110&year=2022&details=813110) code and a two-digit proprietary code from Data Axle. The two-digit Data Axle code provides additional classification details not reflected here.
+- `primary_naics_code:` This dataset combines the six-digit 2022 vintage [North American Industry Classification System (NAICS)](https://www.census.gov/naics/?input=813110&year=2022&details=813110) code and a two-digit proprietary code from Data Axle. The two-digit Data Axle code provides additional classification details not reflected here\ [@census_naics].
 
 - `naics8_descriptions:` All entries have NAICS = 813110, indicating they are classified as "Religious Organizations", which includes churches, shrines, monasteries (except schools), synagogues, mosques, and temples.
 
@@ -115,9 +118,12 @@ data.frame(c("TRUE", "FALSE"), c(1647336, 954263)) %>% `colnames<-`(NULL) %>% `r
 It appears that there may be several entries containing reduplicated information, impacting as many as `577727` unique ABIs. We examine each unique ABI that may potentially be reduplicated in the following ways:
 
 1. Confirm that the date binaries are mutually exclusive, indicating that each recorded entry provides unique information.
+
 2. Confirm that the ZIP code remains consistent across entries.
+
 3. Verify that the following metadata fields are consistent across entries: `year_established`, `state`, `city`, `primary_naics_code`, and `naics8_descriptions`.
-4. Confirm that the longitude and latitude coordinates fall within acceptable error margins for a given business address.
+
+4. A coarse spatial check is applied to confirm that the reported longitude and latitude coordinates for each ABI fall within a maximum difference of one degree. More stringent degree thresholds are investigated in subsequent steps.
 
 ```{r}
 #| eval: false
@@ -171,7 +177,8 @@ result <- result %>% as.data.frame() %>%
 result[, -1] <- apply(result[, -1], 2, function(x) as.logical(x))
 
 
-#' @description Codebook for the output fields produced by the evaluation.
+#' @description 
+#' Codebook for the output fields produced by the evaluation.
 #' 
 #' @field abi Unique business identifier over which the evaluation is performed.
 #'                        
@@ -275,7 +282,7 @@ We expect the following results if certain combinations of assumptions are valid
 
 1. `LonLat_Similar, Zip_Same, Metadata_Same = TRUE`: The church has not moved, no alternative address outside of the reported zip code was used (e.g., PO Box), and the other metadata did not change. This implies that the only variation detected comes from the `address_line_1` entry, and no special considerations are required.
 
-    **RESULTS:** Approximately 54\% of duplicated entries apply, accounting for 33\% of all unique ABIs in the dataset. Of these, nearly 15% used a PO Box at some point, representing almost 5\% of all ABIs and 39\% of all PO Box entries..
+    **RESULTS:** Approximately 54\% of duplicated entries apply, accounting for 33\% of all unique ABIs in the dataset. Of these, nearly 15% used a PO Box at some point, representing almost 5\% of all ABIs and 39\% of all PO Box entries.
 
 2. `LonLat_Similar, Zip_Same = TRUE` and `Metadata_Same = FALSE`: The church has not significantly moved, which implies that the observed variation is driven by a field other than `address_line_1` (e.g., `year_established`, `state`, `city`, `primary_naics_code`, or `naics8_descriptions`). These discrepancies may reflect data entry errors or the recording of alternative city locations rather than an actual relocation. Further investigation will ensure completeness.
 
@@ -375,7 +382,7 @@ grid.arrange(p1, p2, nrow = 1)
 <div style="height: 1em;"></div>
 
 
-Typographical errors are most likely associated with the last three assumption combinations. Although most entries appear to satisfy superficial expectations, additional validation is clearly needed to ensure accuracy. There is also a trend suggesting that PO Box entries are a notable source of inaccuracies.
+Typographical errors are most likely associated with the the last three assumption combinations. Although most entries appear to satisfy superficial expectations, additional validation is clearly needed to ensure accuracy. PO Box entries also emerge as a notable source of possible errors if excluded or handled the same way as physical addresses.
 
 
 ## Closer Look at Assumptions #2
@@ -432,7 +439,8 @@ result2 <- result2 %>% as.data.frame() %>%
 result2[, -1] <- apply(result2[, -1], 2, function(x) as.logical(x))
 
 
-#' @description Codebook for the output fields produced by the evaluation.
+#' @description 
+#' Codebook for the output fields produced by the evaluation.
 #' 
 #' @field abi Unique business identifier. Evaluation is performed over each
 #'            unique business ID in the subset that meets the second set of
@@ -520,7 +528,7 @@ Validating city accuracy poses specific challenges, as approximately 12,000 entr
 
 ### Zip Codes
 
-Building on the results from Assumption #2, this section further explores the degree of inconsistency in the city reported for a given address. The simplemaps [United States Cities Database](https://simplemaps.com/data/us-cities) is used to identify the recommended city name for a given five-digit ZIP code, and the results are compared against the unique cities listed for each business.
+Building on the results from Assumption #2, this section further explores the degree of inconsistency in the city reported for a given address. The simplemaps [United States Cities Database](https://simplemaps.com/data/us-cities) is used to identify the recommended city name for a given five-digit ZIP code, and the results are compared against the unique cities listed for each business\ [@simplemaps].
 
 This analysis separates by unique ABI but not unique address, as the focus is on consistency between each unique ZIP code and its corresponding simplemaps result. Granularity beyond the business level is therefore unnecessary. ZIP codes with leading or trailing zeros stripped prior to receipt of this version of the raw data are marked as invalid.
 
@@ -639,7 +647,8 @@ result3 <- result3 %>%
   select(-c1, -c2, -c3)
 
 
-#' @description Codebook for the output fields produced by the evaluation.
+#' @description 
+#' Codebook for the output fields produced by the evaluation.
 #' 
 #' @field abi Unique business identifier. Evaluation is performed over each 
 #'            unique business ID in the subset that meets the second set of 
@@ -747,9 +756,10 @@ round(length(unique(poBox_all$abi))/length(unique(church_wide$abi))*100, digits 
 The full extent of the skew is not evaluated on this page. However, to illustrate the issue, several simulated examples based on real instances are provided. These examples highlight two key aspects:
 
 1. A PO Box address is used either before or after other addresses, misrepresenting the span of year open.
-2. A PO Box address is used between other addresses for more than three consecutive years.
 
-The second point may introduce skew because the closure detection method defined by Professor Ransome and Dr. Insang identifies a church closure as more than three consecutive zeros between 2001 and 2021. Under this method, sequences such as "10001" and "101" are replaced with "11111" and "111," respectively, and treated as continuously open. A PO Box used between other addresses that exceeds this threshold would therefore be artificially identified as a closure and reopening event.
+2. A PO Box address is used between other addresses for more than three consecutive years, resulting in the incorrect labeling of a church closure.
+
+The second point may introduce skew because the closure detection method defined by Professor Ransome and Dr. Insang identifies a church closure as more than three consecutive zeros between 2001 and 2021. Under this method, sequences such as "10001" and "101" are replaced with "11111" and "111," respectively, and treated as continuously open. A PO Box used between other addresses that exceeds this threshold would therefore be incorrectly identified as a closure and reopening event.
 
 Below are two artificially generated examples illustrating this issue. Real examples from the dataset are indexed in the `Explore the Raw Data.R` file under the section **ASSUMPTION TO REMOVE PO BOXES**. Note that access to the full dataset is required to view the real examples. In these cited real examples, 
 
@@ -936,7 +946,8 @@ result4 <- rbindlist(result4, use.names = TRUE, fill = TRUE) %>%
   })()
 
 
-#' @description Codebook for the output fields produced by the evaluation.
+#' @description 
+#' Codebook for the output fields produced by the evaluation.
 #'
 #' @field abi Unique business identifier. Evaluation is performed over each 
 #'            unique business ID associated with at least one PO Box address.
