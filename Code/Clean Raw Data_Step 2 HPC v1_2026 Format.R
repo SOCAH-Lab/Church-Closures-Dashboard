@@ -3,7 +3,7 @@
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: July 3rd, 2026
-## Date Modified: July 14th, 2026
+## Date Modified: July 16th, 2026
 ## 
 ## Description: This script conducts all data cleaning and validation steps: 
 ##              validating addresses via the USPS API, associating unverified 
@@ -92,24 +92,9 @@
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
 
-# Either one, the second 
+# Initiate the package environment
 source("renv/activate.R")
 renv::activate()
-
-# Check the environment is activated correctly by comparing the shell with OnDemand
-.libPaths()
-
-# # Initiate the package environment using an HPC array job
-renv::activate() 
-
-
-# Disable global cache sharing (project-scoped only). Keep this line AFTER
-# activate and BEFORE restore.
-# renv::settings$use.cache(FALSE)
-
-# Initiate the package environment locally or in an HPC live session
-# renv::restore()
-
 
 # Load packages to the environment
 suppressPackageStartupMessages({
@@ -156,7 +141,7 @@ options(tigris_use_cache = TRUE)
 sf::sf_use_s2(TRUE)
 
 # Set up the plan for parallel processing
-plan(multisession, workers = 4)
+plan(multisession, workers = 2)
 
 
 
@@ -362,8 +347,8 @@ core_areas <- setNames(
 # 
 #         renv::restore()
 # 
-#  15. Exit R to refresh the session. Now you are ready to proceed with either
-#      the live session of job array method.
+#  15. Exit R to refresh the session without saving the workspace image. Now 
+#      you are ready to proceed with either the live session of job array method.
 # 
 #         quit()
 # 
@@ -378,7 +363,7 @@ core_areas <- setNames(
 #      configured in the previous step.
 #       - RStudio Server version: RStudio-Server/2024.12.1-563-renvfix
 #       - R version: R/4.4.2-gfbf-2024a
-#       - 6 hours, 4 CPU, 10 GiB per CPU
+#       - 6 hours, 2 CPU, 10 GiB per CPU
 # 
 #   3. When the session is ready, click "Connect to RStudio Server" to open
 #      the environment.
@@ -436,31 +421,29 @@ core_areas <- setNames(
 # completing the steps outlined above, simply:
 #
 #   1. Click "<HPC name> Shell Access" to open the command-line interface.
-# 
-#   2. Request time on a compute node.
-# 
-#         salloc -p day -t 8:00:00 --mem=8G
 #
-#   3. Navigate to the project directory.
+#   2. Navigate to the project directory.
 # 
 #         cd "project_pi_bm895/sg2736/church_closures"
 # 
-#   4. After the job allocation has been approved and is ready for use, execute
+#   3. After the job allocation has been approved and is ready for use, execute
 #      the SLURM batch script:
 #
 #         chmod +x "Validation SLURM_2026 Format.sh"
 #         sbatch "Validation SLURM_2026 Format.sh"
 # 
-#   5. OPTIONAL: Check the status of the script by running the following command.
+#   4. OPTIONAL: Check the status of the script by running the following command.
 #      Replace the batch job number with the one returned by the previous step.
 # 
 #         squeue -j 12924166
 #
-#   6. OPTIONAL: Inspect any errors that arise from running the script:
+#   5. OPTIONAL: Inspect any errors that arise from running the script:
 #
 #         tail -n 50 Logs/<RUN NAME>.err
 # 
-#   7. Once all index ranges have been processed, save the results locally to
+#   7. Once all index ranges have been processed, save results locally to their
+#      respective directories specified in "PROCESS PARAMETERS FROM BATCH SCRIPT":
+# 
 #      "~/Church-Closures-Dashboard/Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format".
 #
 #   8. Return to "SUBSECTION A2: Compile the Results" in

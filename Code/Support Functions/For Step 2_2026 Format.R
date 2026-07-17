@@ -282,10 +282,11 @@
 ##       returned as one list element (analogous to reading sheets from an XLSX 
 ##       workbook).
 ## 
-##   33. make_ranges: Create 1,000-row index ranges (start/end) plus labels 
-##       (no scientific notation). Like `make_1k_indices()`, but returns a 
-##       `data.table` with numeric `start` and `end` columns, plus a 
-##       human-readable `label` column.
+##   33. make_ranges: Chunk by unique ABI (NOT row ranges). Returns a data.table 
+#        with one row per chunk:
+##          - start_abi/end_abi: positions in the unique-ABI vector
+##          - label: human-readable label
+##          - abi_list: list-column containing the ABI values in that chunk
 
 
 ## ----------------------------------------------------------------
@@ -3289,41 +3290,51 @@ read_list_from_duckdb <- function(path,
 
 
 
-make_ranges <- function(dt, chunk_size = 1000) {
-  #' Create 1,000-row index ranges (start/end) plus labels (no scientific notation).
-  #' Like `make_1k_indices()`, but returns a `data.table` with numeric `start` and
-  #' `end` columns, plus a human-readable `label` column.
+make_ranges <- function(dt, abi_col = "abi", chunk_size = 1000L) {
+  #' Chunk by unique ABI (NOT row ranges). Returns a data.table with one row per 
+  #' chunk:
+  #' - start_abi/end_abi: positions in the unique-ABI vector
+  #' - label: human-readable label
+  #' - abi_list: list-column containing the ABI values in that chunk
   #'
-  #' @param dt A `data.table` or `data.frame` to be indexed into row chunks.
-  #' @param chunk_size Integer chunk size (defaults to 1000).
+  #' @param dt data.table/data.frame
+  #' @param abi_col ABI column name
+  #' @param chunk_size number of ABIs per chunk (defaults 1000)
   #'
-  #' @return A `data.table` with columns `start`, `end`, and `label`.
+  #' @return data.table with start_abi, end_abi, label, abi_list
   
-  # Determine number of rows
-  n <- nrow(dt)
+  if (!abi_col %in% names(dt)) {
+    stop(sprintf("make_ranges(): column '%s' not found in dt.", abi_col))
+  }
   
-  # Return an empty, correctly-typed table when there's nothing to index
-  if (is.null(n) || is.na(n) || n == 0) {
+  chunk_size <- as.integer(chunk_size)
+  if (is.na(chunk_size) || chunk_size <= 0L) stop("chunk_size must be a positive integer.")
+  
+  # Pull unique ABIs (keeps first-seen order; low memory footprint)
+  abi_u <- unique(data.table::as.data.table(dt)[[abi_col]])
+  m <- length(abi_u)
+  
+  if (m == 0L) {
     return(data.table::data.table(
-      start = integer(),
-      end   = integer(),
-      label = character()
+      start_abi = integer(),
+      end_abi   = integer(),
+      label     = character(),
+      abi_list  = I(list())
     ))
   }
   
-  # Compute start/end row numbers for each chunk
-  starts <- seq.int(1L, n, by = as.integer(chunk_size))
-  ends   <- pmin.int(starts + as.integer(chunk_size) - 1L, n)
+  starts <- seq.int(1L, m, by = chunk_size)
+  ends   <- pmin.int(starts + chunk_size - 1L, m)
   
-  # Return ranges + label (formatted with no scientific notation)
   data.table::data.table(
-    start = starts,
-    end   = ends,
-    label = paste0(
+    start_abi = starts,
+    end_abi   = ends,
+    label     = paste0(
       format(starts, scientific = FALSE, trim = TRUE),
       " to ",
-      format(ends,   scientific = FALSE, trim = TRUE)
-    )
+      format(ends, scientific = FALSE, trim = TRUE)
+    ),
+    abi_list  = lapply(seq_along(starts), function(i) abi_u[starts[i]:ends[i]])
   )
 }
 
