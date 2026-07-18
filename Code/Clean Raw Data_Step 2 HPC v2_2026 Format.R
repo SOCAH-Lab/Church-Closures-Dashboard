@@ -161,6 +161,10 @@ plan(multisession, workers = 4)
 # Set output directory locally
 outdir <- "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format"
 
+# The code provided below creates the results directories for a live or local
+# session. Note that the shell script for the batch array creates a separate
+# folder for each job's output, which differs from this directory structure.
+
 dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
 dir.create(file.path(outdir, "Verified Result"), showWarnings = FALSE, recursive = TRUE)
 dir.create(file.path(outdir, "Address QC"), showWarnings = FALSE, recursive = TRUE)
@@ -356,6 +360,11 @@ core_areas <- setNames(
 # 
 #         quit()
 # 
+#  16. If you experience issues loading installed packages from the cache,
+#      try deleting the renv directory and lockfile, then re-upload them
+#      before repeating the setup steps. Note that it may sometimes take a
+#      few minutes for the system to reflect installations or other updates.
+# 
 # 
 # The live session operates in a manner similar to running the script locally. 
 # After completing the steps outlined above, simply:
@@ -445,6 +454,11 @@ core_areas <- setNames(
 #         chmod +x "Validation SLURM_2026 Format.sh"
 #         sbatch "Validation SLURM_2026 Format.sh"
 # 
+#      This process will generate two new directories: Results and Logs. The
+#      Logs directory contains the output and error files produced by each
+#      array job. Successfully written results will be saved to their
+#      respective subdirectory within Results.
+# 
 #   4. OPTIONAL: Check the status of the script by running the following command.
 #      Replace the batch job number with the one returned by the previous step.
 # 
@@ -484,32 +498,20 @@ church_2026_form_dt <- as.data.table(church_2026_form)  # Convert for efficient 
 setorder(church_2026_form_dt, state, abi)  # Organize the table by state to increase census boundary efficiency then abi
 
 ## Generate the parsed indices based on unique ABI positions (labels are just "start to end")
-#processed_indices <- make_ranges(church_2026_form_dt, abi_col = "abi", chunk_size = 5000L) %>%
+# processed_indices <- make_ranges(church_2026_form_dt, abi_col = "abi", chunk_size = 5000L) %>%
 #  .$label
 
-processed_indices <- c(
-  "1 to 100",
-  "101 to 200",
-  "201 to 300",
-  "301 to 400",
-  "401 to 500",
-  "501 to 600",
-  "601 to 700",
-  "701 to 800",
-  "801 to 900",
-  "901 to 1000",
-  "1001 to 1100",
-  "1101 to 1200",
-  "1201 to 1300",
-  "1301 to 1400",
-  "1401 to 1500"
+processed_indices <- sprintf(
+  "%d to %d",
+  seq(1, 1080001, by = 5000),
+  c(seq(5000, 1080000, by = 5000), 1080764)
 )
 
 # # Set index using an HPC array job
 # current_array_index <- processed_indices[idx]
 
 # Set index locally or in an HPC live session
-idx <- 3
+idx <- 9
 current_array_index <- processed_indices[idx]
 
 nums <- as.integer(unlist(regmatches(current_array_index, gregexpr("\\d+", current_array_index))))
@@ -520,8 +522,6 @@ index <- seq.int(nums[1], nums[2])
 # Define the search space as the ABI values for this chunk (mutually exclusive)
 #search_space <- c(175639996, 175675578, 175677657, 175699420, 140702374, 140702952, 140702978, 478545, 626978, 637223)
 search_space <- unique(church_2026_form_dt[, abi])[index]
-
-
 
 
 ## --------------------
@@ -799,6 +799,8 @@ blocks_by_state <- read_state_gpkgs_for_data(
 ## --------------------
 ## SUBSECTION C1: Algorithm
 
+search_space <- search_space[800:900]
+
 # Initialize the empty lists
 finish_build <- vector("list", length(search_space))
 qc_address   <- list(qc1 = list(), qc2 = list(), qc3 = list())
@@ -811,6 +813,27 @@ pb = txtProgressBar(min = 0, max = length(search_space), style = 3)
 for (i in 1:length(search_space)) {
   # Subset to only entries associated with one business ABI.
   subset <- process_df[abi %in% search_space[i]]
+  
+  
+  # ---- reset per-ABI verification state ----
+  na_addresses <- FALSE
+  dont_match   <- NULL
+  
+  reduced_candidate_addresses <- setNames(
+    as.data.frame(replicate(14, logical(0), simplify = FALSE)),
+    c("best_address","state","n_address","enough_geo","lat_avg","lon_avg",
+      "geolocation_verified","n_attempts","query_statuses","geo_matched_address",
+      "benchmark","vintage_input","latitude_ver","longitude_ver")
+  )
+  
+  # combined table + checks
+  candidate_addresses         <- data.table()
+  reduced_candidate_addresses <- data.table()
+  induced_duplicates          <- FALSE
+  combined                    <- data.table()
+  qc_geo_df                   <- data.table()
+  qc_census_df                <- data.table()
+  
   
   # --------------------
   # LOOP PART A: Isolate Unique Candidate Addresses
@@ -927,6 +950,26 @@ for (i in 1:length(search_space)) {
     
     if ( verify_addresses == TRUE && !is.null(candidate_addresses$do_api) && all(candidate_addresses$do_api == TRUE) ) {
       
+      # ---- reset per-ABI verification + triage state ----
+      match_to   <- data.table()
+      unmatched  <- data.table()
+      cand       <- data.table()
+      best       <- data.table()
+      
+      # fuzzy/exact triage working vars
+      target_line_1      <- NA_character_
+      comparisons_line_1 <- character(0)
+      match_line_1       <- list()
+      target_cluster     <- character(0)
+      threshold_line1    <- NA_real_
+      match_check        <- NA_integer_
+      
+      # USPS per-row holders (initialized here for clarity; also reset inside the loop)
+      usps_validated     <- list(ok = FALSE, status = NA_character_, status_detail = NA_character_)
+      attempt_succeeded  <- NA_character_
+      attempt_log        <- list()
+      
+      
       # Prepare candidate_addresses for QC output:
       candidate_addresses <- candidate_addresses %>%
         #   - Initialize verification status and verified address storage fields.
@@ -942,15 +985,34 @@ for (i in 1:length(search_space)) {
       # --------------------
       # LOOP PART B.i.: Validate Addresses with USPS Database
       
-      for (j in 1:nrow(candidate_addresses)) {
+      for (addr_idx in seq_len(nrow(candidate_addresses))) {
         
-        # Pull the j-th row into variables used by validate_usps_address()
-        address1 <- candidate_addresses$address_line_1[j]
+        # ---- reset per-row USPS state ----
+        address1 <- address2 <- city <- state <- zip5 <- zip4 <- NA_character_
+        zip5_raw <- NA_character_
+        zip5_candidates <- character(0)
+        query_result <- NA_character_
+        
+        usps_validated    <- list(ok = FALSE, status = NA_character_, status_detail = NA_character_)
+        attempt_succeeded <- NA_character_
+        attempt_log       <- list()
+        last_log          <- NULL
+        
+        # then pull row fields...
+        address1 <- candidate_addresses$address_line_1[addr_idx]
         address2 <- ""
-        city     <- candidate_addresses$city[j]
-        state    <- candidate_addresses$state[j]
-        zip5     <- candidate_addresses$zipcode[j]
-        zip4     <- ifelse(is.na(candidate_addresses$zip4[j]), "", candidate_addresses$zip4[j])
+        city     <- candidate_addresses$city[addr_idx]
+        state    <- candidate_addresses$state[addr_idx]
+        zip5     <- candidate_addresses$zipcode[addr_idx]
+        zip4     <- ifelse(is.na(candidate_addresses$zip4[addr_idx]), "", candidate_addresses$zip4[addr_idx])
+        
+        # Pull the addr_idx-th row into variables used by validate_usps_address()
+        address1 <- candidate_addresses$address_line_1[addr_idx]
+        address2 <- ""
+        city     <- candidate_addresses$city[addr_idx]
+        state    <- candidate_addresses$state[addr_idx]
+        zip5     <- candidate_addresses$zipcode[addr_idx]
+        zip4     <- ifelse(is.na(candidate_addresses$zip4[addr_idx]), "", candidate_addresses$zip4[addr_idx])
         
         # Track which attempt succeeded and collect non-hard-stop failure reasons
         # across all attempts for audit/debugging purposes.
@@ -1063,18 +1125,18 @@ for (i in 1:length(search_space)) {
           last_log <- Filter(Negate(is.null), attempt_log)
           last_log <- if (length(last_log) > 0) last_log[[length(last_log)]] else NULL
           
-          candidate_addresses$address_verified[j]  <- FALSE
-          candidate_addresses$verified_address[j]  <- "No address match found"
-          candidate_addresses$attempt_succeeded[j] <- "None"
+          candidate_addresses$address_verified[addr_idx]  <- FALSE
+          candidate_addresses$verified_address[addr_idx]  <- "No address match found"
+          candidate_addresses$attempt_succeeded[addr_idx] <- "None"
           
         } else {
           
           # Build a formatted address string ("line1, line2, city, state ZIP-EXT"),
           # treating blank/whitespace-only fields as NA to omit them from the output.
-          candidate_addresses$address_verified[j]  <- TRUE
-          candidate_addresses$attempt_succeeded[j] <- attempt_succeeded
+          candidate_addresses$address_verified[addr_idx]  <- TRUE
+          candidate_addresses$attempt_succeeded[addr_idx] <- attempt_succeeded
           
-          candidate_addresses$verified_address[j] <-
+          candidate_addresses$verified_address[addr_idx] <-
             paste(
               stringr::str_c(
                 stats::na.omit(
@@ -1140,6 +1202,18 @@ for (i in 1:length(search_space)) {
       #         - If validation fails, retain the record as a separate unverified 
       #           entry.
       
+      # ---- reset per-batch triage state (before splitting) ----
+      match_to   <- data.table()
+      unmatched  <- data.table()
+      cand       <- data.table()
+      best       <- data.table()
+      
+      target_line_1      <- NA_character_
+      comparisons_line_1 <- character(0)
+      match_line_1       <- list()
+      target_cluster     <- character(0)
+      threshold_line1    <- NA_real_
+      match_check        <- NA_integer_
       
       # Only proceed if (1) there are still unverified addresses to resolve and
       # (2) there is at least one verified address available to test against.
@@ -1154,10 +1228,27 @@ for (i in 1:length(search_space)) {
         # Assign a unique row index
         unmatched[, u_id := .I]
         
-        for(j in 1:nrow(unmatched)) {
+        for (u_idx in seq_len(nrow(unmatched))) {
+          
+          # ---- reset per-unmatched-record triage state ----
+          target_line_1      <- NA_character_
+          comparisons_line_1 <- character(0)
+          
+          match_line_1      <- list()
+          target_cluster    <- character(0)
+          threshold_line1   <- 0.2
+          match_check       <- NA_integer_
+          
+          cand <- data.table()
+          best <- data.table()
+          
+          # then set the target and comparisons
+          target_line_1      <- unmatched[u_idx, address_line_1]
+          comparisons_line_1 <- c(match_to$address_line_1, target_line_1)
+          
           
           # Isolate the addresses for exact test comparison
-          target_line_1 <- unmatched[j, address_line_1]
+          target_line_1 <- unmatched[u_idx, address_line_1]
           comparisons_line_1 <- c(match_to$address_line_1, target_line_1)
           
           # Exact match tests for the address_line_1 and whole address
@@ -1172,7 +1263,7 @@ for (i in 1:length(search_space)) {
             # `allow.cartesian = TRUE` handles the many-to-many relationship.
             cand <- merge(
               match_to,
-              unmatched[j, .(u_id, address_line_1, u_min = anchor_year_min, u_max = anchor_year_max)],
+              unmatched[u_idx, .(u_id, address_line_1, u_min = anchor_year_min, u_max = anchor_year_max)],
               by = "address_line_1",
               allow.cartesian = TRUE
             )
@@ -1212,11 +1303,11 @@ for (i in 1:length(search_space)) {
             
             
             # Update unmatched records with the associated verified address
-            unmatched[j, "verified_address"] <- best[1, verified_address]
-            unmatched[j, "address_verified"] <- "Exact match"
-            unmatched[j, "geolocation_test"] <- "Override"
-            unmatched[j, "latitude_avg"] <- best[1, latitude_avg]
-            unmatched[j, "longitude_avg"] <- best[1, longitude_avg]
+            unmatched[u_idx, "verified_address"] <- best[1, verified_address]
+            unmatched[u_idx, "address_verified"] <- "Exact match"
+            unmatched[u_idx, "geolocation_test"] <- "Override"
+            unmatched[u_idx, "latitude_avg"] <- best[1, latitude_avg]
+            unmatched[u_idx, "longitude_avg"] <- best[1, longitude_avg]
             
             
             # -- b. Fuzzy Match on address_line_1 -----------------------------------
@@ -1277,7 +1368,7 @@ for (i in 1:length(search_space)) {
               cand <- bind_cols(
                 match_to[match_to$address_line_1 %in% 
                            match_line_1[vapply(match_line_1, length, integer(1)) > 1][[1]], ],
-                unmatched[j, .(
+                unmatched[u_idx, .(
                   u_id,
                   u_address_line_1 = address_line_1,      # ← renamed: unmatched record's street address
                   u_min            = anchor_year_min,
@@ -1332,17 +1423,17 @@ for (i in 1:length(search_space)) {
               if (nrow(best) == 0L) {
                 
                 # No candidate survived the geolocation test — flag as failed
-                unmatched[j, "geolocation_test"] <- "FALSE"
+                unmatched[u_idx, "geolocation_test"] <- "FALSE"
                 
               } else {
                 
                 # Geolocation test passed — assign the top candidate as the verified address.
                 # u_address_line_1 confirms which unmatched street was resolved.
-                unmatched[j, "verified_address"] <- best[1, verified_address]
-                unmatched[j, "address_verified"] <- "Fuzzy match"
-                unmatched[j, "geolocation_test"] <- "TRUE"
-                unmatched[j, "latitude_avg"]     <- best[1, latitude_avg]
-                unmatched[j, "longitude_avg"]    <- best[1, longitude_avg]
+                unmatched[u_idx, "verified_address"] <- best[1, verified_address]
+                unmatched[u_idx, "address_verified"] <- "Fuzzy match"
+                unmatched[u_idx, "geolocation_test"] <- "TRUE"
+                unmatched[u_idx, "latitude_avg"]     <- best[1, latitude_avg]
+                unmatched[u_idx, "longitude_avg"]    <- best[1, longitude_avg]
                 
               }
               
@@ -1354,17 +1445,17 @@ for (i in 1:length(search_space)) {
               # Threshold reached 0 before candidates could be separated, or the
               # step-wise threshold failed to resolve to a single candidate —
               # no single best match could be isolated.
-              unmatched[j, "address_verified"] <- "No Separable Match"
+              unmatched[u_idx, "address_verified"] <- "No Separable Match"
               
             } else if ( match_check == 1 ) {
               
               # No verified match exists at any threshold
-              unmatched[j, "address_verified"] <- "FALSE"
+              unmatched[u_idx, "address_verified"] <- "FALSE"
               
             } else {
               
               # Fallback: condition was unanticipated — flag for manual review
-              unmatched[j, "address_verified"] <- "Unanticipated Error"
+              unmatched[u_idx, "address_verified"] <- "Unanticipated Error"
               
             }
           }
@@ -1374,6 +1465,9 @@ for (i in 1:length(search_space)) {
         # Recombine all separated dataset partitions into a single unified dataset
         common <- Reduce(intersect, list(names(match_to), names(unmatched)))
         candidate_addresses <- rbindlist(list(match_to[, ..common], unmatched[, ..common]), use.names = TRUE)
+        
+        # ---- optional: clear triage temporaries after recombination ----
+        rm(match_to, unmatched, cand, best, match_line_1, target_cluster)
       }
       
       
@@ -1387,8 +1481,14 @@ for (i in 1:length(search_space)) {
       setorder(candidate_addresses, anchor_year_min)
       
     } 
+
     
     # Separate addresses into those that were verified and those that were not
+    
+    # ---- reset per-ABI verification state ----
+    ver_candidates   <- data.table()
+    unver_candidates <- data.table()
+    
     if ("address_verified" %in% names(candidate_addresses)) {
       
       ver_candidates <- candidate_addresses[
@@ -1426,7 +1526,6 @@ for (i in 1:length(search_space)) {
         mutate(address_matched = NA_character_, matched_address = NA_character_) %>%
         #   - Initialize geolocation_test as NA for downstream geocoding checks.
         mutate(geolocation_test = NA_character_)
-      
       
       # --------------------
       # LOOP PART B.iii.: Agnostically Resolve Record Heterogeneity
@@ -1474,6 +1573,9 @@ for (i in 1:length(search_space)) {
       #   - At most one match per record; ties resolved by closest lon/lat, then a
       #     stable tie-break.
       
+      # ---- reset per-ABI verification state ----
+      check_city <- data.table()
+      comparisons_line_1 <- character(0)
       
       # ---- Verify city vs ZIP (prep for downstream matching) ----
       # Derive pred_city from zipcode using zip_city_lookup, then flag whether the
@@ -1510,6 +1612,13 @@ for (i in 1:length(search_space)) {
       comparisons_line_1 <- check_city$address_line_1
       
       if (length(comparisons_line_1) > 1) {
+        
+        # ---- reset per-ABI verification state ----
+        match_line_1       <- list()
+        similar_line_1     <- list()
+        which_similar      <- list()
+        n_matches          <- integer(0)
+        
         # threshold = 0   : exact matches only
         # threshold = 0.2 : "similar enough" matches (fuzzy groups)
         match_line_1   <- find_similar_addresses(comparisons_line_1, threshold = 0)
@@ -1530,54 +1639,45 @@ for (i in 1:length(search_space)) {
         
         
         # -- a. Exact duplicate address_line_1 --------------------------------------
-        #
         # Goal:
-        #   For each address_line_1 that appears more than once, use within-line_1
-        #   evidence to map records to the “best” anchor record (typically within each
-        #   pred_city), so later fuzzy steps have fewer unresolved conflicts.
+        #   For each address_line_1 that appears more than once, use within-line_1 
+        #   evidence to map records to a “best” anchor so later fuzzy steps face 
+        #   fewer conflicts.
         #
-        # How groups are formed:
+        # Grouping:
         #   exact_matches = address_line_1 values with frequency > 1 in check_city.
         #
         # Within each exact address_line_1 group:
-        #   Split into:
-        #     dtT (trusted):   city_match == TRUE (city/ZIP consistent; eligible anchors)
-        #     dtF (untrusted): city_match is FALSE/NA (conflict or unverified; rows to resolve)
+        #   dtT (trusted)   = city_match %in% TRUE   (eligible anchors)
+        #   dtF (untrusted) = everything else        (rows to resolve)
         #
-        # Anchor strategy (match_tag records which branch was used):
-        #   1) no_trusted_anchor:
-        #      dtT is empty → choose anchor from dtF, scored against dtF itself.
-        #   2) trusted_only:
-        #      dtF is empty → choose anchor(s) from dtT, scored against dtT itself.
-        #   3) conflict_resolved:
-        #      both dtT and dtF present → build match_pool = dtT ∪ dtF and choose
-        #      anchor(s) from dtT scored against the full match_pool (optimized for all rows).
-        #
-        # Per-city behavior:
-        #   If dtT exists, choose ONE anchor per pred_city from dtT (via pick_best()).
-        #   If dtT is empty, a single anchor is chosen from dtF (no per-city anchors).
+        # Anchor selection:
+        #   - If dtT exists: choose ONE anchor per join_city (typically pred_city) 
+        #     from dtT via pick_best(), scored against the full group (dtT ∪ dtF).
+        #   - If dtT empty: choose a single anchor from dtF, scored within dtF.
         #
         # Candidate generation:
-        #   Cross-join dtF_to_match to the chosen anchor(s) on pred_city.
-        #   Self-matches are removed (a record cannot match itself).
+        #   Join unresolved rows to anchor(s) on join_city (pred_city if present
+        #   and city if not); exclude self-matches.
         #
-        # Scoring for later ranking/dedup:
-        #   overlap/year_gap computed from anchor_year_* windows;
-        #   lon/lat diffs computed when both sides have coordinates (has_geo).
+        # Geo:
+        #   Permissive: compute geo diffs if available for ordering/diagnostics, 
+        #   but do NOT drop pairs based on geo thresholds in this exact-duplicate 
+        #   pass.
         #
-        # IMPORTANT NOTE:
-        #   This “exact duplicate” pass is permissive: it does NOT drop pairs that fail
-        #   a geo threshold. Instead, geo fields are computed for downstream ordering.
-        #
-        # Write-back policy (first-write wins):
-        #   Only fill blank/NA fields in check_city so earlier, higher-confidence passes
-        #   are never overwritten.
-        #   This pass tags:
+        # Write-back (first-write wins):
+        #   Only fill blank fields; never overwrite existing matches.
+        #   Tags:
         #     address_matched  = "Exact match"
-        #     geolocation_test = "Override"
-        #   (meaning: accepted as an exact line_1-based linkage; geo is not enforced here).
+        #     geolocation_test = "Override" (exact linkage accepted; geo not 
+        #     enforced here)
+        
         
         if (any(n_matches > 1L)) {
+          
+          # ---- reset per-ABI verification state ----
+          exact_matches <- character(0)
+          result        <- data.table()
           
           # address_line_1 values that occur more than once (exact duplicates on line_1)
           exact_matches <- names(n_matches[n_matches > 1])
@@ -1585,6 +1685,15 @@ for (i in 1:length(search_space)) {
           choose_match <- vector("list", length(exact_matches))
           
           for (j in seq_along(exact_matches)) {
+            
+            # ---- reset per-ABI verification state ----
+            options       <- data.table()
+            dtT           <- data.table()
+            dtF           <- data.table()
+            match_pool    <- data.table()
+            best_anchor   <- data.table()
+            dtF_to_match  <- data.table()
+            cand          <- data.table()
             
             # All rows for this street address_line_1 value
             options <- check_city[address_line_1 %in% exact_matches[j]]
@@ -1600,56 +1709,63 @@ for (i in 1:length(search_space)) {
               next
             }
             
+            # --- Choose anchor(s) PER pred_city and define the rows-to-annotate --------
             if (nrow(dtT) == 0L) {
-              # No trusted anchors → choose anchor from dtF, scored against dtF
+              # No trusted anchors → anchors come from dtF, per pred_city, scored against dtF
               match_pool   <- dtF
-              best_anchor  <- pick_best(copy(dtF), geo_tol = 0.02, reference_pool = match_pool)
-              dtF_to_match <- dtF[combined_address != best_anchor$combined_address]
+              best_anchor  <- pick_best_by_city(dtF, match_pool, geo_tol = 0.02)
+              
+              # Rows to annotate = all non-anchor rows from dtF
+              dtF_to_match <- dtF[!best_anchor, on = .(combined_address)]
               match_tag    <- "no_trusted_anchor"
               
             } else if (nrow(dtF) == 0L) {
-              # All rows trusted → choose anchor(s) from dtT, scored against dtT
+              # All rows trusted → anchors from dtT, per pred_city, scored against dtT
               match_pool   <- dtT
-              best_anchor  <- pick_best(copy(dtT), geo_tol = 0.02, reference_pool = match_pool)
-              dtF_to_match <- dtT[combined_address != best_anchor$combined_address]
+              best_anchor  <- pick_best_by_city(dtT, match_pool, geo_tol = 0.02)
+              
+              # Rows to annotate = all non-anchor rows from dtT
+              dtF_to_match <- dtT[!best_anchor, on = .(combined_address)]
               match_tag    <- "trusted_only"
               
             } else {
-              # Both sides present → choose anchor(s) from dtT, scored against dtT ∪ dtF
+              # Both sides present → anchors from dtT, per pred_city, scored against dtT ∪ dtF
               match_pool   <- rbindlist(list(dtT, dtF), use.names = TRUE, fill = TRUE)
-              best_anchor  <- pick_best(copy(dtT), geo_tol = 0.02, reference_pool = match_pool)
-              dtF_to_match <- match_pool[combined_address != best_anchor$combined_address]
+              best_anchor  <- pick_best_by_city(dtT, match_pool, geo_tol = 0.02)
+              
+              # Rows to annotate = everything in match_pool except the chosen anchors
+              dtF_to_match <- match_pool[!best_anchor, on = .(combined_address)]
               match_tag    <- "conflict_resolved"
             }
             
-            # If excluding the anchor left nothing to match, nothing left to annotate
+            # If excluding the anchor(s) left nothing to match, nothing left to annotate
             if (nrow(dtF_to_match) == 0L) {
               choose_match[[j]] <- data.table()
               next
             }
             
-            # Stable row ID belongs on the rows-to-annotate (dtF_to_match), not on the anchor
+            # Stable row ID belongs on the rows-to-annotate, not on the anchor(s)
             dtF_to_match[, row_id := .I]
             
-            # If we have trusted anchors, pick ONE best anchor PER pred_city from dtT,
-            # using match_pool as the reference context. Otherwise keep the single dtF anchor.
-            if (nrow(dtT) > 0L) {
-              best_anchor <- dtT[
-                , {
-                  pa <- pick_best(copy(.SD), geo_tol = 0.02, reference_pool = match_pool)
-                  pa
-                },
-                by = pred_city
-              ]
-            } else {
-              best_anchor <- as.data.table(best_anchor)
-            }
+            # helper condition: treat "No Matches" (and optionally NA/"") as unusable pred_city
+            dtF_to_match[, join_city := fifelse(
+              !is.na(pred_city) & pred_city != "No Matches" & pred_city != "",
+              pred_city,
+              city
+            )]
             
-            # Join anchor(s) to rows-to-annotate on pred_city.
-            # allow.cartesian=TRUE is defensive if duplicates exist.
+            best_anchor[, join_city := fifelse(
+              !is.na(pred_city) & pred_city != "No Matches" & pred_city != "",
+              pred_city,
+              city
+            )]
+            
+            # --- Pair each row-to-annotate with its city's best anchor -----------------
+            # IMPORTANT: because best_anchor is one row per pred_city, this is a 1:1 join
+            # on pred_city for typical data (allow.cartesian is defensive).
             cand <- best_anchor[
               dtF_to_match,
-              on  = .(pred_city),
+              on = .(join_city),
               allow.cartesian = TRUE,
               nomatch = NA,
               .(
@@ -1664,6 +1780,7 @@ for (i in 1:length(search_space)) {
                 latitude_i               = i.latitude_avg,
                 longitude_i              = i.longitude_avg,
                 pred_city                = i.pred_city,
+                
                 matched_combined_address = combined_address,
                 matched_anchor_min       = anchor_year_min,
                 matched_anchor_max       = anchor_year_max,
@@ -1679,18 +1796,22 @@ for (i in 1:length(search_space)) {
               next
             }
             
-            # Drop self-matches — a row cannot be its own best match
-            cand <- cand[combined_address_i != matched_combined_address]
-            
-            # Drop rows with no pred_city match in the pool — left for the fuzzy step
+            # Drop rows with no join_city match in the pool — left for the fuzzy step
             cand <- cand[!is.na(matched_combined_address)]
-            
             if (nrow(cand) == 0L) {
               choose_match[[j]] <- data.table()
               next
             }
             
-            # Score each candidate pair for later ordering and selection
+            # Drop self-matches (can happen if best_anchor was chosen from match_pool and
+            # that same row is in dtF_to_match due to non-unique combined_address, etc.)
+            cand <- cand[combined_address_i != matched_combined_address]
+            if (nrow(cand) == 0L) {
+              choose_match[[j]] <- data.table()
+              next
+            }
+            
+            # --- Score each candidate pair (for later ordering/selection) --------------
             cand[, `:=`(
               overlap  = (anchor_min_i <= matched_anchor_max) & (matched_anchor_min <= anchor_max_i),
               year_gap = fifelse(
@@ -1777,64 +1898,40 @@ for (i in 1:length(search_space)) {
         }
         
         
-        # -- b. Fuzzy Match on address_line_1 -----------------------------------
+        # -- b. Fuzzy match on address_line_1 ---------------------------------------
+        # Goal:
+        #   Within each cluster of similar address_line_1 values, choose ONE 
+        #   anchor per join_city and map currently-unmatched rows in that 
+        #   join_city to it.
         #
-        # Goal: within each cluster of similar address_line_1 values, pick ONE anchor
-        # per pred_city and map currently-unmatched records in that pred_city to it.
+        # Anchors (resolved BEFORE joining):
+        #   Tier 1 (reuse prior confirmed match):
+        #     If any row in join_city has non-blank matched_address, promote 
+        #     ONE best target: prefer Exact/Override-like, then earliest 
+        #     anchor_year_min, then alphabetic.
+        #   Tier 2 (no prior match):
+        #     Eligible rows: join_city present AND city_match %in% TRUE AND 
+        #     still unmatched. pick_best() selects one anchor per join_city 
+        #     using the full cluster as context.
         #
-        # Anchor selection (per pred_city) — two tiers, resolved BEFORE the join:
+        # Matching:
+        #   Only attempt matches for currently-unmatched rows (first-write wins).
+        #   Exclude self-matches.
         #
-        # Tier 1 — confirmed matched_address exists for this pred_city:
-        #   Any row with a non-blank matched_address (regardless of city_match)
-        #   promotes that address as the anchor target for its pred_city group.
-        #   Among multiple candidates for the same pred_city:
-        #     i)   Exact/Override-like first (grepl "^Exact" on address_matched)
-        #     ii)  earliest anchor_year_min
-        #     iii) alphabetic matched_address tie-break
-        #   Resolved to ONE target per pred_city in prior_best so each pred_city group
-        #   receives exactly one unambiguous anchor match_target.
+        # Geo guardrail (per-coordinate):
+        #   Test lon only when both lon values exist; test lat only when both l
+        #   at values exist. A pair FAILS if any tested dimension exceeds 
+        #   tolerance (0.02°) and is dropped. If a dimension can’t be tested 
+        #   (missing on either side), the pair is retained and the non-NA 
+        #   coordinate is carried forward to populate missing geo.
         #
-        # Tier 2 — no confirmed matched_address for this pred_city:
-        #   Only rows with pred_city not NA AND city_match == TRUE are eligible.
-        #   pick_best() scores candidates against the full cluster pool:
-        #     i)   geo_agree        — maximise geo-compatible neighbours (within 0.02°)
-        #     ii)  year_overlap     — maximise temporally overlapping neighbours
-        #     iii) year_gap_total   — minimise total year distance to non-overlapping rows
-        #     iv)  has_zip4         — prefer rows with a ZIP+4 extension
-        #     v)   n_geo            — prefer rows backed by more geocoded observations
-        #     vi)  combined_address — alphabetic stable tie-break
-        #   Tier 2 only runs for pred_city groups absent from prior_best (i.e., not Tier 1).
-        #
-        # Matching rule:
-        #   Only attempt anchor-joins for rows that are currently unmatched
-        #   (matched_address is NA/blank). Matched rows are not reprocessed and are not
-        #   overwritten (“first-write wins” policy).
-        #
-        # Geo guardrail (two outcomes):
-        #   1) If BOTH sides have coordinates AND
-        #      (|Δlon| > 0.02 OR |Δlat| > 0.02):
-        #        - the pair is DROPPED from match consideration (match not applied)
-        #        - the source record is recorded as a geo-fail attempt and, if the record
-        #          remains unmatched, geolocation_test is stamped "FALSE" at write-back.
-        #   2) If either side is missing coordinates (has_geo == FALSE):
-        #        - the pair is retained for downstream handling (cannot validate geo).
-        #
-        # Per-record selection:
-        #   One match per input record. Prefer geo_valid pairs first, then closest by
-        #   lon/lat, then stable alphabetic tie-break.
-        #
-        # Write-back (first-write wins):
-        #   Only fills blank/NA fields so earlier, higher-confidence passes are never
-        #   overwritten.
-        #   - matched_address is written ONLY when geolocation_test == "TRUE"
-        #     (i.e., geo_valid passed).
-        #   - geo guardrail failures can stamp geolocation_test = "FALSE" ONLY when the
-        #     record is still unmatched (no overwrites).
-        #
-        # Tagging:
-        #   address_matched is set to "Fuzzy match" for records updated by this pass.
-        #   geolocation_test is "TRUE" for applied matches; "FALSE" for recorded geo-fail
-        #   attempts (when still unmatched).
+        # Selection + tagging:
+        #   One match per record: prefer full geo PASS, then partial PASS, then 
+        #   closest diffs.
+        # 
+        #   address_matched  = "Fuzzy match"
+        #   geolocation_test = "PASS" / "PASS; no Lon" / "PASS; no Lat" / "PASS; no Lon/Lat"
+        #   Geo failures are recorded as "FAIL" and stamped only if the record remains unmatched.
         
         if (length(which_similar) > 0L) {
           
@@ -1843,6 +1940,26 @@ for (i in 1:length(search_space)) {
           choose_geo_fail <- vector("list", length(which_similar))
           
           for (j in seq_along(which_similar)) {
+            
+            # ---- reset per-ABI verification state ----
+            options          <- data.table()
+            full_options     <- data.table()
+            all_join_cities  <- character(0)
+            prior_match_pool <- data.table()
+            prior_best       <- data.table()
+            valid_anchors    <- data.table()
+            tier2_cities     <- character(0)
+            tier1_anchors    <- data.table()
+            tier2_anchors    <- data.table()
+            anchors          <- data.table()
+            geo_lookup       <- data.table()
+            options_to_join  <- data.table()
+            m_best           <- data.table()
+            m_fail           <- data.table()
+            fail_result      <- data.table()
+            # scalars / per-group scratch values (initialize so stale values can't be reused)
+            target_addr      <- NA_character_
+            meta             <- data.table()
             
             # ── 0. Subset for this similarity cluster ───────────────────────────────
             # options = every record in the current “similar address_line_1” cluster.
@@ -1862,88 +1979,88 @@ for (i in 1:length(search_space)) {
             # for scoring Tier 2 anchors (so ranking sees the entire cluster context).
             full_options <- copy(options)
             
-            # ── 0b. All unique pred_city values present in this cluster ─────────────
-            # We only attempt anchor joins for non-NA pred_city groups.
-            all_pred_cities <- unique(options$pred_city)
-            all_pred_cities <- all_pred_cities[!is.na(all_pred_cities)]
+            # ── 0b. Build join key (pred_city unless unusable, else city) ───────────
+            options[, join_city := fifelse(
+              !is.na(pred_city) & pred_city != "No Matches" & trimws(pred_city) != "",
+              pred_city,
+              city
+            )]
             
-            if (length(all_pred_cities) == 0L) {
+            all_join_cities <- unique(options$join_city)
+            all_join_cities <- all_join_cities[!is.na(all_join_cities) & trimws(all_join_cities) != ""]
+            
+            if (length(all_join_cities) == 0L) {
               choose_match[[j]]    <- data.table()
               choose_geo_fail[[j]] <- data.table()
               next
             }
             
-            # ── 0c. Tier 1 — one pre-resolved matched_address per pred_city ─────────
-            # If a pred_city already has a confirmed matched_address (from a higher-
-            # confidence pass, e.g. Exact/API/Override), use that as the anchor target.
-            # This tier ignores city_match and exists specifically to reuse prior decisions.
+            # ── 0c. Tier 1 — one pre-resolved matched_address per join_city ─────────
             prior_match_pool <- options[
-              !is.na(pred_city) &
-                !is.na(matched_address) &
-                trimws(matched_address) != ""
+              !is.na(join_city) & trimws(join_city) != "" &
+                !is.na(matched_address) & trimws(matched_address) != ""
             ]
             
             if (nrow(prior_match_pool) > 0L) {
-              # Prefer “Exact/Override-like” first, then earliest anchor_year_min, then alpha tie-break.
               prior_match_pool[, exactish := grepl("^Exact", address_matched, ignore.case = TRUE)]
-              setorder(prior_match_pool, pred_city, -exactish, anchor_year_min, matched_address)
-              prior_best <- prior_match_pool[, .SD[1L], by = pred_city][
-                , .(pred_city, prior_matched_address = matched_address)
+              setorder(prior_match_pool, join_city, -exactish, anchor_year_min, matched_address)
+              
+              prior_best <- prior_match_pool[
+                , .SD[1L],
+                by = join_city
+              ][
+                , .(join_city, prior_matched_address = matched_address)
               ]
             } else {
               prior_best <- data.table(
-                pred_city             = character(),
+                join_city             = character(),
                 prior_matched_address = character()
               )
             }
             
-            # ── 0d. Tier 2 — valid anchor pool for pred_cities with no prior match ───
-            # Only city_match == TRUE rows are eligible to become anchors when we do NOT
-            # already have a prior matched_address for that pred_city.
-            valid_anchors <- options[!is.na(pred_city) & city_match == TRUE]
+            # ── 0d. Tier 2 — valid anchor pool for join_city groups with no prior match ───
+            valid_anchors <- options[
+              !is.na(join_city) & trimws(join_city) != "" &
+                city_match %in% TRUE &
+                (is.na(matched_address) | trimws(matched_address) == "")
+            ]
             
-            # pred_city groups that still need anchors (no Tier 1 prior_best)
-            tier2_cities   <- setdiff(all_pred_cities, prior_best$pred_city)
-            valid_anchors  <- valid_anchors[pred_city %in% tier2_cities]
+            tier2_cities  <- setdiff(all_join_cities, prior_best$join_city)
+            valid_anchors <- valid_anchors[join_city %chin% tier2_cities]
             
-            # Nothing to anchor against for any pred_city (no Tier 1 and no Tier 2 candidates)
             if (nrow(prior_best) == 0L & nrow(valid_anchors) == 0L) {
               choose_match[[j]]    <- data.table()
               choose_geo_fail[[j]] <- data.table()
               next
             }
             
-            # ── 1. Choose ONE anchor per pred_city ──────────────────────────────────
-            
             # ── 1a. Tier 1 anchors — directly from pre-resolved prior_best ──────────
-            # match_target = prior matched_address for that pred_city.
-            # anchor_year_* metadata are taken from the row whose combined_address equals
-            # match_target when available; otherwise fall back to the first row in that pred_city.
             if (nrow(prior_best) > 0L) {
               
               tier1_anchors <- prior_best[, {
                 target_addr <- prior_matched_address[1L]
+                
                 meta <- options[combined_address == target_addr]
-                if (nrow(meta) == 0L) meta <- options[pred_city == pred_city[1L]]
+                if (nrow(meta) == 0L) meta <- options[join_city == .BY$join_city]
                 meta <- meta[1L]
+                
                 .(
                   match_target    = target_addr,
                   anchor_year_min = meta$anchor_year_min,
                   anchor_year_max = meta$anchor_year_max
                 )
-              }, by = pred_city]
+              }, by = join_city]
               
             } else {
               tier1_anchors <- data.table(
-                pred_city       = character(),
+                join_city      = character(),
                 match_target    = character(),
                 anchor_year_min = integer(),
                 anchor_year_max = integer()
               )
             }
             
-            # ── 1b. Tier 2 anchors — pick_best() for pred_cities with no prior match ─
-            # Uses the full cluster as reference_pool so anchor selection is meaningful.
+            # ── 1b. Tier 2 anchors — pick_best() for join_city groups with no prior match ─
             if (nrow(valid_anchors) > 0L) {
               
               tier2_anchors <- valid_anchors[
@@ -1957,39 +2074,38 @@ for (i in 1:length(search_space)) {
                     anchor_year_max = a$anchor_year_max
                   )
                 },
-                by = pred_city
+                by = join_city
               ]
               
             } else {
               tier2_anchors <- data.table(
-                pred_city       = character(),
+                join_city      = character(),
                 match_target    = character(),
                 anchor_year_min = integer(),
                 anchor_year_max = integer()
               )
             }
             
-            # ── 1c. Combine — Tier 1 takes precedence; Tier 2 fills the remainder ───
-            # Tier 1 rows are bound first; unique(by=pred_city) keeps Tier 1 when present.
+            # ── 1c. Combine — Tier 1 takes precedence; Tier 2 fills remainder ───────
             anchors <- unique(
               rbindlist(list(tier1_anchors, tier2_anchors), use.names = TRUE, fill = TRUE),
-              by = "pred_city"
+              by = "join_city"
             )
             
             # ── 2. Attach anchor coordinates ────────────────────────────────────────
-            # Lookup coordinates in the cluster by match_target. If multiple rows share
-            # match_target, take the first non-NA coordinate pair.
+            # match_target is a combined_address string → lookup by combined_address
             geo_lookup <- options[
               !is.na(longitude_avg) & !is.na(latitude_avg),
               .(anchor_lon = longitude_avg[1L], anchor_lat = latitude_avg[1L]),
-              by = match_target
+              by = combined_address
             ]
+            setnames(geo_lookup, "combined_address", "match_target")
+            
             anchors <- geo_lookup[anchors, on = "match_target"]
             
             # ── 2b. Slim anchors to join-essential columns only ─────────────────────
-            # Prevent name collisions when joining anchors back onto options.
             anchors <- anchors[, .(
-              pred_city,
+              join_city,
               match_target,
               anchor_year_min,
               anchor_year_max,
@@ -1998,8 +2114,6 @@ for (i in 1:length(search_space)) {
             )]
             
             # ── 3. Join anchor onto candidate rows (ONLY if currently unmatched) ────
-            # Only attempt a match for rows that do not already have matched_address.
-            # nomatch = 0L drops rows whose pred_city has no valid anchor.
             options_to_join <- options[is.na(matched_address) | trimws(matched_address) == ""]
             
             if (nrow(options_to_join) == 0L) {
@@ -2007,20 +2121,23 @@ for (i in 1:length(search_space)) {
             } else {
               m_best <- anchors[
                 options_to_join,
-                on  = .(pred_city),
+                on  = .(join_city),
                 allow.cartesian = TRUE,
                 nomatch = 0L,
                 .(
-                  pred_city,
-                  combined_address_i       = i.match_target,
-                  address_line_1_i         = i.address_line_1,
-                  city_i                   = i.city,
-                  state_i                  = i.state,
-                  zipcode_i                = i.zipcode,
-                  anchor_year_min_i        = i.anchor_year_min,
-                  anchor_year_max_i        = i.anchor_year_max,
-                  latitude_i               = i.latitude_avg,
-                  longitude_i              = i.longitude_avg,
+                  join_city,
+                  
+                  combined_address_i = i.combined_address,
+                  address_line_1_i   = i.address_line_1,
+                  city_i             = i.city,
+                  state_i            = i.state,
+                  zipcode_i          = i.zipcode,
+                  
+                  anchor_year_min_i  = i.anchor_year_min,
+                  anchor_year_max_i  = i.anchor_year_max,
+                  latitude_i         = i.latitude_avg,
+                  longitude_i        = i.longitude_avg,
+                  
                   matched_combined_address = match_target,
                   matched_year_min         = anchor_year_min,
                   matched_year_max         = anchor_year_max,
@@ -2036,28 +2153,43 @@ for (i in 1:length(search_space)) {
               next
             }
             
-            # ── 4. Geo guardrail — compute diffs, keep pass/no-geo, record failures ──
-            # has_geo:  both sides have coordinates
-            # geo_valid: TRUE  → within tolerance
-            #           FALSE → exceeds tolerance (these are REMOVED from matching)
-            # has_geo == FALSE rows are retained (cannot validate; handled downstream).
+            # ── 4. Geo guardrail — per-coordinate diffs + nuanced messages ──────────
+            tol_lon <- 0.02
+            tol_lat <- 0.02
+            
             m_best[, `:=`(
-              has_geo  = !is.na(longitude_i) & !is.na(latitude_i) &
-                !is.na(matched_longitude) & !is.na(matched_latitude),
+              lon_testable = !is.na(longitude_i) & !is.na(matched_longitude),
+              lat_testable = !is.na(latitude_i)  & !is.na(matched_latitude),
+              
               lon_diff = abs(longitude_i - matched_longitude),
               lat_diff = abs(latitude_i  - matched_latitude)
             )]
             
-            m_best[, geo_valid := has_geo == TRUE & lon_diff <= 0.02 & lat_diff <= 0.02]
+            m_best[, `:=`(
+              lon_ok = (!lon_testable) | (lon_diff <= tol_lon),
+              lat_ok = (!lat_testable) | (lat_diff <= tol_lat)
+            )]
             
-            # Record geo failures so we can stamp geolocation_test = FALSE later,
-            # even though these pairs are dropped from match candidates.
-            m_fail <- m_best[has_geo == TRUE & geo_valid == FALSE]
+            m_best[, geo_valid := lon_ok & lat_ok]
+            
+            m_best[, geolocation_test := fcase(
+              geo_valid == FALSE, "FAIL",
+              
+              geo_valid == TRUE & lon_testable == TRUE & lat_testable == TRUE,  "PASS",
+              geo_valid == TRUE & lon_testable == FALSE & lat_testable == TRUE, "PASS; no Lon",
+              geo_valid == TRUE & lon_testable == TRUE  & lat_testable == FALSE,"PASS; no Lat",
+              geo_valid == TRUE & lon_testable == FALSE & lat_testable == FALSE,"PASS; no Lon/Lat",
+              
+              default = NA_character_
+            )]
+            
+            # record failures only when at least one dimension was tested
+            m_fail <- m_best[(lon_testable | lat_testable) & geo_valid == FALSE]
             
             if (nrow(m_fail) > 0L) {
               choose_geo_fail[[j]] <- m_fail[, .(
                 combined_address_i,
-                geolocation_test = "FALSE",
+                geolocation_test,                 # "FAIL"
                 address_matched  = "Fuzzy match",
                 match_type       = "geo_guardrail_failed"
               )]
@@ -2065,8 +2197,14 @@ for (i in 1:length(search_space)) {
               choose_geo_fail[[j]] <- data.table()
             }
             
-            # Remove geo-failing pairs from further match selection
-            m_best <- m_best[!(has_geo == TRUE & geo_valid == FALSE)]
+            # keep only passing pairs
+            m_best <- m_best[geo_valid == TRUE]
+            
+            # fill missing coordinates using the non-NA value (candidate takes precedence)
+            m_best[, `:=`(
+              final_longitude = fifelse(!is.na(longitude_i), longitude_i, matched_longitude),
+              final_latitude  = fifelse(!is.na(latitude_i),  latitude_i,  matched_latitude)
+            )]
             
             if (nrow(m_best) == 0L) {
               choose_match[[j]] <- data.table()
@@ -2074,14 +2212,21 @@ for (i in 1:length(search_space)) {
             }
             
             # ── 5. Select one best match per input row ──────────────────────────────
-            # Prefer geo_valid pairs → then closest distance → then alphabetic tie-break.
+            m_best[, `:=`(
+              geo_full_pass    = (lon_testable == TRUE & lat_testable == TRUE), # geo_valid already TRUE
+              geo_partial_pass = (lon_testable == FALSE | lat_testable == FALSE)
+            )]
+            
             setorder(
               m_best,
-              combined_address_i, -geo_valid, lon_diff, lat_diff,
+              combined_address_i,
+              -geo_full_pass,
+              -geo_partial_pass,
+              lon_diff, lat_diff,
               matched_combined_address
             )
-            m_best <- m_best[, .SD[1L], by = combined_address_i]
             
+            m_best <- m_best[, .SD[1L], by = combined_address_i]
             choose_match[[j]] <- m_best
           }
           
@@ -2090,77 +2235,84 @@ for (i in 1:length(search_space)) {
           
           if (nrow(result) > 0L) {
             
-            # Keep: geo-valid pairs OR pairs where geo cannot be assessed
-            result <- result[geo_valid == TRUE | has_geo == FALSE]
+            # tag provenance
+            result[, address_matched := "Fuzzy match"]
+            if (!"match_type" %in% names(result)) result[, match_type := NA_character_]
             
-            if (nrow(result) > 0L) {
-              
-              # Tag provenance for this pass (creates the columns used in the update join)
-              result[, `:=`(
-                address_matched  = "Fuzzy match",
-                geolocation_test = fifelse(geo_valid == TRUE, "TRUE", "FALSE")
-              )]
-              
-              # Ensure match_type exists in the i-table for the update join
-              if (!"match_type" %in% names(result)) result[, match_type := NA_character_]
-              
-              # One mapping per input record
-              setorder(
-                result,
-                combined_address_i, -geo_valid, lon_diff, lat_diff,
-                matched_combined_address
-              )
-              result <- result[!duplicated(combined_address_i)]
-              
-              setDT(check_city)
-              
-              # Ensure all target columns exist before the update join
-              for (col in c("matched_address", "address_matched", "geolocation_test", "match_type")) {
-                if (!col %in% names(check_city)) {
-                  check_city[, (col) := NA_character_]
-                }
-              }
-              
-              # Write match results back:
-              # - do not overwrite existing matched_address
-              # - only write matched_address when geo passed (TRUE)
-              check_city[
-                result,
-                on = .(combined_address = combined_address_i),
-                `:=`(
-                  matched_address = fifelse(
-                    (is.na(matched_address) | trimws(matched_address) == "") &
-                      i.geolocation_test == "TRUE",
-                    i.matched_combined_address,
-                    matched_address
-                  ),
-                  address_matched = fifelse(
-                    (is.na(matched_address) | trimws(matched_address) == "") &
-                      (is.na(address_matched) | trimws(address_matched) == ""),
-                    i.address_matched,
-                    address_matched
-                  ),
-                  geolocation_test = fifelse(
-                    (is.na(matched_address) | trimws(matched_address) == "") &
-                      (is.na(geolocation_test) | trimws(geolocation_test) == ""),
-                    i.geolocation_test,
-                    geolocation_test
-                  ),
-                  match_type = fifelse(
-                    (is.na(matched_address) | trimws(matched_address) == "") &
-                      (is.na(match_type) | trimws(match_type) == ""),
-                    i.match_type,
-                    match_type
-                  )
+            # ensure uniqueness (Step 5 already does this, but keep safe)
+            setorder(
+              result,
+              combined_address_i,
+              -geo_full_pass, -geo_partial_pass,
+              lon_diff, lat_diff,
+              matched_combined_address
+            )
+            result <- result[!duplicated(combined_address_i)]
+            
+            setDT(check_city)
+            
+            # ensure target columns exist (keep lat/lon numeric)
+            if (!"matched_address" %in% names(check_city))  check_city[, matched_address := NA_character_]
+            if (!"address_matched" %in% names(check_city))  check_city[, address_matched := NA_character_]
+            if (!"geolocation_test" %in% names(check_city)) check_city[, geolocation_test := NA_character_]
+            if (!"match_type" %in% names(check_city))       check_city[, match_type := NA_character_]
+            if (!"longitude_avg" %in% names(check_city))    check_city[, longitude_avg := as.numeric(NA)]
+            if (!"latitude_avg" %in% names(check_city))     check_city[, latitude_avg := as.numeric(NA)]
+            
+            # PASS predicate (PASS / PASS; no Lon / etc.)
+            result[, geo_pass := !is.na(geolocation_test) & substr(geolocation_test, 1L, 4L) == "PASS"]
+            
+            check_city[
+              result,
+              on = .(combined_address = combined_address_i),
+              `:=`(
+                matched_address = fifelse(
+                  (is.na(matched_address) | trimws(matched_address) == "") & i.geo_pass,
+                  i.matched_combined_address,
+                  matched_address
+                ),
+                
+                address_matched = fifelse(
+                  (is.na(matched_address) | trimws(matched_address) == "") &
+                    (is.na(address_matched) | trimws(address_matched) == ""),
+                  i.address_matched,
+                  address_matched
+                ),
+                
+                geolocation_test = fifelse(
+                  (is.na(matched_address) | trimws(matched_address) == "") &
+                    (is.na(geolocation_test) | trimws(geolocation_test) == ""),
+                  i.geolocation_test,
+                  geolocation_test
+                ),
+                
+                match_type = fifelse(
+                  (is.na(matched_address) | trimws(matched_address) == "") &
+                    (is.na(match_type) | trimws(match_type) == ""),
+                  i.match_type,
+                  match_type
+                ),
+                
+                # populate missing geo (numeric-safe)
+                longitude_avg = fifelse(
+                  is.na(longitude_avg) & !is.na(i.final_longitude),
+                  i.final_longitude,
+                  longitude_avg
+                ),
+                latitude_avg = fifelse(
+                  is.na(latitude_avg) & !is.na(i.final_latitude),
+                  i.final_latitude,
+                  latitude_avg
                 )
-              ]
-            }
+              )
+            ]
           }
           
           # ── 7. Mark geo failures (no match written) ─────────────────────────────
-          # These are rows where an anchor candidate existed, geo was available, and the
-          # candidate failed the tolerance. We stamp geolocation_test = FALSE only if the
-          # record is still unmatched (first-write wins).
+          # These are rows where at least one coordinate dimension was testable and
+          # the pair failed tolerance. We stamp geolocation_test = "FAIL" only if the
+          # record is still unmatched (first-write wins) and geolocation_test is blank.
+          
           fail_result <- rbindlist(Filter(nrow, choose_geo_fail), use.names = TRUE, fill = TRUE)
           
           if (nrow(fail_result) > 0L) {
@@ -2174,7 +2326,7 @@ for (i in 1:length(search_space)) {
               }
             }
             
-            # One flag per input record
+            # One flag per input record (if multiple failures, just keep the first)
             setorder(fail_result, combined_address_i)
             fail_result <- fail_result[!duplicated(combined_address_i)]
             
@@ -2185,19 +2337,19 @@ for (i in 1:length(search_space)) {
                 geolocation_test = fifelse(
                   (is.na(matched_address) | trimws(matched_address) == "") &
                     (is.na(geolocation_test) | trimws(geolocation_test) == ""),
-                  "FALSE",
+                  i.geolocation_test,   # should be "FAIL"
                   geolocation_test
                 ),
                 address_matched = fifelse(
                   (is.na(matched_address) | trimws(matched_address) == "") &
                     (is.na(address_matched) | trimws(address_matched) == ""),
-                  i.address_matched,
+                  i.address_matched,    # "Fuzzy match"
                   address_matched
                 ),
                 match_type = fifelse(
                   (is.na(matched_address) | trimws(matched_address) == "") &
                     (is.na(match_type) | trimws(match_type) == ""),
-                  i.match_type,
+                  i.match_type,         # "geo_guardrail_failed"
                   match_type
                 )
               )
@@ -2500,6 +2652,15 @@ for (i in 1:length(search_space)) {
     # Convert to data.table (by reference); the anonymous function returns the same object
     (\(x) { setDT(x) })
   
+  
+  # ---- reset per-batch geo matching state (sf + joins) ----
+  cand_pts            <- NULL
+  census_results      <- data.table()
+  core_areas_list     <- list()
+  core_areas_results  <- data.table()
+  vintages            <- list()
+  cols_to_add         <- character(0)
+  dont_match_processed <- data.table()
   
   # --- Prepare points for geo matching ---
   # Build an sf points table (only rows with usable lon/lat/state)
@@ -2900,9 +3061,11 @@ for (i in 1:length(search_space)) {
       
       # ---- verification ----
       geolocation_verified, n_attempts, query_statuses, 
-      geo_matched_address, benchmark, vintage_input
+      geo_matched_address, benchmark, vintage_input,
+      
+      # ---- confounders ----
+      address_verified, address_matched, geolocation_test
     )
-  
   
   # (a) Query QC: number of attempts, API status code, vintage used
   qc_geo$qc1[[i]] <- qc_geo_df %>%
@@ -2985,6 +3148,7 @@ for (i in 1:length(search_space)) {
     group_by(across(-archive_version_year)) %>%
     summarise(
       archive_versions_present = format_year_ranges(archive_version_year),
+      
       .groups = "drop"
     ) %>%
     relocate(lat_gt_002, .after = lat_abs_diff) %>%
@@ -2993,35 +3157,81 @@ for (i in 1:length(search_space)) {
   
   # (c) Dispersion QC: summarize the spread of reported coords within (abi, address)
   qc_geo$qc3[[i]] <- qc_geo_df %>%
-    transmute(abi, address, latitude, longitude) %>%
+    transmute(
+      abi, address,
+      latitude  = latitude,
+      longitude = longitude,
+      address_verified,
+      address_matched,
+      geolocation_test
+    ) %>%
+    mutate(
+      address_verified_pass = dplyr::case_when(
+        is.na(address_verified) ~ NA,
+        as.character(address_verified) %in% c("TRUE", "Exact match", "Fuzzy match") ~ TRUE,
+        as.character(address_verified) %in% c("FALSE") ~ FALSE,
+        isFALSE(address_verified) ~ FALSE,
+        TRUE ~ FALSE
+      ),
+      address_matched_pass = dplyr::case_when(
+        is.na(address_matched) ~ NA,
+        trimws(as.character(address_matched)) == "Only one address" ~ NA,
+        
+        trimws(as.character(address_matched)) == "Exact match" ~ TRUE,
+        
+        trimws(as.character(address_matched)) == "Fuzzy match" &
+          !is.na(geolocation_test) &
+          (
+            stringr::str_detect(stringr::str_to_upper(as.character(geolocation_test)), "PASS") |
+              isTRUE(geolocation_test) |
+              stringr::str_to_upper(trimws(as.character(geolocation_test))) == "TRUE"
+          ) ~ TRUE,
+        
+        trimws(as.character(address_matched)) == "Fuzzy match" &
+          !is.na(geolocation_test) &
+          stringr::str_to_upper(trimws(as.character(geolocation_test))) == "FAIL" ~ FALSE,
+        
+        TRUE ~ NA
+      )
+    ) %>%
     group_by(abi, address) %>%
     summarise(
-      # Count complete (lat & lon) pairs available for this (abi, address)
+      # complete (lat & lon) pairs
       n_geo = sum(!is.na(latitude) & !is.na(longitude)),
       
-      # Latitude distribution summary (return NA if no latitude values)
-      lat_min    = ifelse(sum(!is.na(latitude)) > 0, round(min(latitude, na.rm = TRUE), 4), NA_real_),
-      lat_q1     = ifelse(sum(!is.na(latitude)) > 0, round(quantile(latitude, 0.25, na.rm = TRUE, names = FALSE, type = 7), 4), NA_real_),
-      lat_median = ifelse(sum(!is.na(latitude)) > 0, round(median(latitude, na.rm = TRUE), 4), NA_real_),
-      lat_mean   = ifelse(sum(!is.na(latitude)) > 0, round(mean(latitude, na.rm = TRUE), 4), NA_real_),
-      lat_q3     = ifelse(sum(!is.na(latitude)) > 0, round(quantile(latitude, 0.75, na.rm = TRUE, names = FALSE, type = 7), 4), NA_real_),
-      lat_max    = ifelse(sum(!is.na(latitude)) > 0, round(max(latitude, na.rm = TRUE), 4), NA_real_),
+      # latitude summaries (only if any non-NA latitude exists)
+      lat_min    = ifelse(any(!is.na(latitude)), round(min(latitude, na.rm = TRUE), 4), NA_real_),
+      lat_q1     = ifelse(any(!is.na(latitude)), round(stats::quantile(latitude, 0.25, na.rm = TRUE, names = FALSE, type = 7), 4), NA_real_),
+      lat_median = ifelse(any(!is.na(latitude)), round(stats::median(latitude, na.rm = TRUE), 4), NA_real_),
+      lat_mean   = ifelse(any(!is.na(latitude)), round(mean(latitude, na.rm = TRUE), 4), NA_real_),
+      lat_q3     = ifelse(any(!is.na(latitude)), round(stats::quantile(latitude, 0.75, na.rm = TRUE, names = FALSE, type = 7), 4), NA_real_),
+      lat_max    = ifelse(any(!is.na(latitude)), round(max(latitude, na.rm = TRUE), 4), NA_real_),
       
-      # Longitude distribution summary (return NA if no longitude values)
-      lon_min    = ifelse(sum(!is.na(longitude)) > 0, round(min(longitude, na.rm = TRUE), 4), NA_real_),
-      lon_q1     = ifelse(sum(!is.na(longitude)) > 0, round(quantile(longitude, 0.25, na.rm = TRUE, names = FALSE, type = 7), 4), NA_real_),
-      lon_median = ifelse(sum(!is.na(longitude)) > 0, round(median(longitude, na.rm = TRUE), 4), NA_real_),
-      lon_mean   = ifelse(sum(!is.na(longitude)) > 0, round(mean(longitude, na.rm = TRUE), 4), NA_real_),
-      lon_q3     = ifelse(sum(!is.na(longitude)) > 0, round(quantile(longitude, 0.75, na.rm = TRUE, names = FALSE, type = 7), 4), NA_real_),
-      lon_max    = ifelse(sum(!is.na(longitude)) > 0, round(max(longitude, na.rm = TRUE), 4), NA_real_),
+      # longitude summaries (only if any non-NA longitude exists)
+      lon_min    = ifelse(any(!is.na(longitude)), round(min(longitude, na.rm = TRUE), 4), NA_real_),
+      lon_q1     = ifelse(any(!is.na(longitude)), round(stats::quantile(longitude, 0.25, na.rm = TRUE, names = FALSE, type = 7), 4), NA_real_),
+      lon_median = ifelse(any(!is.na(longitude)), round(stats::median(longitude, na.rm = TRUE), 4), NA_real_),
+      lon_mean   = ifelse(any(!is.na(longitude)), round(mean(longitude, na.rm = TRUE), 4), NA_real_),
+      lon_q3     = ifelse(any(!is.na(longitude)), round(stats::quantile(longitude, 0.75, na.rm = TRUE, names = FALSE, type = 7), 4), NA_real_),
+      lon_max    = ifelse(any(!is.na(longitude)), round(max(longitude, na.rm = TRUE), 4), NA_real_),
       
-      # Flag if the spread of lat or lon across observations exceeds 0.02 degrees
-      lat_spread_gt_002 = abs(max(latitude, na.rm = TRUE) - min(latitude, na.rm = TRUE)) > 0.02,
-      lon_spread_gt_002 = abs(max(longitude, na.rm = TRUE) - min(longitude, na.rm = TRUE)) > 0.02,
+      # spread flags (only meaningful if at least 2 non-NA values exist)
+      lat_spread_gt_002 = ifelse(sum(!is.na(latitude))  >= 2, (max(latitude,  na.rm = TRUE) - min(latitude,  na.rm = TRUE)) > 0.02, NA),
+      lon_spread_gt_002 = ifelse(sum(!is.na(longitude)) >= 2, (max(longitude, na.rm = TRUE) - min(longitude, na.rm = TRUE)) > 0.02, NA),
+      
+      any_address_verified = dplyr::case_when(
+        any(address_verified_pass %in% TRUE, na.rm = TRUE) ~ TRUE,
+        all(is.na(address_verified_pass))                  ~ NA,
+        TRUE                                               ~ FALSE
+      ),
+      any_address_matched = dplyr::case_when(
+        any(address_matched_pass %in% TRUE, na.rm = TRUE) ~ TRUE,
+        all(is.na(address_matched_pass))                  ~ NA,
+        TRUE                                              ~ FALSE
+      ),
       
       .groups = "drop"
     ) %>%
-    # Only keep addresses with multiple geo observations (so "spread" is meaningful)
     filter(n_geo > 1) %>%
     relocate(lat_spread_gt_002, .after = lat_max) %>%
     (\(x) {setDT(x)} )()
@@ -3068,129 +3278,184 @@ for (i in 1:length(search_space)) {
   
   # (a) Census Boundaries QC: compare given and verified census boundaries
   qc_census$qc1[[i]] <- qc_census_df %>%
-    filter(geoid_match %in% "Matched") %>%
-    mutate(
-      # ---- coerce + standardize ----
-      fips_code_chr    = as.character(fips_code),           # expect 5
-      county_code_chr  = as.character(county_code),         # expect 3
-      census_tract_chr = as.character(census_tract),        # expect 6
-      census_block_chr = as.character(census_block),        # expect 4 (Block) or 1 (Block Group)
+    dplyr::filter(geoid_match %in% "Matched") %>%
+    dplyr::mutate(
+      # ---- coerce only (no standardization/padding) ----
+      fips_code_chr    = as.character(fips_code),    # expect 5 (state+county)
+      county_code_chr  = as.character(county_code),  # expect 3
+      census_tract_chr = as.character(census_tract), # expect 6
+      census_block_chr = as.character(census_block), # expect 4 (block) or 1 (block group)
       
-      # ---- length checks ----
-      fips_ok         = str_length(fips_code_chr)    == 5,
-      county_ok       = str_length(county_code_chr)  == 3,
-      tract_ok        = str_length(census_tract_chr) == 6,
+      # ---- length checks (treat NA as FALSE) ----
+      fips_ok   = !is.na(fips_code_chr)    & stringr::str_length(fips_code_chr)    == 5,
+      county_ok = !is.na(county_code_chr)  & stringr::str_length(county_code_chr)  == 3,
+      tract_ok  = !is.na(census_tract_chr) & stringr::str_length(census_tract_chr) == 6,
       
-      # ---- fips_code (positions 1-5) ----
+      # ================ fips_code (positions 1-5 ================
       fips_match_2000 = fips_ok & substr(geoid_2000, 1, 5) == fips_code_chr,
       fips_match_2010 = fips_ok & substr(geoid_2010, 1, 5) == fips_code_chr,
       fips_match_2020 = fips_ok & substr(geoid_2020, 1, 5) == fips_code_chr,
       
-      fips_code_any_match = if_else(fips_ok, fips_match_2000 | fips_match_2010 | fips_match_2020, FALSE),
-      fips_vintages_raw = paste0(
-        if_else(fips_match_2000, "2000, ", ""),
-        if_else(fips_match_2010, "2010, ", ""),
-        if_else(fips_match_2020, "2020, ", "")
-      ),
-      fips_vintages = case_when(
-        !fips_ok ~ NA_character_,
-        !fips_code_any_match ~ "None",
-        TRUE ~ str_remove(fips_vintages_raw, ", $")
+      fips_code_any_match = dplyr::case_when(
+        is.na(fips_code_chr) ~ "Uncheckable",
+        !fips_ok             ~ "Not the expected dimensions",
+        (fips_match_2000 | fips_match_2010 | fips_match_2020) ~ "Matched",
+        TRUE               ~ "None"
       ),
       
-      # ---- county_code (positions 3-5) ----
+      # Use missing="" so NA logicals never propagate into "NANANA"-style strings
+      fips_vintages_raw = paste0(
+        dplyr::if_else(fips_match_2000, "2000, ", "", missing = ""),
+        dplyr::if_else(fips_match_2010, "2010, ", "", missing = ""),
+        dplyr::if_else(fips_match_2020, "2020, ", "", missing = "")
+      ),
+      fips_vintages = dplyr::case_when(
+        is.na(fips_code_chr) ~ "Not reported",
+        !fips_ok             ~ "Not the expected dimensions",
+        fips_code_any_match != "Matched" ~ "None",
+        TRUE ~ stringr::str_remove(fips_vintages_raw, ", $")
+      ),
+      
+      # ================== county_code (positions 3-5) ==================
       county_match_2000 = county_ok & substr(geoid_2000, 3, 5) == county_code_chr,
       county_match_2010 = county_ok & substr(geoid_2010, 3, 5) == county_code_chr,
       county_match_2020 = county_ok & substr(geoid_2020, 3, 5) == county_code_chr,
       
-      county_code_any_match = if_else(county_ok, county_match_2000 | county_match_2010 | county_match_2020, FALSE),
-      county_vintages_raw = paste0(
-        if_else(county_match_2000, "2000, ", ""),
-        if_else(county_match_2010, "2010, ", ""),
-        if_else(county_match_2020, "2020, ", "")
-      ),
-      county_vintages = case_when(
-        !county_ok ~ NA_character_,
-        !county_code_any_match ~ "None",
-        TRUE ~ str_remove(county_vintages_raw, ", $")
+      county_code_any_match = dplyr::case_when(
+        is.na(county_code_chr) ~ "Not reported",
+        !county_ok             ~ "Not the expected dimensions",
+        (county_match_2000 | county_match_2010 | county_match_2020) ~ "Matched",
+        TRUE                 ~ "None"
       ),
       
-      # ---- census_tract (positions 6-11) ----
+      county_vintages_raw = paste0(
+        dplyr::if_else(county_match_2000, "2000, ", "", missing = ""),
+        dplyr::if_else(county_match_2010, "2010, ", "", missing = ""),
+        dplyr::if_else(county_match_2020, "2020, ", "", missing = "")
+      ),
+      county_vintages = dplyr::case_when(
+        is.na(county_code_chr) ~ "Not reported",
+        !county_ok             ~ "Not the expected dimensions",
+        county_code_any_match != "Matched" ~ "None",
+        TRUE ~ stringr::str_remove(county_vintages_raw, ", $")
+      ),
+      
+      # ================= census_tract (positions 6-11) =================
       tract_match_2000 = tract_ok & substr(geoid_2000, 6, 11) == census_tract_chr,
       tract_match_2010 = tract_ok & substr(geoid_2010, 6, 11) == census_tract_chr,
       tract_match_2020 = tract_ok & substr(geoid_2020, 6, 11) == census_tract_chr,
       
-      census_tract_any_match = if_else(tract_ok, tract_match_2000 | tract_match_2010 | tract_match_2020, FALSE),
+      census_tract_any_match = dplyr::case_when(
+        is.na(census_tract_chr) ~ "Uncheckable",
+        !tract_ok               ~ "Not the expected dimensions",
+        (tract_match_2000 | tract_match_2010 | tract_match_2020) ~ "Matched",
+        TRUE                 ~ "None"
+      ),
+      
       tract_vintages_raw = paste0(
-        if_else(tract_match_2000, "2000, ", ""),
-        if_else(tract_match_2010, "2010, ", ""),
-        if_else(tract_match_2020, "2020, ", "")
+        dplyr::if_else(tract_match_2000, "2000, ", "", missing = ""),
+        dplyr::if_else(tract_match_2010, "2010, ", "", missing = ""),
+        dplyr::if_else(tract_match_2020, "2020, ", "", missing = "")
       ),
-      tract_vintages = case_when(
-        !tract_ok ~ NA_character_,
-        !census_tract_any_match ~ "None",
-        TRUE ~ str_remove(tract_vintages_raw, ", $")
-      ),
-      
-      # Classify block resolution based on the length of the raw block code:
-      #   str_length == 4  -> full block-level precision
-      #   str_length == 1  -> block-group-level precision
-      #   anything else    -> NA (unexpected format, surfaces upstream issues)
-      block_ok = case_when(
-        str_length(census_block_chr) == 4 ~ "Blocks",
-        str_length(census_block_chr) == 1 ~ "Block groups",
-        TRUE                              ~ "FALSE"
+      tract_vintages = dplyr::case_when(
+        is.na(census_tract_chr) ~ "Uncheckable",
+        !tract_ok               ~ "Not the expected dimensions",
+        census_tract_any_match != "Matched" ~ "None",
+        TRUE ~ stringr::str_remove(tract_vintages_raw, ", $")
       ),
       
-      # ---- census_block ----
-      block_match_2000 = block_ok != "FALSE" &
+      # ======== block resolution classification (explicit diagnostics) ========
+      block_type = dplyr::case_when(
+        is.na(census_block_chr) ~ "None reported",
+        stringr::str_length(census_block_chr) == 4 ~ "Blocks",
+        stringr::str_length(census_block_chr) == 1 ~ "Block groups",
+        TRUE ~ "Not the expected dimensions"
+      ),
+      
+      # === census_block (positions 12-15 for block, 12-12 for block group) ===
+      block_substr_end = dplyr::case_when(
+        block_type == "Blocks" ~ 15L,
+        block_type == "Block groups" ~ 12L,
+        TRUE ~ NA_integer_
+      ),
+      
+      block_match_2000 = block_type %in% c("Blocks", "Block groups") &
         substr(geoid_2000, 12, block_substr_end) == census_block_chr,
-      block_match_2010 = block_ok != "FALSE" &
+      block_match_2010 = block_type %in% c("Blocks", "Block groups") &
         substr(geoid_2010, 12, block_substr_end) == census_block_chr,
-      block_match_2020 = block_ok != "FALSE" &
+      block_match_2020 = block_type %in% c("Blocks", "Block groups") &
         substr(geoid_2020, 12, block_substr_end) == census_block_chr,
       
-      census_block_any_match = if_else(
-        block_ok != "FALSE",
-        block_match_2000 | block_match_2010 | block_match_2020,
-        FALSE
-      ),
+      census_block_any_match = block_match_2000 | block_match_2010 | block_match_2020,
+      
       block_vintages_raw = paste0(
-        if_else(block_match_2000, "2000, ", ""),
-        if_else(block_match_2010, "2010, ", ""),
-        if_else(block_match_2020, "2020, ", "")
+        dplyr::if_else(block_match_2000, "2000, ", "", missing = ""),
+        dplyr::if_else(block_match_2010, "2010, ", "", missing = ""),
+        dplyr::if_else(block_match_2020, "2020, ", "", missing = "")
       ),
-      block_vintages = case_when(
-        block_ok == "FALSE"     ~ NA_character_,
+      block_vintages = dplyr::case_when(
+        block_type %in% c("None reported", "Not the expected dimensions") ~ "Uncheckable",
         !census_block_any_match ~ "None",
-        TRUE                    ~ str_remove(block_vintages_raw, ", $")
+        TRUE ~ stringr::str_remove(block_vintages_raw, ", $")
       )
     ) %>%
-    rename(block_type = block_ok) %>%
-    select(abi, archive_version_year, address, census_block, census_tract,
-           county_code, fips_code, n_address, geoid_2000, geoid_2010, geoid_2020,
-           fips_code_any_match, fips_vintages,
-           county_code_any_match, county_vintages,
-           census_tract_any_match, tract_vintages,
-           block_type, census_block_any_match, block_vintages) %>%
-    group_by(across(-archive_version_year)) %>%
-    summarise(
+    dplyr::select(
+      abi, archive_version_year, address, census_block, census_tract,
+      county_code, fips_code, n_address, geoid_2000, geoid_2010, geoid_2020,
+      fips_code_any_match, fips_vintages,
+      county_code_any_match, county_vintages,
+      census_tract_any_match, tract_vintages,
+      block_type, census_block_any_match, block_vintages
+    ) %>%
+    dplyr::group_by(dplyr::across(-archive_version_year)) %>%
+    dplyr::summarise(
       archive_versions_present = format_year_ranges(archive_version_year),
       .groups = "drop"
     ) %>%
-    relocate(archive_versions_present, .after = address) %>%
-    # ---- vintage alignment checks (requires archive_versions_present) ----
-  mutate(
-    fips_vintages_aligned   = mapply(check_alignment, archive_versions_present, fips_vintages),
-    county_vintages_aligned = mapply(check_alignment, archive_versions_present, county_vintages),
-    tract_vintages_aligned  = mapply(check_alignment, archive_versions_present, tract_vintages),
-    block_vintages_aligned  = mapply(check_alignment, archive_versions_present, block_vintages)
-  ) %>%
-    relocate(fips_vintages_aligned,   .after = fips_vintages) %>%
-    relocate(county_vintages_aligned, .after = county_vintages) %>%
-    relocate(tract_vintages_aligned,  .after = tract_vintages) %>%
-    relocate(block_vintages_aligned,  .after = block_vintages) %>%
-    (\(x) {setDT(x)})()
+    dplyr::relocate(archive_versions_present, .after = address) %>%
+    dplyr::mutate(
+      fips_vintages_aligned = mapply(
+        function(present, vint) {
+          if (is.na(vint) || vint %in% c("None", "Uncheckable")) return(NA)
+          out <- suppressWarnings(check_alignment(present, vint))
+          if (length(out) == 0L || is.na(out)) return(NA)
+          out
+        },
+        archive_versions_present, fips_vintages
+      ),
+      county_vintages_aligned = mapply(
+        function(present, vint) {
+          if (is.na(vint) || vint %in% c("None", "Uncheckable")) return(NA)
+          out <- suppressWarnings(check_alignment(present, vint))
+          if (length(out) == 0L || is.na(out)) return(NA)
+          out
+        },
+        archive_versions_present, county_vintages
+      ),
+      tract_vintages_aligned = mapply(
+        function(present, vint) {
+          if (is.na(vint) || vint %in% c("None", "Uncheckable")) return(NA)
+          out <- suppressWarnings(check_alignment(present, vint))
+          if (length(out) == 0L || is.na(out)) return(NA)
+          out
+        },
+        archive_versions_present, tract_vintages
+      ),
+      block_vintages_aligned = mapply(
+        function(present, vint) {
+          if (is.na(vint) || vint %in% c("None", "Uncheckable")) return(NA)
+          out <- suppressWarnings(check_alignment(present, vint))
+          if (length(out) == 0L || is.na(out)) return(NA)
+          out
+        },
+        archive_versions_present, block_vintages
+      )
+    ) %>%
+    dplyr::relocate(fips_vintages_aligned,   .after = fips_vintages) %>%
+    dplyr::relocate(county_vintages_aligned, .after = county_vintages) %>%
+    dplyr::relocate(tract_vintages_aligned,  .after = tract_vintages) %>%
+    dplyr::relocate(block_vintages_aligned,  .after = block_vintages) %>%
+    (\(x) { data.table::setDT(x); x })()
   
   
   # Maps archive years to the CBSA vintage label used in *_vintages strings
@@ -3201,7 +3466,7 @@ for (i in 1:length(search_space)) {
   )
   
   # (b) Metro/Micro QC: compare given and verified micro/metro census boundaries
-  qc_census$qc2[[i]] <- qc_census_df %>% 
+  qc_census$qc2[[i]] <- qc_census_df %>%
     mutate(
       # ---- coerce to character for safe comparisons ----
       cbsa_level_chr = as.character(cbsa_level),
@@ -3220,90 +3485,86 @@ for (i in 1:length(search_space)) {
       cbsa_code_2020_chr  = as.character(cbsa_code_2020),
       csa_code_2020_chr   = as.character(csa_code_2020),
       
-      # ---- flags: is the input missing? are all vintages missing? ----
+      # ---- input missing? ----
       cbsa_level_input_na = is.na(cbsa_level_chr),
       cbsa_code_input_na  = is.na(cbsa_code_chr),
       csa_code_input_na   = is.na(csa_code_chr),
       
-      cbsa_level_all_vintages_na = is.na(cbsa_level_2007_chr) & is.na(cbsa_level_2010_chr) & is.na(cbsa_level_2020_chr),
-      cbsa_code_all_vintages_na  = is.na(cbsa_code_2007_chr)  & is.na(cbsa_code_2010_chr)  & is.na(cbsa_code_2020_chr),
-      csa_code_all_vintages_na   = is.na(csa_code_2007_chr)   & is.na(csa_code_2010_chr)   & is.na(csa_code_2020_chr),
-      
-      # ---- OPTIONAL validity checks (edit if needed) ----
-      cbsa_code_ok  = !cbsa_code_input_na  & str_length(cbsa_code_chr) == 5,
-      csa_code_ok   = !csa_code_input_na   & str_length(csa_code_chr)  == 3,
-      cbsa_level_ok = !cbsa_level_input_na & str_length(str_trim(cbsa_level_chr)) > 0,
+      # ---- OPTIONAL validity checks (edit as needed) ----
+      cbsa_code_ok  = !cbsa_code_input_na  & stringr::str_length(cbsa_code_chr) == 5,
+      csa_code_ok   = !csa_code_input_na   & stringr::str_length(csa_code_chr)  == 3,
+      cbsa_level_ok = !cbsa_level_input_na & stringr::str_length(stringr::str_trim(cbsa_level_chr)) > 0,
       
       # ===================== CBSA CODE =====================
-      cbsa_code_match_2007 = cbsa_code_ok & !is.na(cbsa_code_2007_chr) & cbsa_code_chr == cbsa_code_2007_chr,
-      cbsa_code_match_2010 = cbsa_code_ok & !is.na(cbsa_code_2010_chr) & cbsa_code_chr == cbsa_code_2010_chr,
-      cbsa_code_match_2020 = cbsa_code_ok & !is.na(cbsa_code_2020_chr) & cbsa_code_chr == cbsa_code_2020_chr,
+      cbsa_code_match_2007 = cbsa_code_ok & cbsa_code_chr == cbsa_code_2007_chr,
+      cbsa_code_match_2010 = cbsa_code_ok & cbsa_code_chr == cbsa_code_2010_chr,
+      cbsa_code_match_2020 = cbsa_code_ok & cbsa_code_chr == cbsa_code_2020_chr,
       
-      cbsa_code_any_match = case_when(
-        cbsa_code_input_na ~ NA,
-        cbsa_code_all_vintages_na ~ NA,
-        !cbsa_code_ok ~ FALSE,
-        TRUE ~ (cbsa_code_match_2007 | cbsa_code_match_2010 | cbsa_code_match_2020)
+      cbsa_code_any_match = dplyr::case_when(
+        is.na(cbsa_code_chr) ~ "Uncheckable",
+        !cbsa_code_ok        ~ "Not the expected dimensions",
+        (cbsa_code_match_2007 | cbsa_code_match_2010 | cbsa_code_match_2020) ~ "Matched",
+        TRUE ~ "None"
       ),
+      
       cbsa_code_vintages_raw = paste0(
-        if_else(cbsa_code_match_2007, "2007, ", ""),
-        if_else(cbsa_code_match_2010, "2010, ", ""),
-        if_else(cbsa_code_match_2020, "2020, ", "")
+        dplyr::if_else(cbsa_code_match_2007, "2007, ", "", missing = ""),
+        dplyr::if_else(cbsa_code_match_2010, "2010, ", "", missing = ""),
+        dplyr::if_else(cbsa_code_match_2020, "2020, ", "", missing = "")
       ),
-      cbsa_code_vintages = case_when(
-        cbsa_code_input_na ~ NA_character_,
-        cbsa_code_all_vintages_na ~ NA_character_,
-        is.na(cbsa_code_any_match) ~ NA_character_,
-        !cbsa_code_any_match ~ "None",
-        TRUE ~ str_remove(cbsa_code_vintages_raw, ", $")
+      cbsa_code_vintages = dplyr::case_when(
+        is.na(cbsa_code_chr)           ~ "Uncheckable",
+        !cbsa_code_ok                  ~ "Not the expected dimensions",
+        cbsa_code_any_match != "Matched" ~ "None",
+        TRUE ~ stringr::str_remove(cbsa_code_vintages_raw, ", $")
       ),
       
       # ===================== CBSA LEVEL =====================
-      cbsa_level_match_2007 = cbsa_level_ok & !is.na(cbsa_level_2007_chr) & cbsa_level_chr == cbsa_level_2007_chr,
-      cbsa_level_match_2010 = cbsa_level_ok & !is.na(cbsa_level_2010_chr) & cbsa_level_chr == cbsa_level_2010_chr,
-      cbsa_level_match_2020 = cbsa_level_ok & !is.na(cbsa_level_2020_chr) & cbsa_level_chr == cbsa_level_2020_chr,
+      cbsa_level_match_2007 = cbsa_level_ok & cbsa_level_chr == cbsa_level_2007_chr,
+      cbsa_level_match_2010 = cbsa_level_ok & cbsa_level_chr == cbsa_level_2010_chr,
+      cbsa_level_match_2020 = cbsa_level_ok & cbsa_level_chr == cbsa_level_2020_chr,
       
-      cbsa_level_any_match = case_when(
-        cbsa_level_input_na ~ NA,
-        cbsa_level_all_vintages_na ~ NA,
-        !cbsa_level_ok ~ FALSE,
-        TRUE ~ (cbsa_level_match_2007 | cbsa_level_match_2010 | cbsa_level_match_2020)
+      cbsa_level_any_match = dplyr::case_when(
+        is.na(cbsa_level_chr) ~ "Uncheckable",
+        !cbsa_level_ok        ~ "Not the expected dimensions",
+        (cbsa_level_match_2007 | cbsa_level_match_2010 | cbsa_level_match_2020) ~ "Matched",
+        TRUE ~ "None"
       ),
+      
       cbsa_level_vintages_raw = paste0(
-        if_else(cbsa_level_match_2007, "2007, ", ""),
-        if_else(cbsa_level_match_2010, "2010, ", ""),
-        if_else(cbsa_level_match_2020, "2020, ", "")
+        dplyr::if_else(cbsa_level_match_2007, "2007, ", "", missing = ""),
+        dplyr::if_else(cbsa_level_match_2010, "2010, ", "", missing = ""),
+        dplyr::if_else(cbsa_level_match_2020, "2020, ", "", missing = "")
       ),
-      cbsa_level_vintages = case_when(
-        cbsa_level_input_na ~ NA_character_,
-        cbsa_level_all_vintages_na ~ NA_character_,
-        is.na(cbsa_level_any_match) ~ NA_character_,
-        !cbsa_level_any_match ~ "None",
-        TRUE ~ str_remove(cbsa_level_vintages_raw, ", $")
+      cbsa_level_vintages = dplyr::case_when(
+        is.na(cbsa_level_chr)            ~ "Uncheckable",
+        !cbsa_level_ok                   ~ "Not the expected dimensions",
+        cbsa_level_any_match != "Matched" ~ "None",
+        TRUE ~ stringr::str_remove(cbsa_level_vintages_raw, ", $")
       ),
       
       # ===================== CSA CODE =====================
-      csa_code_match_2007 = csa_code_ok & !is.na(csa_code_2007_chr) & csa_code_chr == csa_code_2007_chr,
-      csa_code_match_2010 = csa_code_ok & !is.na(csa_code_2010_chr) & csa_code_chr == csa_code_2010_chr,
-      csa_code_match_2020 = csa_code_ok & !is.na(csa_code_2020_chr) & csa_code_chr == csa_code_2020_chr,
+      csa_code_match_2007 = csa_code_ok & csa_code_chr == csa_code_2007_chr,
+      csa_code_match_2010 = csa_code_ok & csa_code_chr == csa_code_2010_chr,
+      csa_code_match_2020 = csa_code_ok & csa_code_chr == csa_code_2020_chr,
       
-      csa_code_any_match = case_when(
-        csa_code_input_na ~ NA,
-        csa_code_all_vintages_na ~ NA,
-        !csa_code_ok ~ FALSE,
-        TRUE ~ (csa_code_match_2007 | csa_code_match_2010 | csa_code_match_2020)
+      csa_code_any_match = dplyr::case_when(
+        is.na(csa_code_chr) ~ "Uncheckable",
+        !csa_code_ok        ~ "Not the expected dimensions",
+        (csa_code_match_2007 | csa_code_match_2010 | csa_code_match_2020) ~ "Matched",
+        TRUE ~ "None"
       ),
+      
       csa_code_vintages_raw = paste0(
-        if_else(csa_code_match_2007, "2007, ", ""),
-        if_else(csa_code_match_2010, "2010, ", ""),
-        if_else(csa_code_match_2020, "2020, ", "")
+        dplyr::if_else(csa_code_match_2007, "2007, ", "", missing = ""),
+        dplyr::if_else(csa_code_match_2010, "2010, ", "", missing = ""),
+        dplyr::if_else(csa_code_match_2020, "2020, ", "", missing = "")
       ),
-      csa_code_vintages = case_when(
-        csa_code_input_na ~ NA_character_,
-        csa_code_all_vintages_na ~ NA_character_,
-        is.na(csa_code_any_match) ~ NA_character_,
-        !csa_code_any_match ~ "None",
-        TRUE ~ str_remove(csa_code_vintages_raw, ", $")
+      csa_code_vintages = dplyr::case_when(
+        is.na(csa_code_chr)           ~ "Uncheckable",
+        !csa_code_ok                  ~ "Not the expected dimensions",
+        csa_code_any_match != "Matched" ~ "None",
+        TRUE ~ stringr::str_remove(csa_code_vintages_raw, ", $")
       )
     ) %>%
     select(
@@ -3322,16 +3583,39 @@ for (i in 1:length(search_space)) {
       .groups = "drop"
     ) %>%
     relocate(archive_versions_present, .after = address) %>%
-    # ---- vintage alignment checks (requires archive_versions_present) ----
-  mutate(
-    cbsa_code_vintages_aligned  = mapply(check_alignment_cbsa, archive_versions_present, cbsa_code_vintages),
-    cbsa_level_vintages_aligned = mapply(check_alignment_cbsa, archive_versions_present, cbsa_level_vintages),
-    csa_code_vintages_aligned   = mapply(check_alignment_cbsa, archive_versions_present, csa_code_vintages)
-  ) %>%
+    mutate(
+      cbsa_code_vintages_aligned = mapply(
+        function(present, vint) {
+          if (is.na(vint) || vint %in% c("None", "Uncheckable", "Not the expected dimensions")) return(NA)
+          out <- suppressWarnings(check_alignment_cbsa(present, vint))
+          if (length(out) == 0L || is.na(out)) return(NA)
+          out
+        },
+        archive_versions_present, cbsa_code_vintages
+      ),
+      cbsa_level_vintages_aligned = mapply(
+        function(present, vint) {
+          if (is.na(vint) || vint %in% c("None", "Uncheckable", "Not the expected dimensions")) return(NA)
+          out <- suppressWarnings(check_alignment_cbsa(present, vint))
+          if (length(out) == 0L || is.na(out)) return(NA)
+          out
+        },
+        archive_versions_present, cbsa_level_vintages
+      ),
+      csa_code_vintages_aligned = mapply(
+        function(present, vint) {
+          if (is.na(vint) || vint %in% c("None", "Uncheckable", "Not the expected dimensions")) return(NA)
+          out <- suppressWarnings(check_alignment_cbsa(present, vint))
+          if (length(out) == 0L || is.na(out)) return(NA)
+          out
+        },
+        archive_versions_present, csa_code_vintages
+      )
+    ) %>%
     relocate(cbsa_code_vintages_aligned,  .after = cbsa_code_vintages) %>%
     relocate(cbsa_level_vintages_aligned, .after = cbsa_level_vintages) %>%
     relocate(csa_code_vintages_aligned,   .after = csa_code_vintages) %>%
-    (\(x) {setDT(x)})()
+    (\(x) { data.table::setDT(x) })()
   
   
   # --------------------
