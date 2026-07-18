@@ -92,31 +92,47 @@
 ##       zeros) until a match is found.
 ## 
 ##   12. pick_best: Select the Best Anchor Row from a Pool of Candidate Address 
-##       Records. Given a pool of candidate rows sharing the same 
-##       \code{address_line_1}, \code{pick_best()} scores each candidate by its 
-##       geo and temporal compatibility with all rows in \code{reference_pool} 
-##       (or \code{dt} itself if no reference pool is supplied) and returns the 
-##       single most representative row to serve as the anchor for downstream 
-##       matching.
+##       Records. Given a pool of candidate rows (typically sharing the same 
+##       \code{address_line_1} or other clustering key), \code{pick_best()} 
+##       scores each candidate by its geo and temporal compatibility with all 
+##       rows in \code{reference_pool} (or \code{dt} itself if no reference 
+##       pool is supplied) and returns the single most representative row to 
+##       serve as the anchor for downstream matching.
 ## 
-##   13. census_geo_show_options: Show available Census Geocoder benchmarks and 
+##       This version is written to be \strong{schema-stable}: it always 
+##       attaches the scoring columns \code{has_zip4}, \code{has_geo}, 
+##       \code{geo_agree}, \code{year_overlap}, and \code{year_gap_total} 
+##       \emph{even when} \code{dt} has only one row. This prevents grouped 
+##       \code{data.table} operations from failing due to inconsistent columns 
+##       across groups.
+## 
+##   13. pick_best_by_city: Pick the Best Anchor Row \emph{Within Each} 
+##       \code{pred_city}. \code{pick_best_by_city()} applies \code{\link{pick_best}} 
+##       separately to each \code{pred_city} group in \code{candidates_dt}, 
+##       returning exactly one selected anchor row per city. Each city’s 
+##       candidates are scored against the same \code{match_pool} (the 
+##       “reference context”), which is useful when anchors must be optimized 
+##       for compatibility with a broader set of rows (e.g., \code{dtT ∪ dtF})
+##       rather than only within-city candidates.
+## 
+##   14. census_geo_show_options: Show available Census Geocoder benchmarks and 
 ##       vintages. Downloads the Census Geocoder benchmark list, optionally 
 ##       filters it, then downloads the vintages available for each benchmark 
 ##       displayed. Results are printed and also returned invisibly as a list 
 ##       of tibbles.
 ## 
-##   14. census_geo_make_tries: Build a `tries` list from benchmarkName + 
+##   15. census_geo_make_tries: Build a `tries` list from benchmarkName + 
 ##       vintageName pairs, Converts a human-readable specification 
 ##       (benchmarkName + vintageName strings) into the `tries` structure 
 ##       required by `validate_geolocation()`.
 ##       
-##   15. build_addr_geo_url: Build a U.S. Census Geocoder request URL for 
+##   16. build_addr_geo_url: Build a U.S. Census Geocoder request URL for 
 ##       structured address geographies Constructs the URL for the Census 
 ##       Geocoder endpoint \code{/geocoder/geographies/address} using a 
 ##       structured address (street/city/state/zip) and an explicit benchmark 
 ##       + vintage.
 ##       
-##   16. call_census_geocoder: Call the Census Geocoder and parse the JSON 
+##   17. call_census_geocoder: Call the Census Geocoder and parse the JSON 
 ##       response. Issues a GET request to the provided Census Geocoder URL and 
 ##       parses the returned JSON payload. The function marks the call as 
 ##       successful (\code{ok=TRUE}) only if:
@@ -124,14 +140,14 @@
 ##          - \code{result$addressMatches} exists and contains at least 
 ##                    one match.
 ## 
-##   17. select_best_match: Select the best candidate address match from a Census 
+##   18. select_best_match: Select the best candidate address match from a Census 
 ##       Geocoder response. Given a parsed Census Geocoder API response 
 ##       containing one or more candidate address matches, applies a prioritized 
 ##       decision procedure to select a single best match. Designed to be called 
 ##       immediately after a successful \code{call_census_geocoder()} result 
 ##       inside \code{validate_geolocation()}.
 ## 
-##   18. resolve_vintage_id: Resolve a Census Geocoder vintage value to a 
+##   19. resolve_vintage_id: Resolve a Census Geocoder vintage value to a 
 ##       numeric vintage id. Converts a vintage value — either a numeric id or 
 ##       a vintage name string — into the numeric id expected by the Census 
 ##       Geocoder API. When a name string is supplied, the function hits the 
@@ -140,7 +156,7 @@
 ##       environment so the endpoint is only hit once per unique benchmark per 
 ##       \code{validate_geolocation()} call.
 ##       
-##   19. validate_geolocation: GGeocode an address (Census Geocoder) and return 
+##   20. validate_geolocation: GGeocode an address (Census Geocoder) and return 
 ##       the best match, trying multiple benchmark/vintage pairs. Queries the 
 ##       U.S. Census Geocoder "geographies/address" endpoint using a structured 
 ##       address (street/city/state/zip). Tries a prioritized sequence of 
@@ -156,12 +172,12 @@
 ##       you later assign decennial geographies via TIGER/Line shapefiles 
 ##       (point-in-polygon).
 ## 
-##   20. read_state_gpkgs_for_data: Read per-state TIGER block GeoPackages for 
+##   21. read_state_gpkgs_for_data: Read per-state TIGER block GeoPackages for 
 ##       the unique states present in a dataset. This helper finds the unique 
 ##       states represented in `data`, locates each state's output GeoPackage 
 ##       in `out_root`, and reads *all layers* from each GeoPackage.
 ## 
-##   21. add_decennial_geoid_block: Add decennial Census block GEOIDs 
+##   22. add_decennial_geoid_block: Add decennial Census block GEOIDs 
 ##       (2000/2010/2020) to candidate addresses. Given point locations 
 ##       (lon/lat already converted to an $$sf$$ POINT object), this function 
 ##       spatially assigns each point to its containing Census block for 
@@ -172,101 +188,106 @@
 ##          - avoid mixing CRSs across states/years,
 ##          - align with your per-state GeoPackage storage pattern.
 ## 
-##   22. decode_zcta: Decode (Assign) ZCTA Codes to Point Locations. Given a 
+##   23. decode_zcta: Decode (Assign) ZCTA Codes to Point Locations. Given a 
 ##       set of candidate point locations and a ZCTA polygon layer (e.g. 2000, 
 ##       2010, or 2020 vintage), this function performs a point-in-polygon 
 ##       spatial join and returns the ZCTA code for each point.
 ## 
-##       Performance: The state-based pre-filter (`state_col` + `area_states`) 
+##       **Performance:** The state-based pre-filter (`state_col` + `area_states`) 
 ##       is applied to the raw `zcta_sf` object *before* any CRS transformation, 
 ##       column subsetting, or spatial join. This means all subsequent 
 ##       operations work on a much smaller polygon set, which is the primary 
 ##       speed lever for large national ZCTA layers.
 ## 
-##       CRS: Points are re-projected into the CRS of `zcta_sf` before the join.
-##       The original `cand_sf` object is not modified.
+##       **CRS:** Points are re-projected into the CRS of `zcta_sf` before the
+##       join. The original `cand_sf` object is not modified.
 ## 
-##       Duplicate matches: `largest = TRUE` in `sf::st_join` ensures at most one
-##       polygon match is retained per point. Duplicate matches are rare but 
+##       **Duplicate matches:** `largest = TRUE` in `sf::st_join` ensures at most 
+##       one polygon match is retained per point. Duplicate matches are rare but 
 ##       can occur at polygon boundaries or with invalid geometries.
 ## 
-##       Geometry warning suppression: The common sf warning about attributes 
+##       **Geometry warning suppression:** The common sf warning about attributes 
 ##       being "spatially constant throughout all geometries" is suppressed; it 
 ##       is benign for ZCTA layers because `area_code` is constant per feature.
 ## 
-##   23. decode_cbsa_csa: Decode (Assign) CBSA and CSA Codes to Point Locations. 
-##       Given a set of candidate point locations and a combined CBSA/CSA 
-##       polygon layer, this function performs two point-in-polygon spatial 
-##       joins — one for Core Based Statistical Areas (CBSAs) and one for 
-##       Combined Statistical Areas (CSAs) — and returns the corresponding codes 
-##       and CBSA metropolitan/micropolitan level for each point.
+##   24. decode_cbsa_csa: Decode (Assign) CBSA and CSA Codes to Point Locations.
+##       Given a set of candidate point locations and a combined CBSA/CSA polygon
+##       layer, this function performs two point-in-polygon spatial joins—one for
+##       Core Based Statistical Areas (CBSAs) and one for Combined Statistical 
+##       Areas (CSAs)—and returns the corresponding codes and CBSA 
+##       metropolitan/micropolitan level for each point.
 ## 
-##       Performance: The state-based pre-filter (`state_col` + `area_states`) 
+##       **Performance:** The state-based pre-filter (`state_col` + `area_states`) 
 ##       is applied to the raw `cbsa_csa_sf` object *before* any CRS 
 ##       transformation, polygon splitting, or spatial join. All subsequent 
 ##       operations therefore work on a much smaller polygon set, which is the 
 ##       primary speed lever for large national CBSA/CSA layers.
 ## 
-##       Two-pass joining: After the pre-filter, the polygon layer is split into
-##       CBSA and CSA subsets and each is joined independently. This allows 
+##       **Two-pass joining:** After the pre-filter, the polygon layer is split 
+##       into CBSA and CSA subsets and each is joined independently. This allows 
 ##       CBSA-only attributes (`area_level`) to be handled cleanly without 
 ##       polluting the CSA result.
 ## 
-##       Post-join state filter: A second, row-level state check is applied 
-##       after each join via the internal `filter_by_state()` helper. This 
-##       guards against the rare edge case where a point near a state border 
-##       could be matched to a polygon whose `area_states` does not include the 
-##       point's own state.
+##       **Post-join state masking (row-preserving):** After each join, a 
+##       secondary, row-level state-consistency check is applied via an internal 
+##       `mask_by_state()` helper. If the matched polygon’s `area_states` does 
+##       not include the point’s state, the polygon-derived attributes (e.g. 
+##       `area_code`, `area_level`) are set to `NA` for that row. Importantly, 
+##       rows are *not removed*, preserving the invariant of one output row per 
+##       input point and avoiding dimension mismatches when combining CBSA and 
+##       CSA results.
 ## 
-##       CRS: Points are re-projected into the native CRS of the (now-filtered)
-##       `cbsa_csa_sf` layer. The original `cand_sf` object is not modified.
+##       **CRS:** Points are re-projected into the native CRS of the 
+##       (now-filtered) `cbsa_csa_sf` layer. The original `cand_sf` object is 
+##       not modified.
 ## 
-##       Duplicate matches: `largest = TRUE` in `sf::st_join` ensures at most 
-##       one polygon match is retained per point, resolving rare boundary 
-##       ambiguities by keeping the largest-area match.
+##       **Duplicate matches:** `largest = TRUE` in `sf::st_join` is used to 
+##       prefer a single polygon when a point matches more than one feature 
+##       (rare boundary ambiguities). Where an sf backend does not enforce a 
+##       single match, downstream code should ensure one record per `row_id`.
 ## 
-##       Geometry warning suppression: The common sf warning about attributes 
-##       being "spatially constant throughout all geometries" is suppressed; it 
-##       is benign here because `area_code` and `area_level` are constant per 
-##       feature.
+##       **Geometry warning suppression:** The common sf warning about 
+##       attributes being "spatially constant throughout all geometries" is 
+##       suppressed; it is benign here because `area_code` and `area_level` are 
+##       constant per feature.
 ## 
-##   24. format_year_ranges: Format a set of years into compact consecutive 
+##   25. format_year_ranges: Format a set of years into compact consecutive 
 ##       ranges (e.g., "2001:2003, 2006"). Takes a vector of years (possibly 
 ##       unsorted and with duplicates) and returns a human-readable string where 
 ##       consecutive years are collapsed into "start:end" ranges and separated 
 ##       by ", ".
 ## 
-##   25. parse_years: Parse a formatted year-range string into an integer vector 
+##   26. parse_years: Parse a formatted year-range string into an integer vector 
 ##       of individual years.
 ## 
-##   26. expected_vintages: Map a vector of years to their corresponding 
+##   27. expected_vintages: Map a vector of years to their corresponding 
 ##       decennial census vintage labels. Uses the standard decennial period 
 ##       boundaries: 2000 -> 2000-2009, 2010 -> 2010-2019, 2020 -> 2020-2029.
 ##
-##   27. parse_vintages: Parse a comma-separated vintage string into an integer 
+##   28. parse_vintages: Parse a comma-separated vintage string into an integer 
 ##       vector.
 ## 
-##   28. check_alignment: Check whether a boundary's recorded vintages cover all 
+##   29. check_alignment: Check whether a boundary's recorded vintages cover all 
 ##       decennial periods implied by the archive year range.
 ## 
 ##       Intended for use with `mapply()` over rows of a summarised data.table 
 ##       where `archive_versions_present` has already been formatted by 
 ##       `format_year_ranges()`.
 ## 
-##   29. check_alignment_cbsa: Check whether a CBSA/CSA boundary's recorded 
+##   30. check_alignment_cbsa: Check whether a CBSA/CSA boundary's recorded 
 ##       vintages cover all periods implied by the archive year range.
 ## 
 ##       Mirrors `check_alignment()` but resolves archive years against
 ##       `cbsa_vintage_map` so the 2000-2009 period maps to the `2007` vintage 
 ##       label rather than `2000`.
 ## 
-##   30. write_list_to_xlsx: Write a named list of tables to a multi-sheet Excel 
+##   31. write_list_to_xlsx: Write a named list of tables to a multi-sheet Excel 
 ##       workbook (.xlsx). Takes a list where each element is a 
 ##       data.frame/tibble/data.table and writes each element to its own 
 ##       worksheet in an Excel file. List names are used as sheet names; 
 ##       unnamed/blank elements are assigned default names.
 ## 
-##   31. write_list_to_duckdb: Write a list of tables to a single DuckDB 
+##   32. write_list_to_duckdb: Write a list of tables to a single DuckDB 
 ##       database file. A lightweight replacement for writing a multi-sheet 
 ##       Excel workbook. Each element of `lst` is written as its own DuckDB 
 ##       table (analogous to an XLSX sheet) inside one `.duckdb` file.
@@ -277,13 +298,13 @@
 ##       there to provide a stable location for extension caching *if extensions 
 ##       are ever used*.
 ## 
-##   32. read_list_from_duckdb: Read tables from a DuckDB database file into a 
+##   33. read_list_from_duckdb: Read tables from a DuckDB database file into a 
 ##       named list. Companion to write_list_to_duckdb(): each DuckDB table is 
 ##       returned as one list element (analogous to reading sheets from an XLSX 
 ##       workbook).
 ## 
-##   33. make_ranges: Chunk by unique ABI (NOT row ranges). Returns a data.table 
-#        with one row per chunk:
+##   34. make_ranges: Chunk by unique ABI (NOT row ranges). Returns a data.table 
+##       with one row per chunk:
 ##          - start_abi/end_abi: positions in the unique-ABI vector
 ##          - label: human-readable label
 ##          - abi_list: list-column containing the ABI values in that chunk
@@ -448,8 +469,8 @@ find_components <- function(node, visited, address_graph) {
   #' the `find_similar_addresses()` function.
   #' 
   #'
-  #' @param node An integer representing the starting node in the undirected graph. 
-  #'             Each node represents similar addresses defined by the 
+  #' @param node An integer representing the starting node in the undirected 
+  #'             graph. Each node represents similar addresses defined by the 
   #'             `stringdist(method = "jw")` function.
   #'             
   #' @param visited A logical vector indicating whether a node has been visited.
@@ -457,7 +478,8 @@ find_components <- function(node, visited, address_graph) {
   #' @param address_graph A list where each element contains the indices of
   #'                      its neighboring nodes.
   #'
-  #' @return A vector containing all nodes in the connected component of the graph.
+  #' @return A vector containing all nodes in the connected component of the 
+  #'         graph.
   
   
   # Initialize stack with the starting node and create an empty vector to store 
@@ -1183,18 +1205,24 @@ zip_to_pred_city <- function(zip5, zip_city_lookup) {
 
 pick_best <- function(dt, geo_tol = 0.02, reference_pool = NULL) {
   #' Select the Best Anchor Row from a Pool of Candidate Address Records.
-  #' Given a pool of candidate rows sharing the same \code{address_line_1},
-  #' \code{pick_best()} scores each candidate by its geo and temporal compatibility
-  #' with all rows in \code{reference_pool} (or \code{dt} itself if no reference
-  #' pool is supplied) and returns the single most representative row to serve as
-  #' the anchor for downstream matching.
+  #' Given a pool of candidate rows (typically sharing the same \code{address_line_1}
+  #' or other clustering key), \code{pick_best()} scores each candidate by its geo
+  #' and temporal compatibility with all rows in \code{reference_pool} (or \code{dt}
+  #' itself if no reference pool is supplied) and returns the single most
+  #' representative row to serve as the anchor for downstream matching.
   #'
-  #' @param dt  A \code{data.table} of candidate rows to score and rank. Expected columns:
+  #' This version is written to be \strong{schema-stable}: it always attaches the
+  #' scoring columns \code{has_zip4}, \code{has_geo}, \code{geo_agree},
+  #' \code{year_overlap}, and \code{year_gap_total} \emph{even when} \code{dt} has
+  #' only one row. This prevents grouped \code{data.table} operations from failing
+  #' due to inconsistent columns across groups.
+  #'
+  #' @param dt A \code{data.table} of candidate rows to score and rank. Expected columns:
   #'   \itemize{
   #'     \item \code{latitude_avg}, \code{longitude_avg} – average coordinates (may be \code{NA})
   #'     \item \code{anchor_year_min}, \code{anchor_year_max} – year span of the record
-  #'     \item \code{zip4}       – 4-digit ZIP extension (may be \code{NA})
-  #'     \item \code{n_geo}      – count of geocoded observations backing the coordinates
+  #'     \item \code{zip4} – 4-digit ZIP extension (may be \code{NA})
+  #'     \item \code{n_geo} – count of geocoded observations backing the coordinates
   #'     \item \code{combined_address} – full address string used as a stable tie-break key
   #'   }
   #' @param geo_tol Numeric scalar. Maximum allowable difference in decimal degrees
@@ -1209,76 +1237,92 @@ pick_best <- function(dt, geo_tol = 0.02, reference_pool = NULL) {
   #' @return A single-row \code{data.table} representing the best anchor candidate,
   #'   with additional scoring columns attached:
   #'   \itemize{
-  #'     \item \code{has_geo}        – \code{TRUE} if the row has valid coordinates
-  #'     \item \code{geo_agree}      – number of reference pool rows within \code{geo_tol}
-  #'     \item \code{year_overlap}   – number of reference pool rows with overlapping year spans
+  #'     \item \code{has_geo} – \code{TRUE} if the row has valid coordinates
+  #'     \item \code{geo_agree} – number of reference pool rows within \code{geo_tol}
+  #'     \item \code{year_overlap} – number of reference pool rows with overlapping year spans
   #'     \item \code{year_gap_total} – sum of year gaps to non-overlapping reference rows
-  #'     \item \code{has_zip4}       – \code{TRUE} if a 4-digit ZIP extension is present
+  #'     \item \code{has_zip4} – \code{TRUE} if a 4-digit ZIP extension is present
   #'   }
   #'
   #' @details
   #' Scoring priority (descending):
   #' \enumerate{
-  #'   \item \strong{geo_agree}      – maximise geo-compatible neighbours within \code{geo_tol}
-  #'   \item \strong{year_overlap}   – maximise temporally overlapping neighbours
+  #'   \item \strong{geo_agree} – maximise geo-compatible neighbours within \code{geo_tol}
+  #'   \item \strong{year_overlap} – maximise temporally overlapping neighbours
   #'   \item \strong{year_gap_total} – minimise total year distance to non-overlapping rows
-  #'   \item \strong{has_zip4}       – prefer rows with a ZIP+4 extension
-  #'   \item \strong{n_geo}          – prefer rows backed by more geocoded observations
+  #'   \item \strong{has_zip4} – prefer rows with a ZIP+4 extension
+  #'   \item \strong{n_geo} – prefer rows backed by more geocoded observations
   #'   \item \strong{combined_address} – alphabetic stable tie-break
   #' }
   #' When \code{reference_pool} is supplied, self-comparisons are excluded by
   #' dropping any reference row whose \code{combined_address} matches the candidate.
+  #'
+  #' @note
+  #' \code{data.table} modifies by reference. This function will add columns and
+  #' reorder \code{dt} in-place. If you want to preserve the original, call
+  #' \code{pick_best(copy(dt), ...)}.
   
   n <- nrow(dt)
-  if (n == 1L) return(dt)
+  if (n == 0L) return(dt)  # safeguard: nothing to rank
   
   # Use reference_pool for scoring if provided, otherwise score within dt
   ref <- if (!is.null(reference_pool)) reference_pool else dt
   
+  # Precompute which rows have valid coordinates
   has_geo_vec <- !is.na(dt$latitude_avg) & !is.na(dt$longitude_avg)
   ref_has_geo <- !is.na(ref$latitude_avg) & !is.na(ref$longitude_avg)
   
-  # ── 1. Geo compatibility score ───────────────────────────────────────────
-  # For each candidate in dt, count how many rows in ref (excluding self)
-  # are within geo_tol degrees.
-  geo_agree <- vapply(seq_len(n), function(i) {
-    if (!has_geo_vec[i]) return(0L)
-    ca_i <- dt$combined_address[i]
-    sum(vapply(seq_len(nrow(ref)), function(k) {
-      if (ref$combined_address[k] == ca_i) return(0L)   # exclude self
-      if (!ref_has_geo[k]) return(0L)
-      lon_ok <- abs(dt$longitude_avg[i] - ref$longitude_avg[k]) <= geo_tol
-      lat_ok <- abs(dt$latitude_avg[i]  - ref$latitude_avg[k])  <= geo_tol
-      as.integer(lon_ok & lat_ok)
-    }, integer(1L)))
-  }, integer(1L))
+  # Initialize score vectors (ensures scoring columns exist even when n == 1)
+  geo_agree      <- integer(n)
+  year_overlap   <- integer(n)
+  year_gap_total <- integer(n)
   
-  # ── 2. Temporal compatibility score ─────────────────────────────────────
-  # year_overlap:   number of ref rows (excluding self) whose year span overlaps.
-  # year_gap_total: sum of nearest-edge year distances to non-overlapping ref rows.
-  year_overlap <- vapply(seq_len(n), function(i) {
-    ca_i <- dt$combined_address[i]
-    sum(vapply(seq_len(nrow(ref)), function(k) {
-      if (ref$combined_address[k] == ca_i) return(0L)   # exclude self
-      overlaps <- dt$anchor_year_min[i] <= ref$anchor_year_max[k] &
-        ref$anchor_year_min[k] <= dt$anchor_year_max[i]
-      as.integer(overlaps)
-    }, integer(1L)))
-  }, integer(1L))
-  
-  year_gap_total <- vapply(seq_len(n), function(i) {
-    ca_i <- dt$combined_address[i]
-    sum(vapply(seq_len(nrow(ref)), function(k) {
-      if (ref$combined_address[k] == ca_i) return(0L)   # exclude self
-      overlaps <- dt$anchor_year_min[i] <= ref$anchor_year_max[k] &
-        ref$anchor_year_min[k] <= dt$anchor_year_max[i]
-      if (overlaps) return(0L)
-      min(abs(dt$anchor_year_min[i] - ref$anchor_year_max[k]),
-          abs(ref$anchor_year_min[k] - dt$anchor_year_max[i]))
-    }, integer(1L)))
-  }, integer(1L))
+  if (n > 1L) {
+    
+    # ── 1. Geo compatibility score ───────────────────────────────────────────
+    # For each candidate in dt, count how many rows in ref (excluding self)
+    # are within geo_tol degrees (both lat and lon).
+    geo_agree <- vapply(seq_len(n), function(i) {
+      if (!has_geo_vec[i]) return(0L)
+      ca_i <- dt$combined_address[i]
+      sum(vapply(seq_len(nrow(ref)), function(k) {
+        if (ref$combined_address[k] == ca_i) return(0L)   # exclude self
+        if (!ref_has_geo[k]) return(0L)
+        lon_ok <- abs(dt$longitude_avg[i] - ref$longitude_avg[k]) <= geo_tol
+        lat_ok <- abs(dt$latitude_avg[i]  - ref$latitude_avg[k])  <= geo_tol
+        as.integer(lon_ok & lat_ok)
+      }, integer(1L)))
+    }, integer(1L))
+    
+    # ── 2. Temporal compatibility score ─────────────────────────────────────
+    # year_overlap:   number of ref rows (excluding self) whose year span overlaps.
+    # year_gap_total: sum of nearest-edge year distances to non-overlapping ref rows.
+    year_overlap <- vapply(seq_len(n), function(i) {
+      ca_i <- dt$combined_address[i]
+      sum(vapply(seq_len(nrow(ref)), function(k) {
+        if (ref$combined_address[k] == ca_i) return(0L)   # exclude self
+        overlaps <- dt$anchor_year_min[i] <= ref$anchor_year_max[k] &
+          ref$anchor_year_min[k] <= dt$anchor_year_max[i]
+        as.integer(overlaps)
+      }, integer(1L)))
+    }, integer(1L))
+    
+    year_gap_total <- vapply(seq_len(n), function(i) {
+      ca_i <- dt$combined_address[i]
+      sum(vapply(seq_len(nrow(ref)), function(k) {
+        if (ref$combined_address[k] == ca_i) return(0L)   # exclude self
+        overlaps <- dt$anchor_year_min[i] <= ref$anchor_year_max[k] &
+          ref$anchor_year_min[k] <= dt$anchor_year_max[i]
+        if (overlaps) return(0L)
+        min(abs(dt$anchor_year_min[i] - ref$anchor_year_max[k]),
+            abs(ref$anchor_year_min[k] - dt$anchor_year_max[i]))
+      }, integer(1L)))
+    }, integer(1L))
+  }
   
   # ── 3. Attach scores and sort ────────────────────────────────────────────
+  # Always attach score columns (even when n == 1) so downstream grouped
+  # data.table operations see consistent columns across groups.
   dt[, `:=`(
     has_zip4       = !is.na(zip4),
     has_geo        = has_geo_vec,
@@ -1298,6 +1342,65 @@ pick_best <- function(dt, geo_tol = 0.02, reference_pool = NULL) {
   dt[1L]
 }
 
+
+
+
+pick_best_by_city <- function(candidates_dt, match_pool, geo_tol = 0.02) {
+  #' Pick the Best Anchor Row \emph{Within Each} \code{pred_city}.
+  #' \code{pick_best_by_city()} applies \code{\link{pick_best}} separately to each
+  #' \code{pred_city} group in \code{candidates_dt}, returning exactly one selected
+  #' anchor row per city. Each city’s candidates are scored against the same
+  #' \code{match_pool} (the “reference context”), which is useful when anchors must
+  #' be optimized for compatibility with a broader set of rows (e.g., \code{dtT ∪ dtF})
+  #' rather than only within-city candidates.
+  #'
+  #' @param candidates_dt A \code{data.table} of candidate rows. Must contain
+  #'   \code{pred_city} and all columns required by \code{\link{pick_best}}.
+  #' @param match_pool A \code{data.table} used as the scoring reference context
+  #'   passed to \code{\link{pick_best}} via \code{reference_pool}.
+  #' @param geo_tol Numeric scalar. Geo tolerance (decimal degrees) passed through
+  #'   to \code{\link{pick_best}}. Default \code{0.02}.
+  #'
+  #' @return A \code{data.table} with exactly one row per unique \code{pred_city}
+  #'   present in \code{candidates_dt}. The returned rows include all original
+  #'   columns plus the scoring columns added by \code{\link{pick_best}}:
+  #'   \code{has_zip4}, \code{has_geo}, \code{geo_agree}, \code{year_overlap},
+  #'   \code{year_gap_total}.
+  #'
+  #' @details
+  #' Internally this function does:
+  #' \preformatted{
+  #' candidates_dt[, pick_best(.SD, reference_pool = match_pool), by = pred_city]
+  #' }
+  #' Because \code{data.table} modifies by reference, \code{\link{pick_best}} will
+  #' modify each group’s \code{.SD}. To avoid mutating the caller’s data, this
+  #' function copies \code{candidates_dt} before grouping and also copies each
+  #' \code{.SD} before scoring.
+  #'
+  #' @note
+  #' The output schema stability depends on \code{\link{pick_best}} always attaching
+  #' its scoring columns even when a city group has only one candidate row.
+  
+  # Basic validations (fail fast with clear messages)
+  stopifnot(data.table::is.data.table(candidates_dt))
+  stopifnot(data.table::is.data.table(match_pool))
+  if (!"pred_city" %chin% names(candidates_dt)) {
+    stop("pick_best_by_city(): candidates_dt must contain column 'pred_city'.")
+  }
+  
+  # data.table modifies by reference; copy to avoid side effects in caller
+  candidates_dt <- data.table::copy(candidates_dt)
+  
+  # Pick exactly one best row per pred_city, scoring against match_pool
+  out <- candidates_dt[, {
+    pick_best(data.table::copy(.SD), geo_tol = geo_tol, reference_pool = match_pool)
+  }, by = pred_city]
+  
+  # Optional: make output deterministic/easy to scan
+  data.table::setorder(out, pred_city)
+  
+  out
+}
 
 
 
@@ -2716,12 +2819,12 @@ decode_cbsa_csa <- function(cand_sf,
                             cbsa_csa_sf,
                             year,
                             state_col = "state") {
-  #' Decode (Assign) CBSA and CSA Codes to Point Locations. Given a set of 
-  #' candidate point locations and a combined CBSA/CSA polygon layer, this 
-  #' function performs two point-in-polygon spatial joins — one for Core Based 
-  #' Statistical Areas (CBSAs) and one for Combined Statistical Areas (CSAs) — 
-  #' and returns the corresponding codes and CBSA metropolitan/micropolitan 
-  #' level for each point.
+  #' Decode (Assign) CBSA and CSA Codes to Point Locations.
+  #' Given a set of candidate point locations and a combined CBSA/CSA polygon
+  #' layer, this function performs two point-in-polygon spatial joins—one for
+  #' Core Based Statistical Areas (CBSAs) and one for Combined Statistical Areas
+  #' (CSAs)—and returns the corresponding codes and CBSA
+  #' metropolitan/micropolitan level for each point.
   #'
   #' @param cand_sf     An `sf` object with POINT geometry. Must contain a unique
   #'                    integer or character column named `row_id`.
@@ -2738,19 +2841,26 @@ decode_cbsa_csa <- function(cand_sf,
   #'                      \item{area_states}{(Optional) Hyphen-delimited string of
   #'                        state identifiers that the polygon touches (e.g.
   #'                        `"-OH-KY-IN-"`). Used for state-based pre-filtering
-  #'                        when `state_col` is supplied.}
+  #'                        and post-join validation when `state_col` is supplied.}
   #'                    }
   #' @param year        Single numeric value (e.g. `2015`). Appended as a suffix to
   #'                    the output column names: `cbsa_code_<year>`,
   #'                    `cbsa_level_<year>`, and `csa_code_<year>`.
   #' @param state_col   Character scalar or `NULL`. Name of a column in `cand_sf`
   #'                    holding state identifiers (e.g. FIPS codes or postal
-  #'                    abbreviations). When supplied *and* `cbsa_csa_sf` contains
-  #'                    an `area_states` column, all polygons are pre-filtered to
-  #'                    only those whose `area_states` overlaps the states present
-  #'                    in `cand_sf` before any CRS or spatial work is performed —
-  #'                    the primary speed optimisation for large national layers.
-  #'                    Defaults to `NULL` (no filtering).
+  #'                    abbreviations).
+  #'
+  #'                    When supplied *and* `cbsa_csa_sf` contains an `area_states`
+  #'                    column, polygons are pre-filtered to only those whose
+  #'                    `area_states` overlaps the states present in `cand_sf`
+  #'                    before any CRS or spatial work is performed—this is the
+  #'                    primary speed optimisation for large national layers.
+  #'
+  #'                    The same `state_col` is also used for a post-join
+  #'                    state-consistency check (see Details).
+  #'
+  #'                    Defaults to `NULL` (no state-based pre-filtering or
+  #'                    post-join validation).
   #'
   #' @return A data frame with one row per point in `cand_sf` and four columns:
   #' \describe{
@@ -2773,17 +2883,21 @@ decode_cbsa_csa <- function(cand_sf,
   #' attributes (`area_level`) to be handled cleanly without polluting the CSA
   #' result.
   #'
-  #' **Post-join state filter:** A second, row-level state check is applied after
-  #' each join via the internal `filter_by_state()` helper. This guards against
-  #' the rare edge case where a point near a state border could be matched to a
-  #' polygon whose `area_states` does not include the point's own state.
+  #' **Post-join state masking (row-preserving):** After each join, a secondary,
+  #' row-level state-consistency check is applied via an internal `mask_by_state()`
+  #' helper. If the matched polygon’s `area_states` does not include the point’s
+  #' state, the polygon-derived attributes (e.g. `area_code`, `area_level`) are
+  #' set to `NA` for that row. Importantly, rows are *not removed*, preserving the
+  #' invariant of one output row per input point and avoiding dimension mismatches
+  #' when combining CBSA and CSA results.
   #'
   #' **CRS:** Points are re-projected into the native CRS of the (now-filtered)
   #' `cbsa_csa_sf` layer. The original `cand_sf` object is not modified.
   #'
-  #' **Duplicate matches:** `largest = TRUE` in `sf::st_join` ensures at most one
-  #' polygon match is retained per point, resolving rare boundary ambiguities by
-  #' keeping the largest-area match.
+  #' **Duplicate matches:** `largest = TRUE` in `sf::st_join` is used to prefer a
+  #' single polygon when a point matches more than one feature (rare boundary
+  #' ambiguities). Where an sf backend does not enforce a single match, downstream
+  #' code should ensure one record per `row_id`.
   #'
   #' **Geometry warning suppression:** The common sf warning about attributes being
   #' "spatially constant throughout all geometries" is suppressed; it is benign
@@ -2802,7 +2916,7 @@ decode_cbsa_csa <- function(cand_sf,
   #'   out <- dplyr::left_join(sf::st_drop_geometry(cand_sf), cbsa_csa_2015,
   #'                           by = "row_id")
   #'
-  #'   # Skip state filtering entirely
+  #'   # Skip state filtering/validation entirely
   #'   cbsa_csa_2010 <- decode_cbsa_csa(cand_sf, core_areas$cbsa_csa_2010,
   #'                                    year      = 2010,
   #'                                    state_col = NULL)
@@ -2871,15 +2985,41 @@ decode_cbsa_csa <- function(cand_sf,
                                                 intersect("area_states", names(cbsa_csa_sf))),
                           drop = FALSE]
   
-  # ---- Post-join state filtering helper ----
-  # Applied after each spatial join as a secondary guard: removes matched rows
-  # where the polygon's area_states does not include the point's own state.
-  # Polygons with NA area_states are always retained (no state info to filter on).
-  # Uses the same hyphen-sentinel pattern as the pre-filter above.
-  filter_by_state <- function(joined_df, poly_states_col, point_states) {
+  # ---- Post-join state masking helper ----
+  # Applied after each spatial join as a secondary guard against rare cross-state
+  # matches near borders.
+  #
+  # What it does (and why):
+  # - It DOES NOT drop rows. Dropping rows can break the “one output row per input
+  #   point” invariant and cause downstream dimension mismatches (e.g., CBSA join
+  #   keeps 1 row but CSA join keeps 2).
+  # - Instead, for any row where the matched polygon’s `area_states` does not
+  #   include the point’s state, it sets selected polygon-derived attributes to NA.
+  #   This preserves row counts and alignment while still preventing incorrect
+  #   assignments.
+  #
+  # How state matching works:
+  # - `area_states` is expected to be a hyphen-delimited sentinel string like
+  #   "-TX-AR-" (or similar). We wrap both sides in "-" and search for the exact
+  #   token "-ST-" to avoid partial substring matches (e.g., "AL" inside "CAL").
+  # - Polygons with NA `area_states` are treated as “no metadata to validate” and
+  #   are left unchanged (i.e., not masked).
+  mask_by_state <- function(joined_df, poly_states_col, point_states, cols_to_na) {
     ps <- as.character(joined_df[[poly_states_col]])
-    ok <- is.na(ps) | stringr::str_detect(paste0("-", ps, "-"), paste0("-", point_states, "-"))
-    joined_df[ok, , drop = FALSE]
+    pt <- as.character(point_states)
+    
+    # Rowwise pattern "-ST-" for each point (vector length = nrow(joined_df))
+    pat <- paste0("-", pt, "-")
+    
+    # Keep matches when polygon has no state metadata (NA), otherwise require token match
+    ok <- is.na(ps) | stringr::str_detect(paste0("-", ps, "-"), pat)
+    
+    # For rows failing the check, blank out polygon-derived fields
+    for (cc in cols_to_na) {
+      if (cc %in% names(joined_df)) joined_df[[cc]][!ok] <- NA
+    }
+    
+    joined_df
   }
   
   # ---- Join to CBSA polygons ----
@@ -2899,7 +3039,12 @@ decode_cbsa_csa <- function(cand_sf,
   
   # Apply post-join state filter to CBSA results if conditions are met
   if (!is.null(state_col) && ("area_states" %in% names(cbsa_df)) && any(!is.na(cbsa_df$area_states))) {
-    cbsa_df <- filter_by_state(cbsa_df, "area_states", as.character(cbsa_df[[state_col]]))
+    cbsa_df <- mask_by_state(
+      cbsa_df,
+      poly_states_col = "area_states",
+      point_states    = cbsa_df[[state_col]],
+      cols_to_na      = c("area_code", "area_level")
+    )
   }
   
   # ---- Join to CSA polygons ----
@@ -2918,7 +3063,12 @@ decode_cbsa_csa <- function(cand_sf,
   
   # Apply post-join state filter to CSA results if conditions are met
   if (!is.null(state_col) && ("area_states" %in% names(csa_df)) && any(!is.na(csa_df$area_states))) {
-    csa_df <- filter_by_state(csa_df, "area_states", as.character(csa_df[[state_col]]))
+    csa_df <- mask_by_state(
+      csa_df,
+      poly_states_col = "area_states",
+      point_states    = csa_df[[state_col]],
+      cols_to_na      = c("area_code")
+    )
   }
   
   # ---- Assemble output ----

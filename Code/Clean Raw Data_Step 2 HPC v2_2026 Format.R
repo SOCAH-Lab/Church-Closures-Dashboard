@@ -511,7 +511,7 @@ processed_indices <- sprintf(
 # current_array_index <- processed_indices[idx]
 
 # Set index locally or in an HPC live session
-idx <- 9
+idx <- 4
 current_array_index <- processed_indices[idx]
 
 nums <- as.integer(unlist(regmatches(current_array_index, gregexpr("\\d+", current_array_index))))
@@ -525,25 +525,12 @@ search_space <- unique(church_2026_form_dt[, abi])[index]
 
 
 ## --------------------
-## SUBSECTION B2: Set Geocoder Search Priorities
+## SUBSECTION B2: Patching in New Results
 
-# The U.S. Census Geocoder API supports multiple benchmarks and vintages for
-# geolocation searches. Refer to "SUBSECTION A2: Set Geocoder Search Priorities"
-# in "Clean Raw Data_Step 2_2026 Format.R" to see the available options and
-# construct a prioritized search sequence (copied below). 
-
-
-# Construct a prioritized table of benchmark/vintage search criteria,
-# where earlier rows take precedence.
-spec <- tibble::tibble(
-  benchmark_name = c("Public_AR_Census2020", "Public_AR_Census2020",
-                     "Public_AR_Current",  "Public_AR_ACS2025"),
-  vintage_name   = c("Census2020_Census2020", "Census2010_Census2020",
-                     "Current_Current",       "Current_ACS2025")
-)
-
-# Construct the "tries" input for `validate_geolocation()`
-geocoder_census_tries <- census_geo_make_tries(spec)
+# Choose to do all-in-one or only the new adds
+# Define the starting df with prior results
+# Append only the new values and sort abi then date
+# Mark which rows to be editing
 
 
 ## --------------------
@@ -570,7 +557,7 @@ geocoder_census_tries <- census_geo_make_tries(spec)
 
 
 # Toggle on or off the address verification workflow using the USPS API.
-verify_addresses <- TRUE
+verify_addresses <- FALSE
 
 # USPS API costs are incurred per verified address. Users can control the
 # number of addresses submitted for verification using the quota setting below.
@@ -585,6 +572,9 @@ verify_addresses <- TRUE
 # Setting `set_quota = Inf` instructs the function to select all available
 # addresses in the subset. Equivalently, any quota value high enough to
 # accommodate all addresses in the subset will produce the same result.
+# 
+# NOTE: The USPS API may itself set quota limits that will impact how many
+#       addresses are able to be verified.
 set_quota = Inf
 
 # If the quota is less than the number of available ABIs in the subset, the
@@ -744,6 +734,30 @@ if (exists("verify_addresses", inherits = FALSE) == FALSE) {
 }
 
 
+
+
+## --------------------
+## SUBSECTION B2: Set Geocoder Search Priorities
+
+# The U.S. Census Geocoder API supports multiple benchmarks and vintages for
+# geolocation searches. Refer to "SUBSECTION A2: Set Geocoder Search Priorities"
+# in "Clean Raw Data_Step 2_2026 Format.R" to see the available options and
+# construct a prioritized search sequence (copied below). 
+
+
+# Construct a prioritized table of benchmark/vintage search criteria,
+# where earlier rows take precedence.
+spec <- tibble::tibble(
+  benchmark_name = c("Public_AR_Census2020", "Public_AR_Census2020",
+                     "Public_AR_Current",  "Public_AR_ACS2025"),
+  vintage_name   = c("Census2020_Census2020", "Census2010_Census2020",
+                     "Current_Current",       "Current_ACS2025")
+)
+
+# Construct the "tries" input for `validate_geolocation()`
+geocoder_census_tries <- census_geo_make_tries(spec)
+
+
 ## --------------------
 ## SUBSECTION B4: Load Relevant Block-Level GeoPackages by State
 
@@ -799,7 +813,7 @@ blocks_by_state <- read_state_gpkgs_for_data(
 ## --------------------
 ## SUBSECTION C1: Algorithm
 
-search_space <- search_space[800:900]
+search_space <- search_space[c(1050:1150)]
 
 # Initialize the empty lists
 finish_build <- vector("list", length(search_space))
@@ -978,12 +992,39 @@ for (i in 1:length(search_space)) {
         #     each address and to capture non-hard-stop API errors
         #     (e.g., HTTP 400 "Address Not Found") for audit purposes.
         mutate(attempt_succeeded = NA_character_) %>%
-        #   - Initialize geolocation_test as NA for downstream geocoding checks.
-        mutate(geolocation_test = NA_character_)
+        #   - Initialize standardized USPS status fields (from usps_status_group())
+        mutate(usps_status = NA_integer_,usps_status_detail = NA_character_) %>%
+        #   - Initialize ver_geolocation_test as NA for downstream geocoding checks.
+        mutate(ver_geolocation_test = NA_character_)
       
       
       # --------------------
       # LOOP PART B.i.: Validate Addresses with USPS Database
+      
+      usps_status_group <- function(status) {
+        # Translate the status code to a short description.
+        s_raw <- as.character(status)
+        
+        # Extract a 3-digit HTTP code from strings like "http_429", "HTTP 429", "429", etc.
+        code_chr <- stringr::str_extract(s_raw, "(?<!\\d)\\d{3}(?!\\d)")
+        s <- suppressWarnings(as.integer(code_chr))
+        
+        detail <- dplyr::case_when(
+          is.na(s)  ~ "Other unanticipated errors",
+          s == 200  ~ "200 Successful operation",
+          s == 400  ~ "400 Bad request",
+          s == 401  ~ "401 Unauthorized",
+          s == 403  ~ "403 Forbidden",
+          s == 429  ~ "429 Rate limit reached",
+          s == 503  ~ "503 Service unavailable",
+          TRUE      ~ "Other unanticipated errors"
+        )
+        
+        list(
+          usps_status        = s,
+          usps_status_detail = detail
+        )
+      }
       
       for (addr_idx in seq_len(nrow(candidate_addresses))) {
         
@@ -994,17 +1035,10 @@ for (i in 1:length(search_space)) {
         query_result <- NA_character_
         
         usps_validated    <- list(ok = FALSE, status = NA_character_, status_detail = NA_character_)
+        grp               <- list()
         attempt_succeeded <- NA_character_
         attempt_log       <- list()
         last_log          <- NULL
-        
-        # then pull row fields...
-        address1 <- candidate_addresses$address_line_1[addr_idx]
-        address2 <- ""
-        city     <- candidate_addresses$city[addr_idx]
-        state    <- candidate_addresses$state[addr_idx]
-        zip5     <- candidate_addresses$zipcode[addr_idx]
-        zip4     <- ifelse(is.na(candidate_addresses$zip4[addr_idx]), "", candidate_addresses$zip4[addr_idx])
         
         # Pull the addr_idx-th row into variables used by validate_usps_address()
         address1 <- candidate_addresses$address_line_1[addr_idx]
@@ -1014,12 +1048,6 @@ for (i in 1:length(search_space)) {
         zip5     <- candidate_addresses$zipcode[addr_idx]
         zip4     <- ifelse(is.na(candidate_addresses$zip4[addr_idx]), "", candidate_addresses$zip4[addr_idx])
         
-        # Track which attempt succeeded and collect non-hard-stop failure reasons
-        # across all attempts for audit/debugging purposes.
-        attempt_succeeded <- NA_character_
-        attempt_log       <- list()
-        
-        
         # -- Attempt 1: validate using the original inputs as-is -------------------
         
         usps_validated <- suppressWarnings(
@@ -1028,6 +1056,9 @@ for (i in 1:length(search_space)) {
             address1, address2, city, state, zip5, zip4
           )
         )
+        
+        # -- Derive standardized USPS status + detail from final status ----
+        grp <- usps_status_group(usps_validated$status)
         
         if (usps_validated$ok) {
           attempt_succeeded <- "First try"
@@ -1040,9 +1071,9 @@ for (i in 1:length(search_space)) {
         # -- Attempt 2: if no match, assess/correct city via ZIP lookup, then retry
         
         # Handles the case where ZIP codes were imported as numeric, stripping leading
-        # and trailing zeros.
+        # and trailing zeros. Only try if the rate limit has not been reached.
         
-        if (!usps_validated$ok) {
+        if (!usps_validated$ok & grp$usps_status != "429") {
           
           if (zip_codes_character) {
             
@@ -1115,6 +1146,10 @@ for (i in 1:length(search_space)) {
           }
         }
         
+        # -- Derive standardized USPS status + detail from final status ----
+        grp <- usps_status_group(usps_validated$status) # Update if needed
+        candidate_addresses$usps_status[addr_idx]        <- grp$usps_status
+        candidate_addresses$usps_status_detail[addr_idx] <- grp$usps_status_detail
         
         # -- Save results back into candidate_addresses (single write block) -------
         
@@ -1303,10 +1338,10 @@ for (i in 1:length(search_space)) {
             
             
             # Update unmatched records with the associated verified address
-            unmatched[u_idx, "verified_address"] <- best[1, verified_address]
-            unmatched[u_idx, "address_verified"] <- "Exact match"
-            unmatched[u_idx, "geolocation_test"] <- "Override"
-            unmatched[u_idx, "latitude_avg"] <- best[1, latitude_avg]
+            unmatched[u_idx, "verified_address"]     <- best[1, verified_address]
+            unmatched[u_idx, "address_verified"]     <- "Exact match"
+            unmatched[u_idx, "ver_geolocation_test"] <- "Override"
+            unmatched[u_idx, "latitude_avg"]  <- best[1, latitude_avg]
             unmatched[u_idx, "longitude_avg"] <- best[1, longitude_avg]
             
             
@@ -1404,11 +1439,11 @@ for (i in 1:length(search_space)) {
                 lon_diff = abs(longitude_avg - u_lon)
               )]
               
-              cand[, geolocation_test := (lat_diff < 0.002) & (lon_diff < 0.002)]
+              cand[, ver_geolocation_test := (lat_diff < 0.002) & (lon_diff < 0.002)]
               
               # Select the best verified match per unmatched record using the 
               # preference rules (ONLY among coordinate-close candidates).
-              best <- cand[geolocation_test == TRUE][
+              best <- cand[ver_geolocation_test == TRUE][
                 order(
                   u_id,
                   dir != "overlap",                      # overlaps/touches first
@@ -1423,15 +1458,15 @@ for (i in 1:length(search_space)) {
               if (nrow(best) == 0L) {
                 
                 # No candidate survived the geolocation test — flag as failed
-                unmatched[u_idx, "geolocation_test"] <- "FALSE"
+                unmatched[u_idx, "ver_geolocation_test"] <- "FALSE"
                 
               } else {
                 
                 # Geolocation test passed — assign the top candidate as the verified address.
                 # u_address_line_1 confirms which unmatched street was resolved.
-                unmatched[u_idx, "verified_address"] <- best[1, verified_address]
-                unmatched[u_idx, "address_verified"] <- "Fuzzy match"
-                unmatched[u_idx, "geolocation_test"] <- "TRUE"
+                unmatched[u_idx, "verified_address"]     <- best[1, verified_address]
+                unmatched[u_idx, "address_verified"]     <- "Fuzzy match"
+                unmatched[u_idx, "ver_geolocation_test"] <- "TRUE"
                 unmatched[u_idx, "latitude_avg"]     <- best[1, latitude_avg]
                 unmatched[u_idx, "longitude_avg"]    <- best[1, longitude_avg]
                 
@@ -1474,7 +1509,9 @@ for (i in 1:length(search_space)) {
       # Organize columns
       candidate_addresses <- candidate_addresses %>%
         relocate(attempt_succeeded, .after = address_verified) %>%
-        relocate(geolocation_test, .after = attempt_succeeded)
+        relocate(usps_status, .after = attempt_succeeded) %>%
+        relocate(usps_status_detail, .after = usps_status) %>%
+        relocate(ver_geolocation_test, .after = address_verified)
       setDT(candidate_addresses)
       
       # Ensure the rows are ordered by ascending year of observation.
@@ -1524,8 +1561,8 @@ for (i in 1:length(search_space)) {
       unver_candidates <- unver_candidates %>%
         #   - Initialize verification status and verified address storage fields.
         mutate(address_matched = NA_character_, matched_address = NA_character_) %>%
-        #   - Initialize geolocation_test as NA for downstream geocoding checks.
-        mutate(geolocation_test = NA_character_)
+        #   - Initialize match_geolocation_test as NA for downstream geocoding checks.
+        mutate(match_geolocation_test = NA_character_)
       
       # --------------------
       # LOOP PART B.iii.: Agnostically Resolve Record Heterogeneity
@@ -1549,7 +1586,7 @@ for (i in 1:length(search_space)) {
       #        if coords are missing on either side, keep the pair eligible.
       #      - Records whose pred_city has no anchor counterpart are left unmatched
       #        for the fuzzy pass.
-      #      - Provenance fields: address_matched = "Exact match"; geolocation_test
+      #      - Provenance fields: address_matched = "Exact match"; match_geolocation_test
       #        indicates whether the geo check was evaluated/passed.
       #
       #   b) Fuzzy match on address_line_1 (similar strings):
@@ -1564,7 +1601,7 @@ for (i in 1:length(search_space)) {
       #      - Apply the same geolocation guardrail as in (a).
       #      - Only apply the fuzzy match when geo_valid == TRUE; if geo_valid == FALSE,
       #        leave the record as unverified/unmatched.
-      #      - Provenance fields: address_matched = "Fuzzy match"; geolocation_test
+      #      - Provenance fields: address_matched = "Fuzzy match"; match_geolocation_test
       #        indicates whether the geo check was evaluated/passed.
       #
       #   Both passes:
@@ -1669,7 +1706,7 @@ for (i in 1:length(search_space)) {
         #   Only fill blank fields; never overwrite existing matches.
         #   Tags:
         #     address_matched  = "Exact match"
-        #     geolocation_test = "Override" (exact linkage accepted; geo not 
+        #     match_geolocation_test = "Override" (exact linkage accepted; geo not 
         #     enforced here)
         
         
@@ -1845,7 +1882,7 @@ for (i in 1:length(search_space)) {
             # - "Override": geo is not used as a hard guardrail in this pass
             result[, `:=`(
               address_matched  = "Exact match",
-              geolocation_test = "Override"
+              match_geolocation_test = "Override"
             )]
             
             # Make row_id globally unique before deduplication (it resets per group)
@@ -1860,7 +1897,7 @@ for (i in 1:length(search_space)) {
             setDT(check_city)
             
             # Ensure all target columns exist before the update join
-            for (col in c("matched_address", "address_matched", "geolocation_test", "match_type")) {
+            for (col in c("matched_address", "address_matched", "match_geolocation_test", "match_type")) {
               if (!col %in% names(check_city)) {
                 check_city[, (col) := NA_character_]
               }
@@ -1882,10 +1919,10 @@ for (i in 1:length(search_space)) {
                   i.address_matched,
                   address_matched
                 ),
-                geolocation_test = fifelse(
+                match_geolocation_test = fifelse(
                   is.na(address_matched) | trimws(address_matched) == "",
-                  i.geolocation_test,
-                  geolocation_test
+                  i.match_geolocation_test,
+                  match_geolocation_test
                 ),
                 match_type = fifelse(
                   is.na(address_matched) | trimws(address_matched) == "",
@@ -1930,7 +1967,7 @@ for (i in 1:length(search_space)) {
         #   closest diffs.
         # 
         #   address_matched  = "Fuzzy match"
-        #   geolocation_test = "PASS" / "PASS; no Lon" / "PASS; no Lat" / "PASS; no Lon/Lat"
+        #   match_geolocation_test = "PASS" / "PASS; no Lon" / "PASS; no Lat" / "PASS; no Lon/Lat"
         #   Geo failures are recorded as "FAIL" and stamped only if the record remains unmatched.
         
         if (length(which_similar) > 0L) {
@@ -2172,7 +2209,7 @@ for (i in 1:length(search_space)) {
             
             m_best[, geo_valid := lon_ok & lat_ok]
             
-            m_best[, geolocation_test := fcase(
+            m_best[, match_geolocation_test := fcase(
               geo_valid == FALSE, "FAIL",
               
               geo_valid == TRUE & lon_testable == TRUE & lat_testable == TRUE,  "PASS",
@@ -2189,7 +2226,7 @@ for (i in 1:length(search_space)) {
             if (nrow(m_fail) > 0L) {
               choose_geo_fail[[j]] <- m_fail[, .(
                 combined_address_i,
-                geolocation_test,                 # "FAIL"
+                match_geolocation_test,                 # "FAIL"
                 address_matched  = "Fuzzy match",
                 match_type       = "geo_guardrail_failed"
               )]
@@ -2254,13 +2291,13 @@ for (i in 1:length(search_space)) {
             # ensure target columns exist (keep lat/lon numeric)
             if (!"matched_address" %in% names(check_city))  check_city[, matched_address := NA_character_]
             if (!"address_matched" %in% names(check_city))  check_city[, address_matched := NA_character_]
-            if (!"geolocation_test" %in% names(check_city)) check_city[, geolocation_test := NA_character_]
+            if (!"match_geolocation_test" %in% names(check_city)) check_city[, match_geolocation_test := NA_character_]
             if (!"match_type" %in% names(check_city))       check_city[, match_type := NA_character_]
             if (!"longitude_avg" %in% names(check_city))    check_city[, longitude_avg := as.numeric(NA)]
             if (!"latitude_avg" %in% names(check_city))     check_city[, latitude_avg := as.numeric(NA)]
             
             # PASS predicate (PASS / PASS; no Lon / etc.)
-            result[, geo_pass := !is.na(geolocation_test) & substr(geolocation_test, 1L, 4L) == "PASS"]
+            result[, geo_pass := !is.na(match_geolocation_test) & substr(match_geolocation_test, 1L, 4L) == "PASS"]
             
             check_city[
               result,
@@ -2279,11 +2316,11 @@ for (i in 1:length(search_space)) {
                   address_matched
                 ),
                 
-                geolocation_test = fifelse(
+                match_geolocation_test = fifelse(
                   (is.na(matched_address) | trimws(matched_address) == "") &
-                    (is.na(geolocation_test) | trimws(geolocation_test) == ""),
-                  i.geolocation_test,
-                  geolocation_test
+                    (is.na(match_geolocation_test) | trimws(match_geolocation_test) == ""),
+                  i.match_geolocation_test,
+                  match_geolocation_test
                 ),
                 
                 match_type = fifelse(
@@ -2310,8 +2347,8 @@ for (i in 1:length(search_space)) {
           
           # ── 7. Mark geo failures (no match written) ─────────────────────────────
           # These are rows where at least one coordinate dimension was testable and
-          # the pair failed tolerance. We stamp geolocation_test = "FAIL" only if the
-          # record is still unmatched (first-write wins) and geolocation_test is blank.
+          # the pair failed tolerance. We stamp match_geolocation_test = "FAIL" only if the
+          # record is still unmatched (first-write wins) and match_geolocation_test is blank.
           
           fail_result <- rbindlist(Filter(nrow, choose_geo_fail), use.names = TRUE, fill = TRUE)
           
@@ -2320,7 +2357,7 @@ for (i in 1:length(search_space)) {
             setDT(check_city)
             
             # Ensure columns exist
-            for (col in c("geolocation_test", "address_matched", "match_type")) {
+            for (col in c("match_geolocation_test", "address_matched", "match_type")) {
               if (!col %in% names(check_city)) {
                 check_city[, (col) := NA_character_]
               }
@@ -2334,11 +2371,11 @@ for (i in 1:length(search_space)) {
               fail_result,
               on = .(combined_address = combined_address_i),
               `:=`(
-                geolocation_test = fifelse(
+                match_geolocation_test = fifelse(
                   (is.na(matched_address) | trimws(matched_address) == "") &
-                    (is.na(geolocation_test) | trimws(geolocation_test) == ""),
-                  i.geolocation_test,   # should be "FAIL"
-                  geolocation_test
+                    (is.na(match_geolocation_test) | trimws(match_geolocation_test) == ""),
+                  i.match_geolocation_test,   # should be "FAIL"
+                  match_geolocation_test
                 ),
                 address_matched = fifelse(
                   (is.na(matched_address) | trimws(matched_address) == "") &
@@ -2376,10 +2413,10 @@ for (i in 1:length(search_space)) {
               i.address_matched,
               address_matched
             ),
-            geolocation_test = fifelse(
-              is.na(geolocation_test) | trimws(geolocation_test) == "",
-              i.geolocation_test,
-              geolocation_test
+            match_geolocation_test = fifelse(
+              is.na(match_geolocation_test) | trimws(match_geolocation_test) == "",
+              i.match_geolocation_test,
+              match_geolocation_test
             )
           )
         ]
@@ -2794,27 +2831,28 @@ for (i in 1:length(search_space)) {
     # expected columns) here.
     
     candidate_addresses <- data.frame(
-      combined_address  = character(),
-      address_line_1    = character(),
-      city              = character(),
-      state             = character(),
-      zipcode           = character(),
-      zip4              = character(),
-      anchor_year_min   = integer(),
-      anchor_year_max   = integer(),
-      n_geo             = integer(),
-      latitude_avg      = numeric(),
-      longitude_avg     = numeric(),
-      do_api            = logical(),
-      address_verified  = character(),
-      attempt_succeeded = character(),
-      geolocation_test  = character(),
-      verified_address  = character(),
-      address_matched   = character(),
-      matched_address   = character(),
-      best_address      = character(),
-      row_idx           = integer(),
-      stringsAsFactors  = FALSE
+      combined_address        = character(),
+      address_line_1          = character(),
+      city                    = character(),
+      state                   = character(),
+      zipcode                 = character(),
+      zip4                    = character(),
+      anchor_year_min         = integer(),
+      anchor_year_max         = integer(),
+      n_geo                   = integer(),
+      latitude_avg            = numeric(),
+      longitude_avg           = numeric(),
+      do_api                  = logical(),
+      address_verified        = character(),
+      attempt_succeeded       = character(),
+      ver_geolocation_test    = character(),
+      verified_address        = character(),
+      address_matched         = character(),
+      match_geolocation_test  = character(),
+      matched_address         = character(),
+      best_address            = character(),
+      row_idx                 = integer(),
+      stringsAsFactors        = FALSE
     )
     
     # Reorder columns and compute averages grouped by matched address.
@@ -2872,8 +2910,9 @@ for (i in 1:length(search_space)) {
     
     # ---- address ----
     "address_line_1", "city", "state", "zipcode", "zip4", "combined_address",
-    "do_api", "address_verified", "attempt_succeeded", "verified_address",     # validation cols
-    "address_matched", "matched_address", "geolocation_test", "best_address",  # validation cols
+    "do_api", "address_verified", "ver_geolocation_test", "attempt_succeeded",  # validation cols
+    "usps_status", "usps_status_detail", "verified_address", "address_matched", # validation cols
+    "match_geolocation_test", "matched_address", "best_address",                # validation cols         # validation cols
     
     # ---- industry codes / descriptions ----
     "primary_sic_code", "sic6_descriptions",
@@ -2978,11 +3017,7 @@ for (i in 1:length(search_space)) {
         ),
         # Prefer verified/standardized address; fall back to combined_address
         address = str_remove(coalesce(verified_address, combined_address), ",(?=\\s*\\d{5})"),
-        reported_address = str_remove(combined_address, ",(?=\\s*\\d{5})"),
-        # Geolocation test only applies to USPS-verified addresses;
-        # when a record was resolved via agnostic exact/fuzzy matching, clear 
-        # the geo flag
-        geolocation_test = if_else(!is.na(address_matched), NA_character_, geolocation_test)
+        reported_address = str_remove(combined_address, ",(?=\\s*\\d{5})")
       ) %>%
       select(
         abi, archive_version_year, address,
@@ -2991,8 +3026,8 @@ for (i in 1:length(search_space)) {
         reported_address,
         
         # ---- verification ----
-        address_verified, attempt_succeeded,
-        geolocation_test, verified_address
+        address_verified, ver_geolocation_test, usps_status,
+        usps_status_detail, attempt_succeeded, verified_address
       ) %>%
       group_by(across(-archive_version_year)) %>%
       summarise(
@@ -3012,10 +3047,6 @@ for (i in 1:length(search_space)) {
         # Prefer verified/standardized address; fall back to combined_address
         address = str_remove(coalesce(matched_address, combined_address), ",(?=\\s*\\d{5})"),
         reported_address = str_remove(combined_address, ",(?=\\s*\\d{5})"),
-        # Geolocation test only applies to records resolved via agnostic 
-        # exact/fuzzy matching; when a record was USPS-verified, clear the geo 
-        # flag
-        geolocation_test = if_else(is.na(address_matched), NA_character_, geolocation_test)
       ) %>%
       select(
         abi, archive_version_year, address,
@@ -3024,7 +3055,7 @@ for (i in 1:length(search_space)) {
         reported_address,
         
         # ---- verification ----
-        address_matched, geolocation_test, matched_address
+        address_matched, match_geolocation_test, matched_address
       ) %>%
       group_by(across(-archive_version_year)) %>%
       summarise(
@@ -3050,22 +3081,23 @@ for (i in 1:length(search_space)) {
   # Prep a consistent address field and keep only needed columns for QC
   qc_geo_df <- combined %>%
     rename(address = best_address) %>%
-    select(
-      abi, archive_version_year, address,
-      
-      # ---- geocoding ----
-      latitude, longitude,              # reported coords (if present)
-      n_address, enough_geo,            # logistics for averaging
-      latitude_avg, longitude_avg,      # averaged coords
-      latitude_ver, longitude_ver,      # validated coords
-      
-      # ---- verification ----
-      geolocation_verified, n_attempts, query_statuses, 
-      geo_matched_address, benchmark, vintage_input,
-      
-      # ---- confounders ----
-      address_verified, address_matched, geolocation_test
-    )
+    select(any_of(c(
+        "abi", "archive_version_year", "address",
+        
+        # ---- geocoding ----
+        "latitude", "longitude",
+        "n_address", "enough_geo",
+        "latitude_avg", "longitude_avg",
+        "latitude_ver", "longitude_ver",
+        
+        # ---- verification ----
+        "geolocation_verified", "n_attempts", "query_statuses",
+        "geo_matched_address", "benchmark", "vintage_input",
+        
+        # ---- confounders ----
+        "address_verified", "ver_geolocation_test",
+        "address_matched", "match_geolocation_test"
+      )))
   
   # (a) Query QC: number of attempts, API status code, vintage used
   qc_geo$qc1[[i]] <- qc_geo_df %>%
@@ -3095,27 +3127,60 @@ for (i in 1:length(search_space)) {
         )
       ),
       
-      # matched_address_same:
-      #   TRUE  = input address and geo_matched_address are effectively the same 
-      #           after light normalization
-      #   FALSE = they differ after normalization
-      #   NA    = cannot evaluate due to missing address fields
-      #
-      # Normalization performed:
-      #   - squish whitespace
-      #   - drop trailing ZIP+4 (e.g., "-1234")
-      #   - remove comma immediately before the 5-digit ZIP (to avoid punctuation-only diffs)
+      # ---- normalization helpers (computed once) ----
+      address_norm = case_when(
+        is.na(address) ~ NA_character_,
+        TRUE ~ address |>
+          stringr::str_squish() |>
+          stringr::str_remove("-\\d{4}$") |>
+          stringr::str_remove_all(",(?=\\s*\\d{5})") |>
+          stringr::str_to_upper()
+      ),
+      geo_matched_address_norm = case_when(
+        is.na(geo_matched_address) ~ NA_character_,
+        TRUE ~ geo_matched_address |>
+          stringr::str_squish() |>
+          stringr::str_remove("-\\d{4}$") |>
+          stringr::str_remove_all(",(?=\\s*\\d{5})") |>
+          stringr::str_to_upper()
+      ),
+      
+      # ---- exact same (keep your current logic, now using normalized fields) ----
       matched_address_same = case_when(
-        is.na(address) | is.na(geo_matched_address) ~ NA,
-        TRUE ~ str_remove_all(str_remove(str_squish(address), "-\\d{4}$"), ",(?=\\s*\\d{5})") ==
-          str_remove_all(str_remove(str_squish(geo_matched_address), "-\\d{4}$"), ",(?=\\s*\\d{5})")
+        is.na(address_norm) | is.na(geo_matched_address_norm) ~ NA,
+        TRUE ~ address_norm == geo_matched_address_norm
+      ),
+      
+      # ---- similar (new) ----
+      matched_address_similar = dplyr::case_when(
+        is.na(address_norm) | is.na(geo_matched_address_norm) ~ NA,
+        
+        # short-circuit exact equality to avoid fragile similarity internals
+        address_norm == geo_matched_address_norm ~ TRUE,
+        
+        TRUE ~ vapply(seq_len(dplyr::n()), \(i) {
+          a <- address_norm[[i]]
+          b <- geo_matched_address_norm[[i]]
+          
+          # extra safety: treat blanks as NA
+          if (is.na(a) || is.na(b) || !nzchar(a) || !nzchar(b)) return(NA)
+          
+          # protect against NA-sensitive `if()` inside your function
+          out <- tryCatch(
+            find_similar_addresses(c(a, b), threshold = 0.15),
+            error = function(e) NULL
+          )
+          if (is.null(out) || length(out) == 0) return(FALSE)
+          
+          any(vapply(out, \(grp) all(c(a, b) %in% grp), logical(1)))
+        }, logical(1))
       )
     ) %>%
     # Collapse across archive vintages:
     # For each unique record (everything except archive_version_year), collect 
     # the set of archive years observed and format them into compact ranges 
     # (e.g., "2000:2002, 2005").
-    select(-qs) %>%
+    select(-qs, -address_norm, -geo_matched_address_norm) %>%
     group_by(across(-archive_version_year)) %>%
     summarise(
       archive_versions_present = format_year_ranges(archive_version_year),
@@ -3157,15 +3222,58 @@ for (i in 1:length(search_space)) {
   
   # (c) Dispersion QC: summarize the spread of reported coords within (abi, address)
   qc_geo$qc3[[i]] <- qc_geo_df %>%
-    transmute(
-      abi, address,
-      latitude  = latitude,
-      longitude = longitude,
-      address_verified,
-      address_matched,
-      geolocation_test
-    ) %>%
+    {
+      # ------------------------------------------------------------------
+      # Defensive pre-processing to prevent errors when optional QC columns
+      # are absent in some runs / sources.
+      #
+      # Strategy:
+      #  1) REQUIRE the grouping/join keys (abi, address). If missing, stop
+      #     early with a clear message (better than a cryptic data.table error).
+      #  2) SELECT optional columns only if they exist (any_of()).
+      #  3) CREATE any missing optional columns and fill with NA so that
+      #     downstream mutate()/case_when() can safely reference them.
+      # ------------------------------------------------------------------
+      
+      # Columns we must have (used later in group_by() and commonly in joins)
+      req <- c("abi", "address")
+      miss_req <- setdiff(req, names(.))
+      if (length(miss_req) > 0) {
+        stop("qc_geo_df is missing required columns: ", paste(miss_req, collapse = ", "))
+      }
+      
+      # Columns that may or may not exist depending on upstream steps
+      opt <- c(
+        "latitude", "longitude",
+        "address_verified", "ver_geolocation_test",
+        "address_matched", "match_geolocation_test"
+      )
+      
+      # Keep required columns + any optional columns that are present
+      out <- dplyr::select(., dplyr::all_of(req), dplyr::any_of(opt))
+      
+      # Add back any missing optional columns as NA so later code never errors
+      for (nm in setdiff(opt, names(out))) out[[nm]] <- NA
+      
+      # Standardize the shape/names we want for the QC pipeline
+      dplyr::transmute(
+        out,
+        abi, address,
+        latitude  = latitude,
+        longitude = longitude,
+        address_verified,
+        ver_geolocation_test,
+        address_matched,
+        match_geolocation_test
+      )
+    } %>%
     mutate(
+      # ------------------------------------------------------------------
+      # Convert messy/heterogeneous verification fields into boolean-ish
+      # pass/fail flags (TRUE/FALSE/NA).
+      # ------------------------------------------------------------------
+      
+      # Address verified: interpret multiple possible encodings
       address_verified_pass = dplyr::case_when(
         is.na(address_verified) ~ NA,
         as.character(address_verified) %in% c("TRUE", "Exact match", "Fuzzy match") ~ TRUE,
@@ -3173,33 +3281,45 @@ for (i in 1:length(search_space)) {
         isFALSE(address_verified) ~ FALSE,
         TRUE ~ FALSE
       ),
+      
+      # Address matched: incorporate match_geolocation_test when match is "Fuzzy"
       address_matched_pass = dplyr::case_when(
         is.na(address_matched) ~ NA,
+        
+        # "Only one address" means the comparison isn't meaningful
         trimws(as.character(address_matched)) == "Only one address" ~ NA,
         
+        # Exact match passes
         trimws(as.character(address_matched)) == "Exact match" ~ TRUE,
         
+        # Fuzzy match passes only if the geolocation test also passes
         trimws(as.character(address_matched)) == "Fuzzy match" &
-          !is.na(geolocation_test) &
+          !is.na(match_geolocation_test) &
           (
-            stringr::str_detect(stringr::str_to_upper(as.character(geolocation_test)), "PASS") |
-              isTRUE(geolocation_test) |
-              stringr::str_to_upper(trimws(as.character(geolocation_test))) == "TRUE"
+            stringr::str_detect(stringr::str_to_upper(as.character(match_geolocation_test)), "PASS") |
+              isTRUE(match_geolocation_test) |
+              stringr::str_to_upper(trimws(as.character(match_geolocation_test))) == "TRUE"
           ) ~ TRUE,
         
+        # Fuzzy match fails if the geolocation test explicitly fails
         trimws(as.character(address_matched)) == "Fuzzy match" &
-          !is.na(geolocation_test) &
-          stringr::str_to_upper(trimws(as.character(geolocation_test))) == "FAIL" ~ FALSE,
+          !is.na(match_geolocation_test) &
+          stringr::str_to_upper(trimws(as.character(match_geolocation_test))) == "FAIL" ~ FALSE,
         
+        # Otherwise leave as NA (unknown / not evaluated)
         TRUE ~ NA
       )
     ) %>%
     group_by(abi, address) %>%
     summarise(
-      # complete (lat & lon) pairs
+      # ------------------------------------------------------------------
+      # Summarise geocoding results by (abi, address).
+      # ------------------------------------------------------------------
+      
+      # Count how many complete coordinate pairs exist
       n_geo = sum(!is.na(latitude) & !is.na(longitude)),
       
-      # latitude summaries (only if any non-NA latitude exists)
+      # Latitude summaries (guarded so we don't compute min/max on all-NA)
       lat_min    = ifelse(any(!is.na(latitude)), round(min(latitude, na.rm = TRUE), 4), NA_real_),
       lat_q1     = ifelse(any(!is.na(latitude)), round(stats::quantile(latitude, 0.25, na.rm = TRUE, names = FALSE, type = 7), 4), NA_real_),
       lat_median = ifelse(any(!is.na(latitude)), round(stats::median(latitude, na.rm = TRUE), 4), NA_real_),
@@ -3207,7 +3327,7 @@ for (i in 1:length(search_space)) {
       lat_q3     = ifelse(any(!is.na(latitude)), round(stats::quantile(latitude, 0.75, na.rm = TRUE, names = FALSE, type = 7), 4), NA_real_),
       lat_max    = ifelse(any(!is.na(latitude)), round(max(latitude, na.rm = TRUE), 4), NA_real_),
       
-      # longitude summaries (only if any non-NA longitude exists)
+      # Longitude summaries (same NA-guard pattern)
       lon_min    = ifelse(any(!is.na(longitude)), round(min(longitude, na.rm = TRUE), 4), NA_real_),
       lon_q1     = ifelse(any(!is.na(longitude)), round(stats::quantile(longitude, 0.25, na.rm = TRUE, names = FALSE, type = 7), 4), NA_real_),
       lon_median = ifelse(any(!is.na(longitude)), round(stats::median(longitude, na.rm = TRUE), 4), NA_real_),
@@ -3215,15 +3335,26 @@ for (i in 1:length(search_space)) {
       lon_q3     = ifelse(any(!is.na(longitude)), round(stats::quantile(longitude, 0.75, na.rm = TRUE, names = FALSE, type = 7), 4), NA_real_),
       lon_max    = ifelse(any(!is.na(longitude)), round(max(longitude, na.rm = TRUE), 4), NA_real_),
       
-      # spread flags (only meaningful if at least 2 non-NA values exist)
-      lat_spread_gt_002 = ifelse(sum(!is.na(latitude))  >= 2, (max(latitude,  na.rm = TRUE) - min(latitude,  na.rm = TRUE)) > 0.02, NA),
-      lon_spread_gt_002 = ifelse(sum(!is.na(longitude)) >= 2, (max(longitude, na.rm = TRUE) - min(longitude, na.rm = TRUE)) > 0.02, NA),
+      # Spread flags: only meaningful if there are at least 2 non-NA values
+      lat_spread_gt_002 = ifelse(
+        sum(!is.na(latitude)) >= 2,
+        (max(latitude, na.rm = TRUE) - min(latitude, na.rm = TRUE)) > 0.02,
+        NA
+      ),
+      lon_spread_gt_002 = ifelse(
+        sum(!is.na(longitude)) >= 2,
+        (max(longitude, na.rm = TRUE) - min(longitude, na.rm = TRUE)) > 0.02,
+        NA
+      ),
       
+      # Whether ANY record in the group passed address verification
       any_address_verified = dplyr::case_when(
         any(address_verified_pass %in% TRUE, na.rm = TRUE) ~ TRUE,
         all(is.na(address_verified_pass))                  ~ NA,
         TRUE                                               ~ FALSE
       ),
+      
+      # Whether ANY record in the group passed address matching (+ geo test if fuzzy)
       any_address_matched = dplyr::case_when(
         any(address_matched_pass %in% TRUE, na.rm = TRUE) ~ TRUE,
         all(is.na(address_matched_pass))                  ~ NA,
@@ -3232,9 +3363,12 @@ for (i in 1:length(search_space)) {
       
       .groups = "drop"
     ) %>%
+    # Keep only cases with >1 geocode point to evaluate “spread”
     filter(n_geo > 1) %>%
+    # Convenience: keep the spread flag near the related summary columns
     relocate(lat_spread_gt_002, .after = lat_max) %>%
-    (\(x) {setDT(x)} )()
+    # Convert to a data.table (by reference) for downstream data.table workflows
+    (\(x) { data.table::setDT(x) })()
   
   
   # --------------------
@@ -3648,7 +3782,8 @@ for (i in 1:length(search_space)) {
       -any_of(c(
         # ---- Address: drop raw inputs and verification columns ----
         "address_line_1","city","state","zipcode","zip4","combined_address", "do_api",
-        "attempt_succeeded","verified_address", "matched_address","geolocation_test",
+        "attempt_succeeded","verified_address", "ver_geolocation_test", 
+        "matched_address","match_geolocation_test",
         
         # ---- Geolocation: drop raw geocoding and verification columns ----
         "latitude_avg","longitude_avg","latitude_ver","longitude_ver",
