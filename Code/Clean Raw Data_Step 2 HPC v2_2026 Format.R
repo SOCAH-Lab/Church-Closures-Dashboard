@@ -3,7 +3,7 @@
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: July 3rd, 2026
-## Date Modified: July 16th, 2026
+## Date Modified: July 18th, 2026
 ## 
 ## Description: This script conducts all data cleaning and validation steps: 
 ##              validating addresses via the USPS API, associating unverified 
@@ -511,7 +511,7 @@ processed_indices <- sprintf(
 # current_array_index <- processed_indices[idx]
 
 # Set index locally or in an HPC live session
-idx <- 4
+idx <- 2
 current_array_index <- processed_indices[idx]
 
 nums <- as.integer(unlist(regmatches(current_array_index, gregexpr("\\d+", current_array_index))))
@@ -525,12 +525,25 @@ search_space <- unique(church_2026_form_dt[, abi])[index]
 
 
 ## --------------------
-## SUBSECTION B2: Patching in New Results
+## SUBSECTION B2: Set Geocoder Search Priorities
 
-# Choose to do all-in-one or only the new adds
-# Define the starting df with prior results
-# Append only the new values and sort abi then date
-# Mark which rows to be editing
+# The U.S. Census Geocoder API supports multiple benchmarks and vintages for
+# geolocation searches. Refer to "SUBSECTION A2: Set Geocoder Search Priorities"
+# in "Clean Raw Data_Step 2_2026 Format.R" to see the available options and
+# construct a prioritized search sequence (copied below). 
+
+
+# Construct a prioritized table of benchmark/vintage search criteria,
+# where earlier rows take precedence.
+spec <- tibble::tibble(
+  benchmark_name = c("Public_AR_Census2020", "Public_AR_Census2020",
+                     "Public_AR_Current",  "Public_AR_ACS2025"),
+  vintage_name   = c("Census2020_Census2020", "Census2010_Census2020",
+                     "Current_Current",       "Current_ACS2025")
+)
+
+# Construct the "tries" input for `validate_geolocation()`
+geocoder_census_tries <- census_geo_make_tries(spec)
 
 
 ## --------------------
@@ -557,7 +570,7 @@ search_space <- unique(church_2026_form_dt[, abi])[index]
 
 
 # Toggle on or off the address verification workflow using the USPS API.
-verify_addresses <- FALSE
+verify_addresses <- TRUE
 
 # USPS API costs are incurred per verified address. Users can control the
 # number of addresses submitted for verification using the quota setting below.
@@ -575,7 +588,7 @@ verify_addresses <- FALSE
 # 
 # NOTE: The USPS API may itself set quota limits that will impact how many
 #       addresses are able to be verified.
-set_quota = Inf
+set_quota = 5
 
 # If the quota is less than the number of available ABIs in the subset, the
 # selection is randomized. Users can set a seed to make this reproducible or
@@ -734,30 +747,6 @@ if (exists("verify_addresses", inherits = FALSE) == FALSE) {
 }
 
 
-
-
-## --------------------
-## SUBSECTION B2: Set Geocoder Search Priorities
-
-# The U.S. Census Geocoder API supports multiple benchmarks and vintages for
-# geolocation searches. Refer to "SUBSECTION A2: Set Geocoder Search Priorities"
-# in "Clean Raw Data_Step 2_2026 Format.R" to see the available options and
-# construct a prioritized search sequence (copied below). 
-
-
-# Construct a prioritized table of benchmark/vintage search criteria,
-# where earlier rows take precedence.
-spec <- tibble::tibble(
-  benchmark_name = c("Public_AR_Census2020", "Public_AR_Census2020",
-                     "Public_AR_Current",  "Public_AR_ACS2025"),
-  vintage_name   = c("Census2020_Census2020", "Census2010_Census2020",
-                     "Current_Current",       "Current_ACS2025")
-)
-
-# Construct the "tries" input for `validate_geolocation()`
-geocoder_census_tries <- census_geo_make_tries(spec)
-
-
 ## --------------------
 ## SUBSECTION B4: Load Relevant Block-Level GeoPackages by State
 
@@ -806,14 +795,11 @@ blocks_by_state <- read_state_gpkgs_for_data(
 )
 
 
-
 ## ----------------------------------------------------------------
 ## PART C: CLEAN, VALIDATE, AND ANNOTATE ADDRESS DATA
 
 ## --------------------
 ## SUBSECTION C1: Algorithm
-
-search_space <- search_space[c(1050:1150)]
 
 # Initialize the empty lists
 finish_build <- vector("list", length(search_space))
@@ -827,7 +813,6 @@ pb = txtProgressBar(min = 0, max = length(search_space), style = 3)
 for (i in 1:length(search_space)) {
   # Subset to only entries associated with one business ABI.
   subset <- process_df[abi %in% search_space[i]]
-  
   
   # ---- reset per-ABI verification state ----
   na_addresses <- FALSE
@@ -903,7 +888,6 @@ for (i in 1:length(search_space)) {
   setorder(candidate_addresses, anchor_year_min)
   setDT(candidate_addresses)
   
-  
   # Some ABIs include records where address_line_1 is missing. These records 
   # cannot be used in the downstream analyses. We still separate them here 
   # (rather than dropping silently) so we can quantify coverage of the
@@ -933,6 +917,43 @@ for (i in 1:length(search_space)) {
         "geolocation_verified","n_attempts","query_statuses","geo_matched_address",
         "benchmark","vintage_input","latitude_ver","longitude_ver")
     )
+    
+    if (nrow(candidate_addresses) == 0) {
+      # If there are no non-missing addresses to process, reduced_candidate_addresses
+      # would otherwise be carried forward and incorrectly appended under the 
+      # prior ABI. To prevent this, we initialize an empty placeholder (with the 
+      # expected columns) here.
+      
+      candidate_addresses <- data.frame(
+        combined_address        = character(),
+        address_line_1          = character(),
+        city                    = character(),
+        state                   = character(),
+        zipcode                 = character(),
+        zip4                    = character(),
+        anchor_year_min         = integer(),
+        anchor_year_max         = integer(),
+        n_geo                   = integer(),
+        latitude_avg            = numeric(),
+        longitude_avg           = numeric(),
+        do_api                  = logical(),
+        address_verified        = character(),
+        usps_status             = character(),
+        usps_status_detail      = character(),
+        attempt_succeeded       = character(),
+        ver_geolocation_test    = character(),
+        verified_address        = character(),
+        address_matched         = character(),
+        match_geolocation_test  = character(),
+        matched_address         = character(),
+        best_address            = character(),
+        row_idx                 = integer(),
+        stringsAsFactors        = FALSE
+      )
+      
+    }
+    
+    
     
   } else {
     
@@ -1523,34 +1544,34 @@ for (i in 1:length(search_space)) {
     # Separate addresses into those that were verified and those that were not
     
     # ---- reset per-ABI verification state ----
-    ver_candidates   <- data.table()
-    unver_candidates <- data.table()
+    data.table::setDT(candidate_addresses)
+    candidate_addresses <- data.table::copy(candidate_addresses)  # defensive: avoid shallow-copy warnings
+    
+    ok_vals <- c("TRUE", "Exact match", "Fuzzy match")
     
     if ("address_verified" %in% names(candidate_addresses)) {
       
-      ver_candidates <- candidate_addresses[
-        address_verified %in% c("TRUE", "Exact match", "Fuzzy match")
-      ]
+      # Split into verified vs unverified (fresh copies so := is safe by-reference)
+      ver_candidates <- data.table::copy(
+        candidate_addresses[address_verified %in% ok_vals]
+      )
       
-      unver_candidates <- candidate_addresses[
-        !(address_verified %in% c("TRUE", "Exact match", "Fuzzy match"))
-      ]
-      
-      # Add row indices scoped to each subset
-      ver_candidates[,   row_idx := .I]
-      unver_candidates[, row_idx := .I]
+      unver_candidates <- data.table::copy(
+        candidate_addresses[!(address_verified %in% ok_vals)]
+      )
       
     } else {
       
-      # If address_verified doesn't exist, treat all as unverified and continue
-      unver_candidates <- candidate_addresses
-      unver_candidates[, row_idx := .I]
+      # If address_verified doesn't exist, treat all as unverified
+      unver_candidates <- data.table::copy(candidate_addresses)
       
-      # optional: keep ver_candidates defined to avoid downstream errors
+      # Keep ver_candidates defined (0-row placeholder with same columns)
       ver_candidates <- candidate_addresses[0]
-      ver_candidates[, row_idx := integer()]
-      
     }
+    
+    # Add row indices scoped to each subset
+    ver_candidates[,   row_idx := .I]
+    unver_candidates[, row_idx := .I]
     
     
     if ( verify_addresses == FALSE ||
@@ -1785,6 +1806,9 @@ for (i in 1:length(search_space)) {
             dtF_to_match[, row_id := .I]
             
             # helper condition: treat "No Matches" (and optionally NA/"") as unusable pred_city
+            setDT(best_anchor)
+            setDT(dtF_to_match)
+            
             dtF_to_match[, join_city := fifelse(
               !is.na(pred_city) & pred_city != "No Matches" & pred_city != "",
               pred_city,
@@ -1802,7 +1826,7 @@ for (i in 1:length(search_space)) {
             # on pred_city for typical data (allow.cartesian is defensive).
             cand <- best_anchor[
               dtF_to_match,
-              on = .(join_city),
+              on = .(join_city = join_city),
               allow.cartesian = TRUE,
               nomatch = NA,
               .(
@@ -2621,6 +2645,10 @@ for (i in 1:length(search_space)) {
   
   }
   
+  
+  # --------------------
+  # LOOP PART D: Add Census Information by GEO Coordinates
+  
   # After handling entries with non-NA address_line_1, we can recombine
   # both components for geolocation annotation.
   
@@ -2629,65 +2657,141 @@ for (i in 1:length(search_space)) {
       induced_duplicates <- NA
     }
     
-    dont_match_intermediate <- dont_match %>%
-      # Keep only what we need for collapsing to one row per unique address
-      transmute(combined_address, longitude_avg, latitude_avg) %>%
-      # Aggregate to one row per best_address
-      group_by(combined_address) %>%
-      summarise(
-        # Extract 2-letter state from the end of the address:
-        # matches "... , ST 12345" and "... , ST, 12345-6789"
-        # Ensure exactly ONE value per group
-        state = str_extract(
-          str_to_upper(first(combined_address)),
-          "(?<=,\\s)[A-Z]{2}(?=,?\\s\\d{5}(?:-\\d{4})?$)"
-        ),
-        
-        # Count rows that have BOTH lat and lon (usable coordinate pairs)
-        n_address = sum(!is.na(latitude_avg) & !is.na(longitude_avg)),
-        
-        # Whether we have enough coordinates to do any spatial operation for this address
-        enough_geo = n_address > 0,
-        
-        # Average coordinates across all usable rows for this address
-        # (computed only when at least one usable coordinate pair exists)
-        lat_avg = if (n_address > 0) mean(latitude_avg[!is.na(latitude_avg) & !is.na(longitude_avg)]) else NA_real_,
-        lon_avg = if (n_address > 0) mean(longitude_avg[!is.na(latitude_avg) & !is.na(longitude_avg)]) else NA_real_,
-        
-        # Clarify there was no address to verify the address_line_1
-        geolocation_verified = "No address_line_1",
-        
-        .groups = "drop"  # return an ungrouped data frame
-      ) %>%
-      rename(best_address = combined_address)
+    # Rejoining needs to be handled differently depending if there were any
+    # addresses without an NA.
     
-    # Re-add the entries with no address_line_1
-    reduced_candidate_addresses <- rbindlist(
-      list(reduced_candidate_addresses, dont_match_intermediate),
-      use.names = TRUE,
-      fill      = TRUE
-    )
+    if(nrow(candidate_addresses) != 0L) {
+      store_candidate_addresses <- copy(candidate_addresses)
+      
+      # Add matching column to the addresses not matched (missing address_line_1)
+      dont_match <- dont_match %>% 
+        mutate(best_address = combined_address)
+      
+      # Recreate candidate_addresses with all the new information
+      candidate_addresses <- candidate_addresses[
+        reduced_candidate_addresses,
+        on = .(best_address),
+        nomatch = NA
+      ] %>%
+        select(-i.state)
+      
+      # Add the missing entries, dont_match, with all their metadata
+      candidate_addresses <- rbindlist(
+        list(candidate_addresses, dont_match),
+        use.names = TRUE,
+        fill      = TRUE
+      )
+      candidate_addresses[, row_idx := .I]
+      
+      # Recreate the reduced_candidate_addresses structure for point-in-polygon 
+      # matching using the values missing an address_line_1
+      dont_match_intermediate <- candidate_addresses %>%
+        # Keep only what we need for collapsing to one row per unique address
+        transmute(best_address, longitude_avg, latitude_avg) %>%
+        # Aggregate to one row per best_address
+        group_by(best_address) %>%
+        summarise(
+          # Extract 2-letter state from the end of the address:
+          # matches "... , ST 12345" and "... , ST, 12345-6789"
+          # Ensure exactly ONE value per group
+          state = str_extract(
+            str_to_upper(first(best_address)),
+            "(?<=,\\s)[A-Z]{2}(?=,?\\s\\d{5}(?:-\\d{4})?$)"
+          ),
+          
+          # Count rows that have BOTH lat and lon (usable coordinate pairs)
+          n_address = sum(!is.na(latitude_avg) & !is.na(longitude_avg)),
+          
+          # Whether we have enough coordinates to do any spatial operation for this address
+          enough_geo = n_address > 0,
+          
+          # Average coordinates across all usable rows for this address
+          # (computed only when at least one usable coordinate pair exists)
+          lat_avg = if (n_address > 0) mean(latitude_avg[!is.na(latitude_avg) & !is.na(longitude_avg)]) else NA_real_,
+          lon_avg = if (n_address > 0) mean(longitude_avg[!is.na(latitude_avg) & !is.na(longitude_avg)]) else NA_real_,
+          
+          # Clarify there was no address to verify the address_line_1
+          geolocation_verified = "No address_line_1",
+          
+          .groups = "drop"  # return an ungrouped data frame
+        ) %>%
+        filter(best_address %in% dont_match$best_address)
+      
+      # Re-add the entries with no address_line_1
+      reduced_candidate_addresses <- rbindlist(
+        list(reduced_candidate_addresses, dont_match_intermediate),
+        use.names = TRUE,
+        fill      = TRUE
+      )
+      reduced_candidate_addresses[, row_id := .I]
+      
+      # Normalize candidate_addresses to the expected dimensions
+      candidate_addresses <- candidate_addresses[, intersect(names(candidate_addresses), names(store_candidate_addresses)), with = FALSE]
+    } else {
+      
+      # Recreate reduced_candidate_addresses for point-in-polygon matching
+      reduced_candidate_addresses <- dont_match %>%
+        mutate(best_address = combined_address) %>%
+        # Keep only what we need for collapsing to one row per unique address
+        transmute(best_address, longitude_avg, latitude_avg) %>%
+        # Aggregate to one row per best_address
+        group_by(best_address) %>%
+        summarise(
+          # Extract 2-letter state from the end of the address:
+          # matches "... , ST 12345" and "... , ST, 12345-6789"
+          # Ensure exactly ONE value per group
+          state = str_extract(
+            str_to_upper(first(best_address)),
+            "(?<=,\\s)[A-Z]{2}(?=,?\\s\\d{5}(?:-\\d{4})?$)"
+          ),
+          
+          # Count rows that have BOTH lat and lon (usable coordinate pairs)
+          n_address = sum(!is.na(latitude_avg) & !is.na(longitude_avg)),
+          
+          # Whether we have enough coordinates to do any spatial operation for this address
+          enough_geo = n_address > 0,
+          
+          # Average coordinates across all usable rows for this address
+          # (computed only when at least one usable coordinate pair exists)
+          lat_avg = if (n_address > 0) mean(latitude_avg[!is.na(latitude_avg) & !is.na(longitude_avg)]) else NA_real_,
+          lon_avg = if (n_address > 0) mean(longitude_avg[!is.na(latitude_avg) & !is.na(longitude_avg)]) else NA_real_,
+          
+          # Clarify there was no address to verify the address_line_1
+          geolocation_verified = "No address_line_1",
+          
+          .groups = "drop"  # return an ungrouped data frame
+        )
+      
+      setDT(reduced_candidate_addresses)
+      reduced_candidate_addresses[, row_id := .I]
+      
+      # Reinitialize candidate_addresses, which was made empty to prevent
+      # string matching
+      candidate_addresses <- dont_match %>%
+        # Add matching column to the addresses not matched (missing address_line_1)
+        mutate(best_address = combined_address)
+      
+    }
+    
+  } else {
+    
+    reduced_candidate_addresses <- reduced_candidate_addresses %>%
+      mutate(
+        # Create a stable integer key for joining results back later
+        row_id = row_number(),
+        
+        # Build a single lon/lat per row, preferring verified coordinates then averaged coordinates
+        lon = as.numeric(coalesce(longitude_ver, lon_avg)),
+        lat = as.numeric(coalesce(latitude_ver,  lat_avg)),
+        
+        # Final flag: do we have both usable coordinates (after aggregation) AND a state code
+        enough_info = enough_geo & !is.na(state)
+      ) %>%
+      # Put row_id first for readability and easier joins
+      relocate(row_id, .before = best_address) %>%
+      # Convert to data.table (by reference); the anonymous function returns the same object
+      (\(x) { setDT(x) })
   }
-  
-  # --------------------
-  # LOOP PART D: Add Census Information by GEO Coordinates
-  
-  reduced_candidate_addresses <- reduced_candidate_addresses %>%
-    mutate(
-      # Create a stable integer key for joining results back later
-      row_id = row_number(),
-      
-      # Build a single lon/lat per row, preferring verified coordinates then averaged coordinates
-      lon = as.numeric(coalesce(longitude_ver, lon_avg)),
-      lat = as.numeric(coalesce(latitude_ver,  lat_avg)),
-      
-      # Final flag: do we have both usable coordinates (after aggregation) AND a state code
-      enough_info = enough_geo & !is.na(state)
-    ) %>%
-    # Put row_id first for readability and easier joins
-    relocate(row_id, .before = best_address) %>%
-    # Convert to data.table (by reference); the anonymous function returns the same object
-    (\(x) { setDT(x) })
   
   
   # ---- reset per-batch geo matching state (sf + joins) ----
@@ -2699,203 +2803,198 @@ for (i in 1:length(search_space)) {
   cols_to_add         <- character(0)
   dont_match_processed <- data.table()
   
-  # --- Prepare points for geo matching ---
-  # Build an sf points table (only rows with usable lon/lat/state)
-  cand_pts <- reduced_candidate_addresses %>%
-    as_tibble() %>%
-    transmute(row_id, state, lon = lon_avg, lat = lat_avg) %>%
-    filter(!is.na(lon), !is.na(lat), !is.na(state)) %>%
-    mutate(state = toupper(trimws(state))) %>%
-    st_as_sf(coords = c("lon", "lat"), crs = 4326, remove = FALSE)
+  # Define the columns you expect to add back
+  geo_cols  <- c("row_id", "geoid_2000", "geoid_2010", "geoid_2020")
   
-  # --- Add DECENNIAL census geography (Census blocks) for each vintage ---
-  # Adds: geoid_2000, geoid_2010, geoid_2020 (block GEOIDs)
-  census_results <- add_decennial_geoid_block(
-    cand_pts, 
-    blocks_by_state, 
-    geography = block_geography
-  )
-  
-  setDT(census_results)
-  
-  # --- Add METRO/MICRO areas (CBSA) and CSA codes for each vintage ---
-  # Adds: cbsa_2007/csa_2007, cbsa_2010/csa_2010, and cbsa_2020/csa_2020
-  # Adds: zcta_2000, zcta_2010, and zcta_2020
-  
-  vintages <- list(
-    list(cbsa_csa_year = 2007, cbsa_csa = core_areas$cbsa_csa_2007, zcta_year = "zcta_2000", zcta = core_areas$zcta_2000),
-    list(cbsa_csa_year = 2010, cbsa_csa = core_areas$cbsa_csa_2010, zcta_year = "zcta_2010", zcta = core_areas$zcta_2010),
-    list(cbsa_csa_year = 2020, cbsa_csa = core_areas$cbsa_csa_2020, zcta_year = "zcta_2020", zcta = core_areas$zcta_2020)
-  )
-  
-  # Process each vintage and collect results
-  core_areas_list <- lapply(vintages, function(v) {
-    
-    out <- list()
-    
-    # Decode CBSA/CSA for this vintage if a layer is provided
-    if (!is.null(v$cbsa_csa)) {
-      out$cbsa_csa <- decode_cbsa_csa(
-        cand_sf     = cand_pts,
-        cbsa_csa_sf = v$cbsa_csa,
-        year        = v$cbsa_csa_year,
-        state_col   = "state"
-      )
-    }
-    
-    # Decode ZCTA for this vintage if a layer is provided
-    if (!is.null(v$zcta)) {
-      out$zcta <- decode_zcta(
-        cand_sf      = cand_pts,
-        zcta_sf      = v$zcta,
-        zcta_colname = v$zcta_year,
-        state_col    = "state"
-      )
-    }
-    
-    out
-  })
-  
-  # Join all results back onto cand_pts
-  core_areas_results <- sf::st_drop_geometry(cand_pts)
-  
-  for (v in core_areas_list) {
-    
-    if (!is.null(v$cbsa_csa)) {
-      core_areas_results <- dplyr::left_join(core_areas_results, v$cbsa_csa, by = "row_id")
-    }
-    
-    if (!is.null(v$zcta)) {
-      core_areas_results <- dplyr::left_join(core_areas_results, v$zcta, by = "row_id")
-    }
-  }
-  
-  setDT(core_areas_results)
-  
-  # Join DECENNIAL block GEOIDs back onto reduced_candidate_addresses
-  cols_to_add <- c("row_id", "geoid_2000", "geoid_2010", "geoid_2020")
-  reduced_candidate_addresses[census_results[, ..cols_to_add], on = "row_id",
-                      `:=`(
-                        geoid_2000 = i.geoid_2000,
-                        geoid_2010 = i.geoid_2010,
-                        geoid_2020 = i.geoid_2020
-                      )]
-  
-  # Join METRO/MICRO CBSA + CSA codes back onto reduced_candidate_addresses
-  cols_to_add <- c(
+  core_cols <- c(
     "row_id",
     "cbsa_code_2007", "cbsa_level_2007", "csa_code_2007",
     "cbsa_code_2010", "cbsa_level_2010", "csa_code_2010",
     "cbsa_code_2020", "cbsa_level_2020", "csa_code_2020",
     "zcta_2000", "zcta_2010", "zcta_2020"
   )
-  reduced_candidate_addresses[core_areas_results[, ..cols_to_add], on = "row_id",
-                      `:=`(
-                        cbsa_code_2007  = i.cbsa_code_2007,
-                        cbsa_level_2007 = i.cbsa_level_2007,
-                        csa_code_2007   = i.csa_code_2007,
-                        cbsa_code_2010  = i.cbsa_code_2010,
-                        cbsa_level_2010 = i.cbsa_level_2010,
-                        csa_code_2010   = i.csa_code_2010,
-                        cbsa_code_2020  = i.cbsa_code_2020,
-                        cbsa_level_2020 = i.cbsa_level_2020,
-                        csa_code_2020   = i.csa_code_2020,
-                        zcta_2000       = i.zcta_2000,
-                        zcta_2010       = i.zcta_2010,
-                        zcta_2020       = i.zcta_2020
-                      )]
   
-  # Summarize match completeness across the three decennial block vintages
-  reduced_candidate_addresses[, geoid_match :=
-                        fifelse(
-                          !enough_info,
-                          "Not enough info",
-                          fifelse(
-                            is.na(geoid_2000) & is.na(geoid_2010) & is.na(geoid_2020),
-                            "Matches not found",
-                            fifelse(
-                              is.na(geoid_2000) | is.na(geoid_2010) | is.na(geoid_2020),
-                              "Some matches not found",
-                              "Matched"
-                            )
-                          )
-                        )]
+  # --- Prepare points for geo matching ---
+  # Build an sf points table (only rows with usable lon/lat/state)
+  cand_pts <- reduced_candidate_addresses %>%
+    dplyr::as_tibble() %>%
+    dplyr::transmute(
+      row_id,
+      state,
+      lon = lon_avg,
+      lat = lat_avg
+    ) %>%
+    dplyr::mutate(state = toupper(trimws(as.character(state)))) %>%
+    dplyr::filter(!is.na(lon), !is.na(lat), !is.na(state), state != "") %>%
+    {
+      if (nrow(.) == 0) {
+        # Return a 0-row sf object with the expected columns + empty geometry
+        empty <- tibble::tibble(
+          row_id = integer(),
+          state  = character(),
+          lon    = numeric(),
+          lat    = numeric()
+        )
+        
+        sf::st_sf(empty, geometry = sf::st_sfc(crs = 4326))
+      } else {
+        # Normal path: build POINT geometry from lon/lat
+        sf::st_as_sf(., coords = c("lon", "lat"), crs = 4326, remove = FALSE)
+      }
+    }
   
-  
-  # Drop temporary helper columns and rejoin to candidate_addresses
-  if (any(is.na(subset$address_line_1))) {
+  # Proceed with join only when valid points are available
+  if (nrow(cand_pts) != 0) {
     
-    # If there are no non-missing addresses to process, reduced_candidate_addresses
-    # would otherwise be carried forward and incorrectly appended under the 
-    # prior ABI. To prevent this, we initialize an empty placeholder (with the 
-    # expected columns) here.
+    # --- Add DECENNIAL census geography (Census blocks) for each vintage ---
+    census_results <- add_decennial_geoid_block(
+      cand_pts,
+      blocks_by_state,
+      geography = block_geography
+    )
+    data.table::setDT(census_results)
     
-    candidate_addresses <- data.frame(
-      combined_address        = character(),
-      address_line_1          = character(),
-      city                    = character(),
-      state                   = character(),
-      zipcode                 = character(),
-      zip4                    = character(),
-      anchor_year_min         = integer(),
-      anchor_year_max         = integer(),
-      n_geo                   = integer(),
-      latitude_avg            = numeric(),
-      longitude_avg           = numeric(),
-      do_api                  = logical(),
-      address_verified        = character(),
-      attempt_succeeded       = character(),
-      ver_geolocation_test    = character(),
-      verified_address        = character(),
-      address_matched         = character(),
-      match_geolocation_test  = character(),
-      matched_address         = character(),
-      best_address            = character(),
-      row_idx                 = integer(),
-      stringsAsFactors        = FALSE
+    # --- CBSA/CSA + ZCTA decoding for each vintage ---
+    vintages <- list(
+      list(cbsa_csa_year = 2007, cbsa_csa = core_areas$cbsa_csa_2007, zcta_year = "zcta_2000", zcta = core_areas$zcta_2000),
+      list(cbsa_csa_year = 2010, cbsa_csa = core_areas$cbsa_csa_2010, zcta_year = "zcta_2010", zcta = core_areas$zcta_2010),
+      list(cbsa_csa_year = 2020, cbsa_csa = core_areas$cbsa_csa_2020, zcta_year = "zcta_2020", zcta = core_areas$zcta_2020)
     )
     
-    # Reorder columns and compute averages grouped by matched address.
-    reduced_candidate_addresses <- reduced_candidate_addresses %>%
-      select(-any_of(c("row_id", "state", "lon", "lat"))) %>%  # drop fields you don’t want to carry over
-      rename(longitude_avg = lon_avg, latitude_avg = lat_avg) %>%
-      mutate(combined_address = best_address)
-
-    # Re-add the metadata
-    dont_match_processed <- merge(
-        dont_match[, c(1:6, 9)], 
-        reduced_candidate_addresses, 
-        by = c("combined_address"),
-        all.x = TRUE
-      )
+    core_areas_list <- lapply(vintages, function(v) {
+      out <- list()
       
-    # Rejoin
-    candidate_addresses <- rbindlist(
-      list(candidate_addresses, dont_match_processed),
-      use.names = TRUE,
-      fill      = TRUE
-    )
+      if (!is.null(v$cbsa_csa)) {
+        out$cbsa_csa <- decode_cbsa_csa(
+          cand_sf     = cand_pts,
+          cbsa_csa_sf = v$cbsa_csa,
+          year        = v$cbsa_csa_year,
+          state_col   = "state"
+        )
+      }
+      
+      if (!is.null(v$zcta)) {
+        out$zcta <- decode_zcta(
+          cand_sf      = cand_pts,
+          zcta_sf      = v$zcta,
+          zcta_colname = v$zcta_year,
+          state_col    = "state"
+        )
+      }
+      
+      out
+    })
     
-    #Correct missing 
-    candidate_addresses$combined_address <- candidate_addresses$best_address
+    # Start with cand_pts attributes (no geometry) and left-join decoded outputs
+    core_areas_results <- sf::st_drop_geometry(cand_pts)
+    
+    for (v in core_areas_list) {
+      if (!is.null(v$cbsa_csa)) {
+        core_areas_results <- dplyr::left_join(core_areas_results, v$cbsa_csa, by = "row_id")
+      }
+      if (!is.null(v$zcta)) {
+        core_areas_results <- dplyr::left_join(core_areas_results, v$zcta, by = "row_id")
+      }
+    }
+    
+    data.table::setDT(core_areas_results)
     
   } else {
     
-    candidate_addresses <- candidate_addresses %>%
-      # keep candidate_addresses’ columns, but drop old avg coords
-      select(-any_of(c("n_geo", "anchor_year_min", "anchor_year_max",
-                       "latitude_avg", "longitude_avg", "row_idx"))) %>%
-      left_join(
-        reduced_candidate_addresses %>%
-          select(-any_of(c("row_id", "state", "lon", "lat"))) %>%  # drop fields you don’t want to carry over
-          rename(longitude_avg = lon_avg, latitude_avg = lat_avg), # replace lon/lat averages by best address
-        by = "best_address"                                        # join key
-      ) %>% 
-      relocate(longitude_avg, .after = zip4) %>%
-      relocate(latitude_avg, .after = longitude_avg) %>%
-      relocate(geoid_match, .after = enough_info)
+    # -------------------------------------------------------------
+    # No valid comparator points:
+    # create correctly-shaped EMPTY results so joins/updates are safe.
+    # -------------------------------------------------------------
+    census_results <- data.table::as.data.table(setNames(
+      replicate(length(geo_cols), character(0), simplify = FALSE),
+      geo_cols
+    ))
     
+    core_areas_results <- data.table::as.data.table(setNames(
+      replicate(length(core_cols), character(0), simplify = FALSE),
+      core_cols
+    ))
+    
+    # Optional: make row_id type consistent (helps with joins)
+    census_results[, row_id := integer()]
+    core_areas_results[, row_id := integer()]
   }
+  
+  # ---- Update reduced_candidate_addresses (safe even if results are empty) ----
+  
+  reduced_candidate_addresses[
+    census_results[, ..geo_cols],
+    on = "row_id",
+    `:=`(
+      geoid_2000 = i.geoid_2000,
+      geoid_2010 = i.geoid_2010,
+      geoid_2020 = i.geoid_2020
+    )
+  ]
+  
+  reduced_candidate_addresses[
+    core_areas_results[, ..core_cols],
+    on = "row_id",
+    `:=`(
+      cbsa_code_2007  = i.cbsa_code_2007,
+      cbsa_level_2007 = i.cbsa_level_2007,
+      csa_code_2007   = i.csa_code_2007,
+      cbsa_code_2010  = i.cbsa_code_2010,
+      cbsa_level_2010 = i.cbsa_level_2010,
+      csa_code_2010   = i.csa_code_2010,
+      cbsa_code_2020  = i.cbsa_code_2020,
+      cbsa_level_2020 = i.cbsa_level_2020,
+      csa_code_2020   = i.csa_code_2020,
+      zcta_2000       = i.zcta_2000,
+      zcta_2010       = i.zcta_2010,
+      zcta_2020       = i.zcta_2020
+    )
+  ]
+  
+  # Ensure required columns exist even when no join happened
+  needed_cols <- c("geoid_2000", "geoid_2010", "geoid_2020", "enough_info")
+  
+  for (nm in setdiff(needed_cols, names(reduced_candidate_addresses))) {
+    # Default: GEOIDs should be NA_character_; enough_info default NA (or FALSE if you prefer)
+    if (nm %chin% c("geoid_2000", "geoid_2010", "geoid_2020")) {
+      reduced_candidate_addresses[, (nm) := NA_character_]
+    } else if (nm == "enough_info") {
+      reduced_candidate_addresses[, (nm) := NA]
+    }
+  }
+  
+  # Summarize match completeness across the three decennial block vintages
+  reduced_candidate_addresses[, geoid_match :=
+                                data.table::fifelse(
+                                  !enough_info,
+                                  "Not enough info",
+                                  data.table::fifelse(
+                                    is.na(geoid_2000) & is.na(geoid_2010) & is.na(geoid_2020),
+                                    "Matches not found",
+                                    data.table::fifelse(
+                                      is.na(geoid_2000) | is.na(geoid_2010) | is.na(geoid_2020),
+                                      "Some matches not found",
+                                      "Matched"
+                                    )
+                                  )
+                                )
+  ]
+  
+  
+  # Drop temporary helper columns and rejoin to candidate_addresses
+  candidate_addresses <- candidate_addresses %>%
+    # keep candidate_addresses’ columns, but drop old avg coords
+    select(-any_of(c("n_geo", "anchor_year_min", "anchor_year_max",
+                     "latitude_avg", "longitude_avg", "row_idx"))) %>%
+    left_join(
+      reduced_candidate_addresses %>%
+        select(-any_of(c("row_id", "state", "lon", "lat"))) %>%  # drop fields you don’t want to carry over
+        rename(longitude_avg = lon_avg, latitude_avg = lat_avg), # replace lon/lat averages by best address
+      by = "best_address"                                        # join key
+    ) %>% 
+    relocate(longitude_avg, .after = zip4) %>%
+    relocate(latitude_avg, .after = longitude_avg) %>%
+    relocate(geoid_match, .after = enough_info)
   
   
   # --------------------
@@ -2988,6 +3087,15 @@ for (i in 1:length(search_space)) {
   #       first. If no addresses are successfully verified, that subset is
   #       processed agnostically instead.
   
+  # Validate that required columns exist in the final table: no loss of information.
+  cmp <- compare_tabs(
+    combined, subset,
+    new_addr_col = "combined_address",
+    old_addr_col = "combined_address",
+    new_year_col = "archive_version_year",
+    old_year_col = "archive_version_year"
+  )
+  
   qc_address$qc1[[i]] <- data.frame(
     "ABI"                      = unique(combined$abi) %>% first(),
     "Allow USPS API?"          = verify_addresses,
@@ -3001,6 +3109,12 @@ for (i in 1:length(search_space)) {
     "Match Attempted"          = !is.null(combined$geo_matched_address),
     "Duplicates Induced?"      = induced_duplicates %>% first(), 
     "Any Addresses Line 1 NA"  = na_addresses,
+    
+    # New vs Old (address+year) comparison
+    "New not in Old (addr+yr)" = cmp$n_new_not_old,
+    "Old not in New (addr+yr)" = cmp$n_old_not_new,
+    "New vs Old differ?"       = (cmp$n_new_not_old + cmp$n_old_not_new) > 0,
+    
     check.names = FALSE
   )
   
@@ -3099,126 +3213,129 @@ for (i in 1:length(search_space)) {
         "address_matched", "match_geolocation_test"
       )))
   
-  # (a) Query QC: number of attempts, API status code, vintage used
-  qc_geo$qc1[[i]] <- qc_geo_df %>%
-    # Drop lat/lon fields here so QC focuses on request/response + matching metadata.
-    # (Those coordinates may be analyzed in a separate QC stage.)
-    select(
-      -latitude, -longitude, -latitude_avg, -longitude_avg,
-      -latitude_ver, -longitude_ver
-    ) %>%
-    mutate(
-      # all_200:
-      #   TRUE  = every recorded attempt returned HTTP 200
-      #   FALSE = at least one attempt was non-200
-      #   NA    = insufficient information to evaluate (missing statuses, or 
-      #           fewer parsed statuses than the number of configured tries)
-      #
-      # query_statuses is assumed to be a single string like "200 | 200 | unverified".
-      # geocoder_census_tries is assumed to represent how many attempts were made/allowed.
-      qs = as.character(query_statuses),
-      all_200 = case_when(
-        is.na(qs) ~ NA,
-        lengths(strsplit(qs, " \\| ")) < length(geocoder_census_tries) ~ NA,
-        TRUE ~ vapply(
-          strsplit(qs, " \\| "),
-          \(x) all(trimws(x) == "200"),
-          logical(1)
-        )
-      ),
-      
-      # ---- normalization helpers (computed once) ----
-      address_norm = case_when(
-        is.na(address) ~ NA_character_,
-        TRUE ~ address |>
-          stringr::str_squish() |>
-          stringr::str_remove("-\\d{4}$") |>
-          stringr::str_remove_all(",(?=\\s*\\d{5})") |>
-          stringr::str_to_upper()
-      ),
-      geo_matched_address_norm = case_when(
-        is.na(geo_matched_address) ~ NA_character_,
-        TRUE ~ geo_matched_address |>
-          stringr::str_squish() |>
-          stringr::str_remove("-\\d{4}$") |>
-          stringr::str_remove_all(",(?=\\s*\\d{5})") |>
-          stringr::str_to_upper()
-      ),
-      
-      # ---- exact same (keep your current logic, now using normalized fields) ----
-      matched_address_same = case_when(
-        is.na(address_norm) | is.na(geo_matched_address_norm) ~ NA,
-        TRUE ~ address_norm == geo_matched_address_norm
-      ),
-      
-      # ---- similar (new) ----
-      matched_address_similar = dplyr::case_when(
-        is.na(address_norm) | is.na(geo_matched_address_norm) ~ NA,
-        
-        # short-circuit exact equality to avoid fragile similarity internals
-        address_norm == geo_matched_address_norm ~ TRUE,
-        
-        TRUE ~ vapply(seq_len(dplyr::n()), \(i) {
-          a <- address_norm[[i]]
-          b <- geo_matched_address_norm[[i]]
-          
-          # extra safety: treat blanks as NA
-          if (is.na(a) || is.na(b) || !nzchar(a) || !nzchar(b)) return(NA)
-          
-          # protect against NA-sensitive `if()` inside your function
-          out <- tryCatch(
-            find_similar_addresses(c(a, b), threshold = 0.15),
-            error = function(e) NULL
+  
+  if ( !all(qc_geo_df$geolocation_verified %in% "No address_line_1") ) {
+    # (a) Query QC: number of attempts, API status code, vintage used
+    qc_geo$qc1[[i]] <- qc_geo_df %>%
+      # Drop lat/lon fields here so QC focuses on request/response + matching metadata.
+      # (Those coordinates may be analyzed in a separate QC stage.)
+      select(-any_of(c(
+        "latitude", "longitude", "latitude_avg", "longitude_avg",
+        "latitude_ver", "longitude_ver"
+      ))) %>%
+      mutate(
+        # all_200:
+        #   TRUE  = every recorded attempt returned HTTP 200
+        #   FALSE = at least one attempt was non-200
+        #   NA    = insufficient information to evaluate (missing statuses, or 
+        #           fewer parsed statuses than the number of configured tries)
+        #
+        # query_statuses is assumed to be a single string like "200 | 200 | unverified".
+        # geocoder_census_tries is assumed to represent how many attempts were made/allowed.
+        qs = as.character(query_statuses),
+        all_200 = case_when(
+          is.na(qs) ~ NA,
+          lengths(strsplit(qs, " \\| ")) < length(geocoder_census_tries) ~ NA,
+          TRUE ~ vapply(
+            strsplit(qs, " \\| "),
+            \(x) all(trimws(x) == "200"),
+            logical(1)
           )
-          if (is.null(out) || length(out) == 0) return(FALSE)
+        ),
+        
+        # ---- normalization helpers (computed once) ----
+        address_norm = case_when(
+          is.na(address) ~ NA_character_,
+          TRUE ~ address |>
+            stringr::str_squish() |>
+            stringr::str_remove("-\\d{4}$") |>
+            stringr::str_remove_all(",(?=\\s*\\d{5})") |>
+            stringr::str_to_upper()
+        ),
+        geo_matched_address_norm = case_when(
+          is.na(geo_matched_address) ~ NA_character_,
+          TRUE ~ geo_matched_address |>
+            stringr::str_squish() |>
+            stringr::str_remove("-\\d{4}$") |>
+            stringr::str_remove_all(",(?=\\s*\\d{5})") |>
+            stringr::str_to_upper()
+        ),
+        
+        # ---- exact same (keep your current logic, now using normalized fields) ----
+        matched_address_same = case_when(
+          is.na(address_norm) | is.na(geo_matched_address_norm) ~ NA,
+          TRUE ~ address_norm == geo_matched_address_norm
+        ),
+        
+        # ---- similar (new) ----
+        matched_address_similar = dplyr::case_when(
+          is.na(address_norm) | is.na(geo_matched_address_norm) ~ NA,
           
-          any(vapply(out, \(grp) all(c(a, b) %in% grp), logical(1)))
-        }, logical(1))
-      )
-    ) %>%
-    # Collapse across archive vintages:
-    # For each unique record (everything except archive_version_year), collect 
-    # the set of archive years observed and format them into compact ranges 
-    # (e.g., "2000:2002, 2005").
-    select(-qs, -address_norm, -geo_matched_address_norm) %>%
-    group_by(across(-archive_version_year)) %>%
-    summarise(
-      archive_versions_present = format_year_ranges(archive_version_year),
-      .groups = "drop"
-    ) %>%
-    # Reorder columns to make QC outputs easier to scan
-    relocate(archive_versions_present, .after = address) %>%
-    relocate(all_200, .after = query_statuses) %>%
-    relocate(matched_address_same, .after = geo_matched_address) %>%
-    # Convert tibble -> data.table (without breaking the pipe)
-    (\(x) { setDT(x) })()
-  
-  
-  # (b) Deviation QC: how far validated coords are from averaged coords (rounded)
-  qc_geo$qc2[[i]] <- qc_geo_df %>%
-    # Only evaluate deviation when validated coordinates exist
-    filter(!is.na(latitude_ver), !is.na(longitude_ver)) %>%
-    mutate(
-      # Absolute differences (rounded to 4 decimals)
-      lat_abs_diff = if_else(!is.na(latitude_ver),  round(abs(latitude_avg  - latitude_ver),  4), NA_real_),
-      lon_abs_diff = if_else(!is.na(longitude_ver), round(abs(longitude_avg - longitude_ver), 4), NA_real_),
-      
-      # Flag whether the deviation exceeds the threshold
-      lat_gt_002 = if_else(!is.na(lat_abs_diff), lat_abs_diff > 0.002, NA),
-      lon_gt_002 = if_else(!is.na(lon_abs_diff), lon_abs_diff > 0.002, NA)
-    ) %>%
-    # Keep only QC outputs + identifiers
-    select(abi, archive_version_year, address,
-           lat_abs_diff, lat_gt_002, lon_abs_diff, lon_gt_002) %>%
-    group_by(across(-archive_version_year)) %>%
-    summarise(
-      archive_versions_present = format_year_ranges(archive_version_year),
-      
-      .groups = "drop"
-    ) %>%
-    relocate(lat_gt_002, .after = lat_abs_diff) %>%
-    relocate(archive_versions_present, .after = address) %>%
-    (\(x) {setDT(x)} )()
+          # short-circuit exact equality to avoid fragile similarity internals
+          address_norm == geo_matched_address_norm ~ TRUE,
+          
+          TRUE ~ vapply(seq_len(dplyr::n()), \(i) {
+            a <- address_norm[[i]]
+            b <- geo_matched_address_norm[[i]]
+            
+            # extra safety: treat blanks as NA
+            if (is.na(a) || is.na(b) || !nzchar(a) || !nzchar(b)) return(NA)
+            
+            # protect against NA-sensitive `if()` inside your function
+            out <- tryCatch(
+              find_similar_addresses(c(a, b), threshold = 0.15),
+              error = function(e) NULL
+            )
+            if (is.null(out) || length(out) == 0) return(FALSE)
+            
+            any(vapply(out, \(grp) all(c(a, b) %in% grp), logical(1)))
+          }, logical(1))
+        )
+      ) %>%
+      # Collapse across archive vintages:
+      # For each unique record (everything except archive_version_year), collect 
+      # the set of archive years observed and format them into compact ranges 
+      # (e.g., "2000:2002, 2005").
+      select(-qs, -address_norm, -geo_matched_address_norm) %>%
+      group_by(across(-archive_version_year)) %>%
+      summarise(
+        archive_versions_present = format_year_ranges(archive_version_year),
+        .groups = "drop"
+      ) %>%
+      # Reorder columns to make QC outputs easier to scan
+      relocate(archive_versions_present, .after = address) %>%
+      relocate(all_200, .after = query_statuses) %>%
+      relocate(matched_address_same, .after = geo_matched_address) %>%
+      # Convert tibble -> data.table (without breaking the pipe)
+      (\(x) { setDT(x) })()
+    
+    
+    # (b) Deviation QC: how far validated coords are from averaged coords (rounded)
+    qc_geo$qc2[[i]] <- qc_geo_df %>%
+      # Only evaluate deviation when validated coordinates exist
+      filter(!is.na(latitude_ver), !is.na(longitude_ver)) %>%
+      mutate(
+        # Absolute differences (rounded to 4 decimals)
+        lat_abs_diff = if_else(!is.na(latitude_ver),  round(abs(latitude_avg  - latitude_ver),  4), NA_real_),
+        lon_abs_diff = if_else(!is.na(longitude_ver), round(abs(longitude_avg - longitude_ver), 4), NA_real_),
+        
+        # Flag whether the deviation exceeds the threshold
+        lat_gt_002 = if_else(!is.na(lat_abs_diff), lat_abs_diff > 0.002, NA),
+        lon_gt_002 = if_else(!is.na(lon_abs_diff), lon_abs_diff > 0.002, NA)
+      ) %>%
+      # Keep only QC outputs + identifiers
+      select(abi, archive_version_year, address,
+             lat_abs_diff, lat_gt_002, lon_abs_diff, lon_gt_002) %>%
+      group_by(across(-archive_version_year)) %>%
+      summarise(
+        archive_versions_present = format_year_ranges(archive_version_year),
+        
+        .groups = "drop"
+      ) %>%
+      relocate(lat_gt_002, .after = lat_abs_diff) %>%
+      relocate(archive_versions_present, .after = address) %>%
+      (\(x) {setDT(x)} )()
+  }
   
   # (c) Dispersion QC: summarize the spread of reported coords within (abi, address)
   qc_geo$qc3[[i]] <- qc_geo_df %>%
@@ -3397,7 +3514,6 @@ for (i in 1:length(search_space)) {
       cbsa_code_2020, cbsa_level_2020, csa_code_2020     # validated coords
     )
   
-  
   # Determined once before the pipeline — drives substring width for all vintages.
   #   "Blocks"       -> substr(geoid, 12, 15)  matches 4-character block code
   #   "Block Groups" -> substr(geoid, 12, 12)  matches 1-character block group code
@@ -3412,6 +3528,11 @@ for (i in 1:length(search_space)) {
   
   # (a) Census Boundaries QC: compare given and verified census boundaries
   qc_census$qc1[[i]] <- qc_census_df %>%
+    # Exclude entries where there was insufficient information
+    group_by(abi) %>%
+    filter(!any(enough_info %in% FALSE, na.rm = TRUE)) %>%
+    ungroup() %>%
+    # Focus on entries that matched with a geoid
     dplyr::filter(geoid_match %in% "Matched") %>%
     dplyr::mutate(
       # ---- coerce only (no standardization/padding) ----
@@ -3601,6 +3722,10 @@ for (i in 1:length(search_space)) {
   
   # (b) Metro/Micro QC: compare given and verified micro/metro census boundaries
   qc_census$qc2[[i]] <- qc_census_df %>%
+    # Exclude entries where there was insufficient information
+    group_by(abi) %>%
+    filter(!any(enough_info %in% FALSE, na.rm = TRUE)) %>%
+    ungroup() %>%
     mutate(
       # ---- coerce to character for safe comparisons ----
       cbsa_level_chr = as.character(cbsa_level),
@@ -3817,15 +3942,16 @@ for (i in 1:length(search_space)) {
 ## SUBSECTION C2: Save Result
 
 # Combine all data tables in the list into one data table
-finish_build <- rbindlist(finish_build, use.names = TRUE, fill = TRUE) %>%
+finish_build <- Filter(f = function(x) !is.null(x) && NROW(x) > 0, x = finish_build) %>%
+  (\(x) {rbindlist(x, use.names = TRUE, fill = TRUE) })() %>%
   # Ensure order: address, address_verified, address_matched (when present)
   relocate(any_of(c("address_verified", "address_matched")), .after = address) %>%
   # Put reported_address after the last flag that exists; else after address
   relocate(reported_address, .after = any_of(c("address", "address_verified", "address_matched")))
 
-qc_address$qc1 <- bind_rows(qc_address$qc1, .id = "i")
-qc_address$qc2 <- bind_rows(qc_address$qc2, .id = "i")
-qc_address$qc3 <- bind_rows(qc_address$qc3, .id = "i")
+qc_address$qc1 <- Filter(f = function(x) !is.null(x) && NROW(x) > 0, x = qc_address$qc1) %>% (\(x) {bind_rows(x, .id = "i")} )()
+qc_address$qc2 <- Filter(f = function(x) !is.null(x) && NROW(x) > 0, x = qc_address$qc2) %>% (\(x) {bind_rows(x, .id = "i")} )()
+qc_address$qc3 <- Filter(f = function(x) !is.null(x) && NROW(x) > 0, x = qc_address$qc3) %>% (\(x) {bind_rows(x, .id = "i")} )()
 
 # qc_address may or may not include specific output, depending on whether the
 # USPS API was used to verify or not. Keep only elements of qc_address that are
@@ -3834,12 +3960,12 @@ qc_address <- qc_address[!vapply(qc_address, function(x) {
   is.null(x) || length(x) == 0L || all(is.na(x)) || all(trimws(as.character(x)) == "")
 }, logical(1))]
 
-qc_geo$qc1 <- bind_rows(qc_geo$qc1, .id = "i")
-qc_geo$qc2 <- bind_rows(qc_geo$qc2, .id = "i")
-qc_geo$qc3 <- bind_rows(qc_geo$qc3, .id = "i")
+qc_geo$qc1 <- Filter(f = function(x) !is.null(x) && NROW(x) > 0, x = qc_geo$qc1) %>% (\(x) {bind_rows(x, .id = "i")} )()
+qc_geo$qc2 <- Filter(f = function(x) !is.null(x) && NROW(x) > 0, x = qc_geo$qc2) %>% (\(x) {bind_rows(x, .id = "i")} )()
+qc_geo$qc3 <- Filter(f = function(x) !is.null(x) && NROW(x) > 0, x = qc_geo$qc3) %>% (\(x) {bind_rows(x, .id = "i")} )()
 
-qc_census$qc1 <- bind_rows(qc_census$qc1, .id = "i")
-qc_census$qc2 <- bind_rows(qc_census$qc2, .id = "i")
+qc_census$qc1 <- Filter(f = function(x) !is.null(x) && NROW(x) > 0, x = qc_census$qc1) %>% (\(x) {bind_rows(x, .id = "i")} )()
+qc_census$qc2 <- Filter(f = function(x) !is.null(x) && NROW(x) > 0, x = qc_census$qc2) %>% (\(x) {bind_rows(x, .id = "i")} )()
 
 
 # Commit results for large output (HPC and local compatible)

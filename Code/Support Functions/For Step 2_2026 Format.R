@@ -308,6 +308,25 @@
 ##          - start_abi/end_abi: positions in the unique-ABI vector
 ##          - label: human-readable label
 ##          - abi_list: list-column containing the ABI values in that chunk
+## 
+##   35. normalize_address: Normalize an address string for comparison.
+##       Oxygen labels (what this normalizer tries to do):
+##          - Standardize whitespace (trim + collapse multiple spaces)
+##          - Standardize the punctuation between $$\text{STATE}$$ and $$\text{ZIP}$$:
+##            "AK 99803-2360"  and  "AK, 99803-2360"  both become "AK 99803-2360"
+##          - Leave other punctuation/case largely unchanged so we don't 
+##            over-normalize
+## 
+##   36. compare_tabs: Compare "new" vs "old" tabs on (address, year) keys.
+##          1) Validate that required columns exist in each table.
+##          2) Build a key table for each input with two standardized columns:
+##                - .addr = normalized address (from the specified address column)
+##                - .year = archived year (from the specified year column)
+##          3) Deduplicate keys (distinct) so comparisons are set-based.
+##          4) Compute two set differences:
+##                - Keys present in new_tab but not in old_tab
+##                - Keys present in old_tab but not in new_tab
+##          5) Return counts + a few example rows from each difference set.
 
 
 ## ----------------------------------------------------------------
@@ -851,107 +870,13 @@ generate_usps_token <- function(consumer_key, consumer_secret) {
 
 
 
-#' Old version... keep temporarily
-#' validate_usps_address <- function(consumer_key, consumer_secret, address1, address2 = "", city, state, zip5, zip4 = "") {
-#'   #' @description
-#'   #' Calls the USPS Addresses API (v3) to validate/standardize an address and returns
-#'   #' a one-row tibble of the preferred USPS-formatted address. On failure or if no
-#'   #' address is found, returns an empty tibble (0 rows).
-#'   #'
-#'   #' @details
-#'   #' This function obtains an OAuth token via `generate_usps_token()` (client credentials),
-#'   #' then performs a GET request to the USPS Addresses v3 endpoint.
-#'   #'
-#'   #' USPS docs: https://developers.usps.com/addressesv3
-#'   #'
-#'   #' @param consumer_key Character. USPS API Consumer Key (client_id).
-#'   #' @param consumer_secret Character. USPS API Consumer Secret (client_secret).
-#'   #' @param address1 Character. Street address line 1.
-#'   #' @param address2 Character. Secondary address (apt/suite/unit), default "".
-#'   #' @param city Character. City.
-#'   #' @param state Character. State abbreviation (e.g., "CT").
-#'   #' @param zip5 Character. 5-digit ZIP code.
-#'   #' @param zip4 Character. Optional 4-digit ZIP+4 extension, default "".
-#'   #'
-#'   #' @return
-#'   #' A tibble with columns:
-#'   #' `address_line_1`, `address_line_2`, `city`, `state`, `zipcode`, `zipcode_ext`.
-#'   #' Returns an empty tibble on request failure or if USPS returns no `address` object.
-#'   
-#'   # 1) Get OAuth token (uses your existing generate_usps_token())
-#'   token <- generate_usps_token(consumer_key, consumer_secret)
-#'   
-#'   # 2) USPS Addresses v3 endpoint
-#'   base_url <- "https://apis.usps.com/addresses/v3/address"
-#'   
-#'   # 3) Build query parameters (ZIP5 required by the API call)
-#'   params <- list(
-#'     streetAddress    = address1,
-#'     secondaryAddress = address2,
-#'     city             = city,
-#'     state            = state,
-#'     ZIPCode          = zip5
-#'   )
-#'   
-#'   # 4) Add ZIP+4 if provided; enforce exactly 4 digits
-#'   if (nzchar(zip4)) {
-#'     if (!grepl("^[0-9]{4}$", zip4)) stop("Invalid ZIPPlus4 format. Must be exactly 4 digits.")
-#'     params$ZIPPlus4 <- zip4
-#'   }
-#'   
-#'   # 5) Build the full request URL (query string included)
-#'   request_url <- modify_url(base_url, query = params)
-#'   
-#'   # 6) Call the API with Bearer token auth
-#'   resp <- GET(
-#'     url = request_url,
-#'     add_headers(
-#'       accept = "application/json",
-#'       Authorization = paste("Bearer", token)
-#'     )
-#'   )
-#'   
-#'   # 7) If request failed, warn and return an empty result (instead of NULL)
-#'   if (status_code(resp) != 200) {
-#'     warning(
-#'       "USPS API request failed. Status: ", status_code(resp),
-#'       " Body: ", content(resp, "text", encoding = "UTF-8")
-#'     )
-#'     return(tibble())
-#'   }
-#'   
-#'   # 8) Parse JSON response
-#'   parsed <- fromJSON(content(resp, "text", encoding = "UTF-8"),
-#'                      simplifyVector = TRUE)
-#'   
-#'   # 9) Extract the address payload; if none, warn and return empty result
-#'   addr <- parsed$address
-#'   if (is.null(addr)) {
-#'     warning("No valid addresses were found by the USPS API.")
-#'     return(tibble::tibble())
-#'   }
-#'   
-#'   # 10) Return a standardized one-row tibble with consistent column names
-#'   tibble(
-#'     address_line_1 = addr$streetAddress %||% "",
-#'     address_line_2 = addr$secondaryAddress %||% "",
-#'     city           = addr$city %||% "",
-#'     state          = addr$state %||% "",
-#'     zipcode        = addr$ZIPCode %||% "",
-#'     zipcode_ext    = addr$ZIPPlus4 %||% ""
-#'   )
-#' }
-
-
-
-
 validate_usps_address <- function(consumer_key, consumer_secret,
                                   address1, address2 = "",
                                   city, state, zip5, zip4 = "") {
   #' Validate and standardize a US address via the USPS Addresses API (v3).
   #' Obtains an OAuth token via \code{generate_usps_token()} (client credentials
   #' flow), then calls the USPS Addresses v3 endpoint to validate and standardize
-  #' the supplied address. Returns a one-row tibble of the preferred
+  #' the supplied address. Returns a one-row tibble of the preferred 
   #' USPS-formatted address on success.
   #' 
   #' Source: https://developers.usps.com/addressesv3
@@ -1948,6 +1873,13 @@ resolve_vintage_id <- function(benchmark, vintage, vintage_cache) {
   #' not intended to be called directly. It depends on the following packages
   #' being available: \code{httr} and \code{jsonlite}.
   
+  # Local helper: return NA_real_ with a reason attribute (soft failure).
+  make_skip <- function(reason) {
+    out <- NA_real_
+    attr(out, "reason") <- reason
+    out
+  }
+  
   # ---------------------------------------------------------------------------
   # Hard stops — NULL or blank benchmark/vintage indicate a misconfigured tries
   # list and must be fixed by the caller before running. These are programmer
@@ -1980,14 +1912,17 @@ resolve_vintage_id <- function(benchmark, vintage, vintage_cache) {
     )
     
     # Catch network-level errors (e.g. no connectivity, DNS failure).
-    resp <- tryCatch(httr::GET(url), error = function(e) e)
+    resp <- tryCatch(
+      httr::GET(url, httr::timeout(30)),
+      error = function(e) e
+    )
     
     if (inherits(resp, "error")) {
       message(sprintf(
         "Skipping attempt: vintage lookup request failed for benchmark=%s — %s",
         benchmark, conditionMessage(resp)
       ))
-      return(skip("vintage_lookup_network_error"))
+      return(make_skip("vintage_lookup_network_error"))
     }
     
     # Catch unexpected HTTP status codes (e.g. invalid benchmark value).
@@ -1996,12 +1931,18 @@ resolve_vintage_id <- function(benchmark, vintage, vintage_cache) {
         "Skipping attempt: vintage lookup returned HTTP %s for benchmark=%s.",
         httr::status_code(resp), benchmark
       ))
-      return(skip(paste0("vintage_lookup_http_", httr::status_code(resp))))
+      return(make_skip(paste0("vintage_lookup_http_", httr::status_code(resp))))
     }
     
     # Catch JSON parse failures.
     txt <- httr::content(resp, "text", encoding = "UTF-8")
-    v   <- tryCatch(
+    
+    if (grepl("^\\s*<(!DOCTYPE|html)\\b", txt, ignore.case = TRUE)) {
+      message("Skipping attempt: vintages endpoint returned HTML (not JSON).")
+      return(make_skip("vintage_lookup_html_response"))
+    }
+    
+    v <- tryCatch(
       jsonlite::fromJSON(txt, simplifyVector = TRUE)$vintages,
       error = function(e) {
         message("Skipping attempt: failed to parse vintages JSON — ", conditionMessage(e))
@@ -2009,7 +1950,7 @@ resolve_vintage_id <- function(benchmark, vintage, vintage_cache) {
       }
     )
     
-    if (is.null(v)) return(skip("vintage_lookup_parse_error"))
+    if (is.null(v)) return(make_skip("vintage_lookup_parse_error"))
     
     # Store result in cache for reuse by subsequent tries with the same benchmark.
     assign(key, v, envir = vintage_cache)
@@ -2024,215 +1965,11 @@ resolve_vintage_id <- function(benchmark, vintage, vintage_cache) {
       "Skipping attempt: vintage name '%s' not found for benchmark=%s.",
       vintage, benchmark
     ))
-    return(skip("vintage_name_not_found"))
+    return(make_skip("vintage_name_not_found"))
   }
   
   as.numeric(hit$id[1])
 }
-
-
-
-
-#' Old version... keep temporarily
-#' validate_geolocation <- function(street, city, state, zip,
-#'                                  tries = list(
-#'                                    list(benchmark = 2020, vintage = "Census2020_Census2020"),
-#'                                    list(benchmark = 2020, vintage = "Census2010_Census2020"),
-#'                                    list(benchmark = 4,    vintage = "Current_Current"),
-#'                                    list(benchmark = 8,    vintage = "Current_ACS2025")
-#'                                    ),
-#'                                  quiet = FALSE) {
-#'   #' Geocode an address (Census Geocoder) and return the best match, trying 
-#'   #' multiple benchmark/vintage pairs. This function queries the U.S. Census 
-#'   #' Geocoder "geographies/address" endpoint using a structured address 
-#'   #' (street/city/state/zip). It tries a prioritized sequence of 
-#'   #' benchmark/vintage combinations until it gets at least one candidate match, 
-#'   #' then applies a "best-candidate" selection procedure:
-#'   #' \enumerate{
-#'   #'   \item If exactly one candidate, take it.
-#'   #'   \item If multiple candidates, prefer those whose ZIP matches the input ZIP.
-#'   #'   \item If still ambiguous, use \code{find_similar_addresses()} (assumed to exist in your codebase)
-#'   #'         to pick the most similar candidate to the input address string.
-#'   #'   \item If similarity logic does not resolve, fall back to the first candidate.
-#'   #' }
-#'   #'
-#'   #' This is designed to validate and lock in a lon/lat for an address before you 
-#'   #' later assign decennial geographies via TIGER/Line shapefiles (point-in-polygon).
-#'   #'
-#'   #' @param street Character scalar. Street address line (e.g., "55 Whitney Ave").
-#'   #' @param city Character scalar. City name (e.g. "New Haven").
-#'   #' @param state Character scalar. State postal abbreviation (e.g., "CT").
-#'   #' @param zip Character scalar. ZIP code; may be 5-digit or ZIP+4 (e.g., "06510" or "06510-1234").
-#'   #' @param tries List. Each element is a list with fields:
-#'   #'   \describe{
-#'   #'     \item{benchmark}{Numeric benchmark code used by the Census Geocoder.}
-#'   #'     \item{vintage}{Either a numeric vintage \code{id} or a vintage name string (e.g., "Census2020_Census2020").}
-#'   #'   }
-#'   #'   The function tries these in order and stops at the first attempt yielding matches.
-#'   #' @param quiet Logical. If \code{FALSE}, prints each attempt and whether it matched.
-#'   #'
-#'   #' @return A list with components:
-#'   #'   \describe{
-#'   #'     \item{ok}{Logical. \code{TRUE} if any attempt produced a match.}
-#'   #'     \item{best}{If \code{ok=TRUE}, a list describing the selected best match, including
-#'   #'                 \code{benchmark}, \code{vintage_input}, \code{vintage_id}, \code{matched_address},
-#'   #'                 \code{lon}, \code{lat}, \code{geographies}, and \code{n_candidates}. Otherwise \code{NULL}.}
-#'   #'     \item{parsed_response}{If \code{ok=TRUE}, the full parsed JSON response for the successful attempt; else \code{NULL}.}
-#'   #'     \item{attempts}{A list of attempt metadata (attempt index, benchmark/vintage, status, URL, etc.) for debugging/audit.}
-#'   #'   }
-#'   #'
-#'   #' @details
-#'   #' This function depends on the following objects being defined in your environment:
-#'   #' \itemize{
-#'   #'   \item \code{build_addr_geo_url()} – constructs the request URL for the address-geographies endpoint.
-#'   #'   \item \code{call_census_geocoder()} – executes the request and parses JSON, returning \code{ok}, \code{parsed}, etc.
-#'   #'   \item \code{find_similar_addresses()} – your existing similarity matcher used in best-candidate selection.
-#'   #'   \item The infix operators \code{\%||\%} and \code{\%!in\%} (as defined earlier in your script).
-#'   #' }
-#'   #'
-#'   #' @examples
-#'   #' \dontrun{
-#'   #' res <- validate_geolocation(
-#'   #'   street = "55 Whitney Ave",
-#'   #'   city   = "New Haven",
-#'   #'   state  = "CT",
-#'   #'   zip    = "06510"
-#'   #' )
-#'   #'
-#'   #' if (res$ok) {
-#'   #' `succeeded_i <- which(vapply(res$attempts, function(a) isTRUE(a$ok), logical(1)))[1]
-#'   #' 
-#'   #' `data.frame(
-#'   #'    matched_address = res$best$matched_address,
-#'   #'    lon = res$best$lon, 
-#'   #'    lat = res$best$lat,
-#'   #'    attempt_i     = succeeded_i,
-#'   #'    benchmark     = res$best$benchmark,
-#'   #'    vintage_input = res$best$vintage_input,
-#'   #'    vintage_id    = res$best$vintage_id,
-#'   #'    stringsAsFactors = FALSE
-#'   #' ``)
-#'   #' } else {
-#'   #'  do.call(rbind, lapply(res$attempts, as.data.frame))
-#'   #' }
-#'   #' }
-#'   #' @export
-#'   
-#'   # Cache benchmark -> vintage tables so we only hit /geocoder/vintages once per 
-#'   # benchmark.
-#'   vintage_cache <- new.env(parent = emptyenv())
-#'   
-#'   # Convert a vintage value into a numeric vintage id.
-#'   # - If user supplies numeric id, use it directly.
-#'   # - If user supplies a vintage name string, look up the id for the given benchmark.
-#'   resolve_vintage_id <- function(benchmark, vintage) {
-#'     if (is.numeric(vintage) && length(vintage) == 1) return(vintage)
-#'     
-#'     if (is.null(vintage) || !nzchar(as.character(vintage))) {
-#'       stop("vintage must be provided as an ID (numeric) or a vintage name string.")
-#'     }
-#'     
-#'     key <- paste0("bmk_", benchmark)
-#'     
-#'     # Populate cache for this benchmark if needed.
-#'     if (!exists(key, envir = vintage_cache, inherits = FALSE)) {
-#'       url <- httr::modify_url(
-#'         "https://geocoding.geo.census.gov/geocoder/vintages",
-#'         query = list(format = "json", benchmark = benchmark)
-#'       )
-#'       
-#'       resp <- httr::GET(url)
-#'       if (httr::status_code(resp) != 200) {
-#'         stop("Failed to look up vintages for benchmark=", benchmark,
-#'              " (status ", httr::status_code(resp), ").")
-#'       }
-#'       
-#'       txt <- httr::content(resp, "text", encoding = "UTF-8")
-#'       v <- jsonlite::fromJSON(txt, simplifyVector = TRUE)$vintages
-#'       assign(key, v, envir = vintage_cache)
-#'     }
-#'     
-#'     # Resolve name -> id.
-#'     v_df <- get(key, envir = vintage_cache, inherits = FALSE)
-#'     hit <- v_df[v_df$vintageName == as.character(vintage), , drop = FALSE]
-#'     
-#'     if (nrow(hit) == 0) {
-#'       stop("Vintage name '", vintage, "' not found for benchmark=", benchmark, ".")
-#'     }
-#'     
-#'     as.numeric(hit$id[1])
-#'   }
-#'   
-#'   # Track every attempt (for audit/debugging).
-#'   all_attempts <- vector("list", length(tries))
-#'   
-#'   # Iterate through prioritized benchmark/vintage attempts.
-#'   for (i in seq_along(tries)) {
-#'     
-#'     # Attempt definition.
-#'     t <- tries[[i]]
-#'     bmk <- t$benchmark
-#'     vin_id <- resolve_vintage_id(bmk, t$vintage)
-#'     
-#'     # Build URL and call API.
-#'     url <- build_addr_geo_url(
-#'       street = street, city = city, state = state, zip = zip,
-#'       benchmark = bmk, vintage = vin_id
-#'     )
-#'     
-#'     out <- call_census_geocoder(url)
-#'     
-#'     # Store attempt metadata.
-#'     all_attempts[[i]] <- list(
-#'       i = i,
-#'       benchmark = bmk,
-#'       vintage_input = t$vintage,
-#'       vintage_id = vin_id,
-#'       ok = out$ok,
-#'       status = out$status,
-#'       url = out$url
-#'     )
-#'     
-#'     if (!quiet) {
-#'       cat(sprintf(
-#'         "Try %d: benchmark=%s, vintage=%s (id=%s) -> %s\n",
-#'         i, bmk, as.character(t$vintage), as.character(vin_id),
-#'         ifelse(out$ok, "MATCH", "no match")
-#'       ))
-#'     }
-#'     
-#'     # If this attempt matched, choose the best candidate and return results.
-#'     if (out$ok) {
-#'       best_match <- select_best_match(out$parsed, street, city, state, zip)
-#'       if (is.null(best_match)) next
-#'       
-#'       return(list(
-#'         ok = TRUE,
-#'         
-#'         # Curated, single best candidate (the one you will use downstream).
-#'         best = list(
-#'           benchmark = bmk,
-#'           vintage_input = t$vintage,
-#'           vintage_id = vin_id,
-#'           matched_address = best_match$matchedAddress %||% NA_character_,
-#'           lon = best_match$coordinates$x %||% NA_real_,
-#'           lat = best_match$coordinates$y %||% NA_real_,
-#'           geographies = best_match$geographies,
-#'           n_candidates = length(out$parsed$result$addressMatches)
-#'         ),
-#'         
-#'         # Full successful response payload (useful for diagnostics/auditing).
-#'         parsed_response = out$parsed,
-#'         
-#'         # Attempt-by-attempt log.
-#'         attempts = all_attempts
-#'       ))
-#'     }
-#'   }
-#'   
-#'   # No attempt matched.
-#'   list(ok = FALSE, best = NULL, parsed_response = NULL, attempts = all_attempts)
-#' }
 
 
 
@@ -3489,6 +3226,109 @@ make_ranges <- function(dt, abi_col = "abi", chunk_size = 1000L) {
 }
 
 
+
+
+normalize_address <- function(x) {
+  #' Normalize an address string for comparison.
+  #' Oxygen labels (what this normalizer tries to do):
+  #' - Standardize whitespace (trim + collapse multiple spaces)
+  #' - Standardize the punctuation between $$\text{STATE}$$ and $$\text{ZIP}$$:
+  #'     "AK 99803-2360"  and  "AK, 99803-2360"  both become "AK 99803-2360"
+  #' - Leave other punctuation/case largely unchanged so we don't over-normalize
+  #'
+  #' @param x Character vector of addresses.
+  #' @return Character vector of normalized addresses.
+  
+  # 1) Basic whitespace cleanup
+  x <- trimws(x)
+  x <- gsub("\\s+", " ", x)
+  
+  # 2) Remove a comma *only* when it appears between a 2-letter state and a ZIP
+  #    Examples fixed:
+  #    "..., AK, 99803-2360" -> "..., AK 99803-2360"
+  #    "..., AK 99803-2360"  -> unchanged
+  x <- gsub("([, ]\\b[A-Z]{2}),\\s*(\\d{5}(?:-\\d{4})?)\\b", "\\1 \\2", x)
+  
+  # 3) Cleanup any accidental space before commas (optional, but keeps things tidy)
+  x <- gsub("\\s+,", ",", x)
+  
+  x
+}
+
+
+
+
+compare_tabs <- function(new_tab, old_tab,
+                         new_addr_col = "best_address",
+                         old_addr_col = "combined_address",
+                         new_year_col = "archived_year",
+                         old_year_col = "archived_year") {
+  #' Compare "new" vs "old" tabs on (address, year) keys.
+  #' 1) Validate that required columns exist in each table.
+  #' 2) Build a key table for each input with two standardized columns:
+  #'    - .addr = normalized address (from the specified address column)
+  #'    - .year = archived year (from the specified year column)
+  #' 3) Deduplicate keys (distinct) so comparisons are set-based.
+  #' 4) Compute two set differences:
+  #'    - Keys present in new_tab but not in old_tab
+  #'    - Keys present in old_tab but not in new_tab
+  #' 5) Return counts + a few example rows from each difference set.
+  #'
+  #' @param new_tab A data.frame/tibble containing the "new" data.
+  #' @param old_tab A data.frame/tibble containing the "old" data.
+  #' @param new_addr_col Column name in new_tab holding the address (default "best_address").
+  #' @param old_addr_col Column name in old_tab holding the address (default "combined_address").
+  #' @param new_year_col Column name in new_tab holding the year (default "archived_year").
+  #' @param old_year_col Column name in old_tab holding the year (default "archived_year").
+  #'
+  #' @return A list with:
+  #' - n_new_not_old: integer, number of (addr, year) keys in new but not old
+  #' - n_old_not_new: integer, number of (addr, year) keys in old but not new
+  #' - example_new_not_old: up to 10 example keys in new but not old
+  #' - example_old_not_new: up to 10 example keys in old but not new
+  #'
+  #' @examples
+  #' cmp <- compare_tabs(new_tab, old_tab)
+  #' cmp$n_new_not_old
+  #' cmp$example_new_not_old
+  
+  # --- Guardrails: fail fast if columns are missing ---
+  stopifnot(
+    new_addr_col %in% names(new_tab),
+    old_addr_col %in% names(old_tab)
+  )
+  stopifnot(
+    new_year_col %in% names(new_tab),
+    old_year_col %in% names(old_tab)
+  )
+  
+  # --- Build distinct key sets for each table ---
+  new_keys <- new_tab %>%
+    transmute(
+      .addr = normalize_address(.data[[new_addr_col]]), # address standardized for comparison
+      .year = .data[[new_year_col]]                     # keep year as-is (numeric/character)
+    ) %>%
+    distinct()
+  
+  old_keys <- old_tab %>%
+    transmute(
+      .addr = normalize_address(.data[[old_addr_col]]),
+      .year = .data[[old_year_col]]
+    ) %>%
+    distinct()
+  
+  # --- Set differences (what's new? what's missing?) ---
+  in_new_not_old <- anti_join(new_keys, old_keys, by = c(".addr", ".year"))
+  in_old_not_new <- anti_join(old_keys, new_keys, by = c(".addr", ".year"))
+  
+  # --- Return counts + small samples for quick QC ---
+  list(
+    n_new_not_old       = nrow(in_new_not_old),
+    n_old_not_new       = nrow(in_old_not_new),
+    example_new_not_old = head(in_new_not_old, 10),
+    example_old_not_new = head(in_old_not_new, 10)
+  )
+}
 
 
 
