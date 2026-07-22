@@ -151,7 +151,7 @@ window.Quarto = {
 };
 </script>
 
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../_styles/styles.css">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -170,44 +170,41 @@ window.Quarto = {
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
-  <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-review" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Review</span>
-    </a>
-    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-review">    
-        <li>
-    <a class="dropdown-item" href="../Pages/Review_2023 Format.html">
- <span class="dropdown-text">2023 Format</span></a>
+  <li class="nav-item">
+    <a class="nav-link" href="https://www.socahlab.org/church-closures"> 
+<span class="menu-text">Dashboard</span></a>
   </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../Pages/Pipeline.html"> 
+<span class="menu-text">Pipeline</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../Pages/Development.html"> 
+<span class="menu-text">Development</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-temp" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">TEMP</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-temp">    
         <li>
     <a class="dropdown-item" href="../Pages/Review_2026 Format.html">
- <span class="dropdown-text">2026 Format</span></a>
+ <span class="dropdown-text">2026 Format Review</span></a>
   </li>  
-    </ul>
-  </li>
-  <li class="nav-item dropdown ">
-    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-preparation" role="link" data-bs-toggle="dropdown" aria-expanded="false">
- <span class="menu-text">Preparation</span>
-    </a>
-    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-preparation">    
         <li>
     <a class="dropdown-item" href="../Pages/Cleaning and Harmonization_2023 Format.html">
- <span class="dropdown-text">2023 Format</span></a>
+ <span class="dropdown-text">2023 Format Cleaning</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="../Pages/Cleaning and Harmonization_2026 Format.html">
- <span class="dropdown-text">2026 Format</span></a>
+ <span class="dropdown-text">2026 Format Cleaning</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../Pages/Metric Calculation.html">
+ <span class="dropdown-text">Metrics</span></a>
   </li>  
     </ul>
   </li>
-  <li class="nav-item">
-    <a class="nav-link" href="../Pages/Metric Calculation.html"> 
-<span class="menu-text">Metrics</span></a>
-  </li>  
-  <li class="nav-item">
-    <a class="nav-link" href="https://ysph.yale.edu/public-health-research-and-practice/research-centers-and-initiatives/public-health-data-science-and-data-equity/contact-us/" target="_blank"> 
-<span class="menu-text">Contact</span></a>
-  </li>  
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
@@ -1078,8 +1075,38 @@ TRUE    0    1  2
 <span id="cb13-112"><a href="#cb13-112" aria-hidden="true" tabindex="-1"></a><span class="co"># replaced with zero accordingly.</span></span>
 <span id="cb13-113"><a href="#cb13-113" aria-hidden="true" tabindex="-1"></a>step_1 <span class="ot">&lt;-</span> <span class="fu">mutate</span>(step_1, <span class="fu">across</span>(<span class="fu">all_of</span>(<span class="fu">names</span>(step_1)[<span class="dv">14</span><span class="sc">:</span><span class="dv">34</span>]), <span class="sc">~</span> <span class="fu">coalesce</span>(.x, <span class="dv">0</span>)))</span>
 <span id="cb13-114"><a href="#cb13-114" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-115"><a href="#cb13-115" aria-hidden="true" tabindex="-1"></a><span class="co"># Commit results.</span></span>
-<span id="cb13-116"><a href="#cb13-116" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(step_1, <span class="at">file =</span> <span class="st">"Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 01_Completed Result_04.29.2026.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb13-115"><a href="#cb13-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-116"><a href="#cb13-116" aria-hidden="true" tabindex="-1"></a><span class="co">#' @description Codebook for the new output fields produced by the data</span></span>
+<span id="cb13-117"><a href="#cb13-117" aria-hidden="true" tabindex="-1"></a><span class="co">#'              cleaning and validation step. All other fields were present</span></span>
+<span id="cb13-118"><a href="#cb13-118" aria-hidden="true" tabindex="-1"></a><span class="co">#'              in the in-progress form of the data generated in</span></span>
+<span id="cb13-119"><a href="#cb13-119" aria-hidden="true" tabindex="-1"></a><span class="co">#'              Subsection B2. This is a subset of finish_build, containing</span></span>
+<span id="cb13-120"><a href="#cb13-120" aria-hidden="true" tabindex="-1"></a><span class="co">#'              only entries that need to be expanded</span></span>
+<span id="cb13-121"><a href="#cb13-121" aria-hidden="true" tabindex="-1"></a><span class="co">#'              (i.e., same_num_clusters == FALSE).</span></span>
+<span id="cb13-122"><a href="#cb13-122" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb13-123"><a href="#cb13-123" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field compiled_address  Formatted, combined version of all address elements.</span></span>
+<span id="cb13-124"><a href="#cb13-124" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb13-125"><a href="#cb13-125" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field lonLat_test  Boolean. TRUE if the difference between the maximum and </span></span>
+<span id="cb13-126"><a href="#cb13-126" aria-hidden="true" tabindex="-1"></a><span class="co">#'                     minimum longitude and latitude values did not exceed the </span></span>
+<span id="cb13-127"><a href="#cb13-127" aria-hidden="true" tabindex="-1"></a><span class="co">#'                     0.002 degree threshold.</span></span>
+<span id="cb13-128"><a href="#cb13-128" aria-hidden="true" tabindex="-1"></a><span class="co">#'                     </span></span>
+<span id="cb13-129"><a href="#cb13-129" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field override_duplicate Boolean. TRUE if the address was manually</span></span>
+<span id="cb13-130"><a href="#cb13-130" aria-hidden="true" tabindex="-1"></a><span class="co">#'                           identified as the same physical address,</span></span>
+<span id="cb13-131"><a href="#cb13-131" aria-hidden="true" tabindex="-1"></a><span class="co">#'                           indicating that the failed longitude and latitude </span></span>
+<span id="cb13-132"><a href="#cb13-132" aria-hidden="true" tabindex="-1"></a><span class="co">#'                           similarity test should be overridden. FALSE if </span></span>
+<span id="cb13-133"><a href="#cb13-133" aria-hidden="true" tabindex="-1"></a><span class="co">#'                           the failed test still applies. NA if this </span></span>
+<span id="cb13-134"><a href="#cb13-134" aria-hidden="true" tabindex="-1"></a><span class="co">#'                           evaluation did not apply.</span></span>
+<span id="cb13-135"><a href="#cb13-135" aria-hidden="true" tabindex="-1"></a><span class="co">#'                     </span></span>
+<span id="cb13-136"><a href="#cb13-136" aria-hidden="true" tabindex="-1"></a><span class="co">#' @field same_num_clusters Expanded: addresses that were initially collapsed,</span></span>
+<span id="cb13-137"><a href="#cb13-137" aria-hidden="true" tabindex="-1"></a><span class="co">#'                          failed the longitude and latitude similarity test, </span></span>
+<span id="cb13-138"><a href="#cb13-138" aria-hidden="true" tabindex="-1"></a><span class="co">#'                          and required expansion for individual validation. </span></span>
+<span id="cb13-139"><a href="#cb13-139" aria-hidden="true" tabindex="-1"></a><span class="co">#'                          TRUE: addresses that also failed the similarity test </span></span>
+<span id="cb13-140"><a href="#cb13-140" aria-hidden="true" tabindex="-1"></a><span class="co">#'                          but clustered to an exact match and were kept </span></span>
+<span id="cb13-141"><a href="#cb13-141" aria-hidden="true" tabindex="-1"></a><span class="co">#'                          collapsed. FALSE: other addresses associated with </span></span>
+<span id="cb13-142"><a href="#cb13-142" aria-hidden="true" tabindex="-1"></a><span class="co">#'                          the same business where expansion assessment is not </span></span>
+<span id="cb13-143"><a href="#cb13-143" aria-hidden="true" tabindex="-1"></a><span class="co">#'                          applicable.</span></span>
+<span id="cb13-144"><a href="#cb13-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-145"><a href="#cb13-145" aria-hidden="true" tabindex="-1"></a><span class="co"># Commit results.</span></span>
+<span id="cb13-146"><a href="#cb13-146" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(step_1, <span class="at">file =</span> <span class="st">"Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 01_Completed Result_04.29.2026.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
@@ -1559,8 +1586,24 @@ TRUE    0    1  2
 <p>This site was built on a ysph-dsde.github.io page. It was rendered using Quarto (v 1.6.39) and theme <a href="https://bootswatch.com/lux/">Lux</a>.</p>
 </div>   
     <div class="nav-footer-center">
-<p>This report was prepared by <a href="https://www.linkedin.com/in/shelby-golden/">Shelby Golden, M.S.</a>, a Data Scientist at YSPH DSDE.</p>
-<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Cleaning and Harmonization_2023 Format.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="https://www.socahlab.org/church-closures">
+<p>Dashboard</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../Pages/Pipeline.html">
+<p>Pipeline</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../Pages/Development.html">
+<p>Development</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Cleaning and Harmonization_2023 Format.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">
