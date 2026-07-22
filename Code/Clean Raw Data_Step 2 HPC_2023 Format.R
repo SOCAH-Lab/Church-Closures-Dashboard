@@ -1,9 +1,9 @@
 ## ----------------------------------------------------------------
-## Run address validation using the USPS API.
+## Run Address Calidation Using the USPS API
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 1st, 2026
-## Date Modified: May 26th, 2026
+## Date Modified: July 21st, 2026
 ## 
 ## Description: This script validates addresses using the USPS API. It is designed
 ##              to run both locally and on Yale's High Performance Computing (HPC)
@@ -20,7 +20,7 @@
 ##              is given first, followed by the local version.
 ##
 ##              Results are processed in sequential sections and compiled in
-##              the "Clean Raw Data_2023 Format_Step 2.R" main script.
+##              the "Clean Raw Data_Step 2_2023 Format.R" main script.
 ## 
 ## NOTE: The USPS API requires a user account and API key to submit requests.
 ##       These credentials are strictly private and must not be shared. To
@@ -33,28 +33,30 @@
 ##       your environment variables, try running the following code to 
 ##       explicitly set the ".Renviron" file location using rprojroot:
 ## 
-##       rprojroot::find_rstudio_root_file()
-##       readRenviron(rprojroot::find_rstudio_root_file(".Renviron"))
+##          rprojroot::find_rstudio_root_file()
+##          readRenviron(rprojroot::find_rstudio_root_file(".Renviron"))
 ## 
 ##       The HPC batch script includes a command that points to the ".Renviron"
 ##       file. However, you may still encounter issues setting this location. 
 ##       To resolve this, open the "Shell Access" application and run the 
 ##       following code, updating the R module version as needed.
 ## 
-##       module avail R/
-##       module reset
-##       module load R/4.4.2-gfbf-2024a
-##       normalizePath("~/FILE-PATH/.Renviron", mustWork = FALSE)
+##          module avail R/
+##          module reset
+##          module load R/4.4.2-gfbf-2024a
+##          normalizePath("~/FILE-PATH/.Renviron", mustWork = FALSE)
 ## 
 ## Sections:
 ##    - SET UP THE ENVIRONMENT
+##    - PROCESS PARAMETERS FROM BATCH SCRIPT
 ##    - LOAD IN THE DATA
 ## 
-##    - PART A: VALIDATE ADDRESSES USING THE USPS API
-##        * SUBSECTION A1: Utilizing the HPC
-##        * SUBSECTION A2: Index Queue
-##        * SUBSECTION A3: Validate Addresses
-##        * SUBSECTION A4: Save Result
+##    - PART A: UTILIZING THE HPC
+##    - PART B: INDEX QUEUE
+## 
+##    - PART C: VALIDATE ADDRESSES USING THE USPS API
+##        * SUBSECTION C1: Algorithm
+##        * SUBSECTION C2: Save Result
 
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
@@ -138,10 +140,7 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 
 
 ## ----------------------------------------------------------------
-## PART A: VALIDATE ADDRESSES USING THE USPS API
-
-## --------------------
-## SUBSECTION A1: Utilizing the HPC
+## PART A: UTILIZING THE HPC
 
 # As described in the header section, this script can be run in two ways on
 # the HPC: through a live session or as a job array. Both methods operate on
@@ -154,57 +153,117 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 # identical for both the live session and batch job approaches.
 #
 #   1. Create a dedicated project directory within your private user portal.
-#
+#      For example:
+# 
+#         mkdir "church_closures"    # in "project_pi_bm895/sg2736/"
+# 
 #   2. Upload the following files and directories:
 #       - "church-closures.Rproj"
-#       - "Clean Raw Data_Step 2 HPC_2023 Format.R"
-#       - "USPS SLURM_2023 Format.sh"
-#       - Both associated function scripts: "General.R" and 
-#         "For Step 2_2023 Format.R"
 #       - ".Renviron"
-#       - "Step 01_2023 Format_HPC Subset_05.01.2026.csv"
-#       - simplemaps_uscities_basicv1.90/
 #       - renv/
-#       - renv.lock
+#       - "renv.lock"
+#       - Two scripts: 
+#             1. "Clean Raw Data_Step 2 HPC_2023 Format.R"
+#             2. "USPS SLURM_2023 Format.sh"
+#       - Two associated function scripts:
+#       - Two associated function scripts: 
+#             1. "General.R"
+#             2. "For Step 2_2023 Format.R"
+#       - Two datasets or directories containing data: 
+#             1. "Step 01_2023 Format_HPC Subset_05.01.2026.csv"
+#             2. simplemaps_uscities_basicv1.90/
 # 
-#   3. Now we need to configure the ".Renviron" file and activate the project's 
-#      package library. Click "<HPC name> Shell Access" to open the command-line 
-#      interface.
+#   3. Now we need to configure the ".Renviron" file (if using) and activate the 
+#      project's package library. Click "<HPC name> Shell Access" to open the 
+#      command-line interface.
 #
 #   4. Navigate to the project directory.
 # 
-#      cd "project_pi_bm895/sg2736/church-closures"
+#         cd "project_pi_bm895/sg2736/church_closures"
+#
+#   5. Request time on a compute node.
 # 
-#   5. Clear any loaded modules and load a bare version of R, updating the
-#      version as needed. NOTE: Not all R versions are compatible with all
-#      package versions stored by renv. This script was developed using R 4.5.2.
+#         salloc --mem=16G -t 0-4
 # 
-#      module --force purge
-#      module load R/4.4.2-gfbf-2024a-bare
+#   6. Reset the renv project environment by removing the local library,
+#      staging directory, and lockfile:
+#  
+#         rm -rf renv/library
+#         rm -rf renv/staging
 # 
-#   6. Request time on a compute node.
+#   7. Reset the module environment and load the required R module. NOTE: Not 
+#      all R versions are compatible with all package versions stored by renv. 
+#      This script was developed using R 4.5.2.
+#
+#         module reset
+#
+#      This resets all loaded modules to the cluster's default state while
+#      preserving StdEnv, which maintains essential environment variables
+#      required for proper cluster functioning.
+#
+#         module load R/4.4.2-gfbf-2024a
+#
+#      The non-bare version of R is specified here intentionally, as it
+#      includes additional system libraries that are necessary when
+#      building packages from source.
 # 
-#      salloc -t 0:20:00 --mem=8G
+#   8. Reload the ICU module environment so stringi will link against an
+#      available one.
 # 
-#   7. Load a bare version of R.
+#         module spider icu                       # find the ICU for the installed stringi.so
+#         module load ICU/75.1-GCCcore-13.3.0     # load one of the modules
 # 
-#      R --vanilla
+#   9. Load R.
 # 
-#   8. Set the paths to the ".Renviron" and "renv.lock" files. Verify that
+#         R
+# 
+#  10. Disable the system requirements check. The default checker only scans 
+#      standard system locations and is unaware of custom paths used on Bouchet.
+#
+#         options(renv.config.sysreqs.check = FALSE)
+# 
+#  11. Set the paths to the ".Renviron" and "renv.lock" files. Verify that
 #      the resulting file path output is correct.
 # 
-#      normalizePath(".Renviron", mustWork = FALSE)
-#      normalizePath("renv.lock", mustWork = FALSE)
+#         normalizePath(".Renviron", mustWork = FALSE)    # if using
+#         normalizePath("renv.lock", mustWork = FALSE)
+#
+#  12. Read the lockfile to extract exact package versions. 
+#      NOTE: renv::install() does not respect lockfile versions automatically.
+#
+#         lock <- renv::lockfile_read("renv.lock")
+#
+#         ks_ver  <- paste0("KernSmooth@", lock$Packages$KernSmooth$Version)
+#         s2_ver  <- paste0("s2@",         lock$Packages$s2$Version)
+#         sf_ver  <- paste0("sf@",         lock$Packages$sf$Version)
+#         stringi <- paste0("stringi@",    lock$Packages$stringi$Version)
+#
+#  13. Install required packages from source:
+#
+#         renv::install(ks_ver, type = "source", prompt = FALSE, rebuild = TRUE)
+#         renv::install(s2_ver, type = "source", prompt = FALSE, rebuild = TRUE)
+#         renv::install(sf_ver, type = "source", prompt = FALSE, rebuild = TRUE)
+#         renv::install(stringi, type = "source", prompt = FALSE, rebuild = TRUE)
+#
+#      The rebuild = TRUE flag bypasses the global cache entirely, ensuring
+#      a clean build is performed even if a cached — but potentially
+#      incorrectly built — version already exists. Note: installation of
+#      s2 may take approximately 5 minutes.
 # 
-#   9. Restore all packages and their dependencies from the lockfile. Use 
+#  14. Restore all packages and their dependencies from the lockfile. Use 
 #      "Selection: 1" to activate the project using the provided library.
 # 
-#      renv::restore()
+#         renv::restore()
 # 
-#  10. Exit R to refresh the session. Now you are ready to proceed with either
-#      the live session of job array method.
+#  15. Exit R to refresh the session without saving the workspace image. Now 
+#      you are ready to proceed with either the live session of job array method.
 # 
-#      quit()
+#         quit()
+# 
+#  16. If you experience issues loading installed packages from the cache,
+#      try deleting the renv directory and lockfile, then re-upload them
+#      before repeating the setup steps. Note that it may sometimes take a
+#      few minutes for the system to reflect installations or other updates.
 # 
 # The live session operates in a manner similar to running the script locally. 
 # After completing the steps outlined above, simply:
@@ -214,36 +273,36 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 #
 #   2. Use the settings below, ensuring the R version matches the one
 #      configured in the previous step.
-#       - RStudio Server version: RStudio-Server/2024.12.1-563
-#       - R version: R/4.4.2-gfbf2024a
+#       - RStudio Server version: RStudio-Server/2024.12.1-563-renvfix
+#       - R version: R/4.4.2-gfbf-2024a
 #       - 6 hours, 2 CPU, 10 GiB per CPU
 # 
 #   3. When the session is ready, click "Connect to RStudio Server" to open
 #      the environment.
 # 
-#   4. In the top-right click the "Project" button and open 
-#      "church-closures.Rproj".
+#   4. In the top-right click the "Project" button and open "church-closures.Rproj".
 # 
 #   5. Open "Clean Raw Data_2023 Format_HPC USPS API.R" and run all the code 
-#      until you reach "SUBSECTION A2: Index Queue".
+#      until you reach "PART B: INDEX QUEUE".
 # 
-#   6. In SUBSECTION A2: Index Queue", set the current index range to run 
-#      (x = 1 through 29).
+#   6. In "PART B: INDEX QUEUE", set the current index range to run 
+#      (e.g. x = 1 through 10).
 # 
-#     processed_indices[x]
+#         processed_indices[x]
 # 
-#   7. Run the code under "SUBSECTION A3: Validate Addresses". A progress bar
+#   7. Run the code under "SUBSECTION C1: Algorithm". A progress bar
 #      will appear indicating the current progress of the function.
 #
 #   8. After the function completes, save the results in
-#      "SUBSECTION A4: Save Result".
+#      "SUBSECTION C2: Save Result".
 # 
-#   9. Once all index ranges have been processed, save the results locally to:
+#   9. Once all index ranges have been processed, save results locally to:
 #
-#      ~/Church-Closures-Dashboard/Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format
+#      "~/Church-Closures-Dashboard/Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format".
 #
 #  10. Return to "SUBSECTION A2: Compile the Results" in
 #      "Clean Raw Data_Step 2_2023 Format.R" to compile all results together.
+# 
 # 
 # The array job is run entirely through the command-line interface. After 
 # completing the steps outlined above, simply:
@@ -252,32 +311,35 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 #
 #   2. Navigate to the project directory.
 # 
-#      cd "project_pi_bm895/sg2736/church-closures"
+#         cd "project_pi_bm895/sg2736/church-closures"
 # 
-#   3. Request time on a compute node.
-# 
-#      salloc -p day -t 7:00:00 --cpus-per-task=8 --mem=16G
-# 
-#   4. After the job allocation has been approved and is ready for use, execute
+#   3. After the job allocation has been approved and is ready for use, execute
 #      the SLURM batch script:
 #
-#      chmod +x "USPS SLURM_2023 Format.sh"
-#      sbatch "USPS SLURM_2023 Format.sh"
+#         chmod +x "USPS SLURM_2023 Format.sh"
+#         sbatch "USPS SLURM_2023 Format.sh"
+# 
+#   4. OPTIONAL: Check the status of the script by running the following command.
+#      Replace the batch job number with the one returned by the previous step.
+# 
+#         squeue -j 12924166
 #
 #   5. OPTIONAL: Inspect any errors that arise from running the script:
 #
-#      tail -n 50 Logs/<RUN NAME>.err
+#         tail -n 50 Logs/<RUN NAME>.err
 # 
 #   6. Once all index ranges have been processed, save the results locally to:
-#
-#      ~/Church-Closures-Dashboard/Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format
+# 
+#      "~/Church-Closures-Dashboard/Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format".
 #
 #   7. Return to "SUBSECTION A2: Compile the Results" in
 #      "Clean Raw Data_Step 2_2023 Format.R" to compile all results together.
 
 
-## --------------------
-## SUBSECTION A2: Index Queue
+
+
+## ----------------------------------------------------------------
+## PART B: INDEX QUEUE
 
 # The algorithm was timed locally, where approximately 875 entries were
 # processed per 5 minutes (~42,000 in four hours). Based on this, the data
@@ -308,8 +370,13 @@ current_array_index <- processed_indices[idx]
 nums <- as.integer(unlist(regmatches(current_array_index, gregexpr("\\d+", current_array_index))))
 
 
+
+
+## ----------------------------------------------------------------
+## PART C: VALIDATE ADDRESSES USING THE USPS API
+
 ## --------------------
-## SUBSECTION A3: Validate Addresses
+## SUBSECTION C1: Algorithm
 
 # Load the USPS API Keys
 Sys.getenv("R_ENVIRON_USER")
@@ -427,16 +494,20 @@ step_1_out <- step_1[min(index):max(index), ] |>
 
 
 ## --------------------
-## SUBSECTION A4: Save Result
+## SUBSECTION C2: Save Result
 
-# # Commit results in the HPC
+# Commit results in the HPC
 outfile <- file.path(outdir, sprintf(str_c("Step 2_2023 Format_USPS Output_", nums[1], " to ", nums[2], "_slurmArray_%03d.csv"), idx))
 write.csv(as.data.frame(step_1_out), outfile, row.names = FALSE)
 
-cat("Wrote:", outfile, "\n")
+if(is.na(current_array_index)){
+  cat("Indices out of range")
+} else {
+  cat("Wrote:", outfile, "\n")
+}
 
 # # Commit results locally
-# outfile <- file.path(outdir, sprintf(str_c("Step 2_2023 Format_USPS Output_", nums[1], " to ", nums[2], "_slurmArray_%03d.csv"), idx))
+# outfile <- file.path(outdir, sprintf(str_c("Step 2_2023 Format_USPS Output_", nums[1], " to ", nums[2], "_Array_%03d.csv"), idx))
 # write.csv(as.data.frame(step_1_out), outfile, row.names = FALSE)
 
 

@@ -1,9 +1,9 @@
 ## ----------------------------------------------------------------
-## Validate the address and finish resolving duplications.
+## Validate the Address and Finish Resolving Duplications
 ## 
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025
-## Date Modified: May 4th, 2026
+## Date Modified: July 22nd, 2026
 ## 
 ## Description: In the previous data processing and cleaning step, erroneous
 ##              duplicate addresses were consolidated into single records,
@@ -14,7 +14,10 @@
 ##              to carry forward. Verifying these addresses is considered
 ##              best practice and is particularly important for the subsequent
 ##              step, in which geolocation will be validated using the
-##              confirmed addresses.
+##              listed addresses.
+## 
+##              USPS API Documentation: https://developers.usps.com/addressesv3
+##              USPS GitHub Example: https://github.com/USPS/api-examples
 ## 
 ##              Some notable special cases:
 ## 
@@ -29,14 +32,15 @@
 ##                 remain separate.
 ## 
 ##              2. Some addresses were assigned to different similarity
-##                 clusters, introducing duplicate open/closed records that
-##                 were not present prior to running the algorithm. In these
-##                 cases, the same address_line_1 value was shared across
-##                 records, but metadata such as city or zip code differed.
-##                 Geolocation values also differed despite the identical
-##                 address_line_1. Following address validation, these records
-##                 will be consolidated into a single entry using the valid
-##                 address, if matched.
+##                 clusters or joined incorrectly with unaccounted for metadata,
+##                 metadata variation, introducing duplicate open/closed records 
+##                 that were not present prior to running the algorithm. In the
+##                 later cases, the same address_line_1 value was shared across
+##                 records, but the city or zip code differed. Geolocation 
+##                 values also differed despite the identical address_line_1. 
+##                 Following address validation, these records will be 
+##                 consolidated into a single entry using the valid address, 
+##                 if matched.
 ## 
 ## USPS API Keys:
 ## To query the USPS database, a client key and secret must be configured to
@@ -46,7 +50,7 @@
 ## 
 ## Follow the steps below to set up your credentials and environment.
 ## 
-## 1. Register for a USPS developer account by following the "Getting Started"
+## 1. Register for a USPS Developer account by following the "Getting Started"
 ##    instructions on the USPS Developer Portal:
 ##    https://developers.usps.com/
 ## 
@@ -77,7 +81,15 @@
 ##    - PART A: Validating the Address Using the USPS API
 ##        * SUBSECTION A1: Prepare Subset for HPC
 ##        * SUBSECTION A2: Compile the Results
-##        * SUBSECTION A3: Assess the Algorithms Performance
+## 
+##    - PART B: Complete Handling of Special Cases
+##        * SUBSECTION B1: ABI-Specific Duplication Confirmation
+##        * SUBSECTION B2: Consolidate Duplications and Remove Difficult Cases
+##        * SUBSECTION B3: Consolidate Addresses with Different City
+## 
+##    - PART C: Organize and Save the Results
+## 
+##    - PART D: Assess the Algorithms Performance
 
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
@@ -94,26 +106,14 @@ suppressPackageStartupMessages({
   library("ggplot2")          # Graphics and visualization
   library("tibble")           # Manipulate data frames in tidyverse
   library("purrr")            # Functional programming tools
-  library("httr")
-  library("jsonlite")
+  library("httr")             # HTTP requests (GET/POST) for web APIs
+  library("jsonlite")         # JSON parsing and generation (to/from R objects)
   library("future.apply")     # Parallel processing
+  library("stringdist")       # Measuring string distances
   library("progress")         # Progress bars
   library("profvis")          # Profiling visualization
   library("microbenchmark")   # Micro-benchmarking for performance
   library("data.table")       # High-performance data manipulation
-})
-
-suppressPackageStartupMessages({
-  library("sf")
-  library("tigris")
-  library("tidycensus")
-  library("ggforce")
-  library("pbapply")
-  library("lubridate")
-  library("usmap")
-  library("dbscan")
-  library("xml2")
-  library("rprojroot")
 })
 
 # Set up the plan for parallel processing.
@@ -121,7 +121,8 @@ plan(multisession, workers = 4)
 
 # Load in the functions
 source("./Code/Support Functions/General.R")
-source("./Code/Support Functions/For Step 2.R")
+source("./Code/Support Functions/For Step 1_2023 Format.R")
+source("./Code/Support Functions/For Step 2_2023 Format.R")
 
 # Define the "not in" operation
 "%!in%" <- function(x,y)!("%in%"(x,y))
@@ -132,12 +133,23 @@ source("./Code/Support Functions/For Step 2.R")
 ## ----------------------------------------------------------------
 ## LOAD IN THE DATA
 
+# Load the raw dataset in wide format.
+church_wide <- read_csv("./Data/Raw/KEEP LOCAL/church_wide_form_071723.csv") %>% as.data.frame()
+
 # Load in the pre-produced test results for evaluation.
-step_1 <- read_csv("Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 01_Completed Result_04.29.2026.csv",
+step_1 <- read_csv("Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 01_Completed Result_04.29.2026.csv",
                    col_types = cols(...1 = col_skip())) %>% as.data.frame()
 
-uscities_df <- read_csv("Data/Raw/simplemaps_uscities_basicv1.90/uscities.csv") %>% as.data.frame()
-zip_city_lookup <- build_zip_city_lookup(uscities_df)
+# While verifying the addresses, we want to add the address line 2, zip code
+# 4-digit extension, and a boolean to verify that the address has been verified.
+step_1 <- step_1 %>%
+  mutate(address_line_2 = "", address_verified = NA, zipcode_ext = "") %>%
+  relocate(address_line_2, .after = address_line_1) %>%
+  relocate(zipcode_ext, .after = zipcode) %>%
+  relocate(address_verified, .after = compiled_address) %>%
+  `rownames<-`(NULL)
+
+step_1 <- rownames_to_column(step_1, var = "rowname")
 
 
 
@@ -145,46 +157,30 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 ## ----------------------------------------------------------------
 ## PART A: Validating the Address Using the USPS API
 
-# Using the API's where erroneous duplicated addresses were compressed,
-# and their longitutde and latitude are similar, we now query the USPS
-# Address 3.0 API to get the preferred address. 
-#   - If a preferred address is matched, then all address entries get changed. 
-#   - If no preferred address is found, the "compiled_address" is changed
-#     to "No address match found".
+# This process has been designed to work both locally and on a High Performance
+# Computer (HPC). Two HPC methods are outlined: a live session and a batch
+# array. The validation function is not included in this script. Instead, this
+# section generates the data subset intended for use in the HPC and compiles
+# results assuming two possible data structures.
 #
-# USPS API Documentation: https://developers.usps.com/addressesv3
-#    USPS GitHub Example: https://github.com/USPS/api-examples
+# The originally provided data lacked certain features and formatting required
+# to ensure a straightforward validation process. To improve the likelihood of
+# successful validation, addresses are taken through a series of modifications
+# if the initial query fails:
+#
+#     1. If the address has leading or trailing zeros, retry the query using
+#        all alternative plausible arrangements of the missing zeros until
+#        a successful result is obtained.
+#
+#     2. If changing the zeros is unsuccessful, use address_line_1 as the 
+#        second address line instead.
+#
+# If all attempts fail, the result is saved as "No address match found".
 # 
-# NOTE: It is possible that some addresses list the street name in the address
-#       line 2, but we do not worry about this designation. Either one or the
-#       other is suitable. This can be changed in later iterations if need be.
-
-
-## --------------------
-## SUBSECTION A1: Prepare Subset for HPC
-
-# While verifying the addresses, we want to add the address line 2, zip code
-# 4-digit extension, and a boolean to verify that the address has been verified.
-step_1 <- step_1 %>%
-  mutate(address_line_2 = "", address_verified = NA, zipcode_ext = "") %>%
-    relocate(address_line_2, .after = address_line_1) %>%
-    relocate(zipcode_ext, .after = zipcode) %>%
-    relocate(address_verified, .after = compiled_address) %>%
-  `rownames<-`(NULL)
-
-step_1 <- rownames_to_column(step_1, var = "rowname")
-
-# Create a subset of the data only relevant to verifying the listed addresses in
-# the HPC environemnt.
-step_1_subset <- step_1 %>%
-  select(rowname, address_line_1, address_line_2, city, state,
-         zipcode, zipcode_ext, compiled_address, address_verified)
-
-write.csv(step_1_subset, file = "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1/Step 01_2023 Format_HPC Subset_05.01.2026.csv")
-
-
-## --------------------
-## SUBSECTION A2: Compile the Results
+# The validation algorithm was timed locally, where approximately 875 entries
+# were processed per 5 minutes (~42,000 in four hours). Based on this, the data
+# was partitioned into 42,000-entry indices (listed below) to fit within the 
+# HPC's 6-hour session limit.
 
 processed_indices <- c(
   "1 to 42000", "42001 to 84000", "84001 to 126000", "126001 to 168000",
@@ -197,450 +193,978 @@ processed_indices <- c(
   "1134001 to 1176000", "1176001 to 1210975"
 )
 
-dir_path <- "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2"
 
-files <- file.path(dir_path, paste0("Step 2_USPS Output_", processed_indices[3:7], ".csv"))
+## --------------------
+## SUBSECTION A1: Prepare Subset for HPC
 
-# Import all the data frames
-dfs <- lapply(files, read_csv, show_col_types = FALSE) %>%
-  `names<-`(processed_indices[3:7])
+# Create a subset of the data only relevant to verifying the listed addresses in
+# the HPC environemnt.
+step_1_subset <- step_1 %>%
+  select(rowname, address_line_1, address_line_2, city, state,
+         zipcode, zipcode_ext, compiled_address, address_verified)
 
-# Confirm the range recorded is within the index
-lapply(dfs, dim)
+#write.csv(step_1_subset, file = "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 01_2023 Format_HPC Subset_05.01.2026.csv")
 
-# Correct the range associated with 
-#dfs[[1]] <- dfs[[1]] %>% .[1:42000, ]
-
-
-# 
-expected <- str_squish(names(dfs)) %>%
-  tibble(
-    start = as.integer(str_extract(x, "^\\d+")),
-    end   = as.integer(str_extract(x, "\\d+$"))
-  ) %>%
-  mutate(expected_range = names(dfs)) %>%
-  select(expected_range, expected_start = start, expected_end = end)
-
-results <- imap_dfr(dfs, function(dat, nm) {
-  exp <- expected %>% filter(expected_range == nm)
-  dat %>%
-    transmute(
-      file_range = nm,
-      rowname,
-      within_expected = rowname >= exp$expected_start & rowname <= exp$expected_end
-    )
-})
-
-table(results$within_expected, useNA = "ifany")
-nrow(results)/42000
-
-
-# 
-tab <- lapply(dfs, \(x) table(x$address_verified, useNA = "ifany"))
-
-out <- do.call(rbind, lapply(names(tab), function(nm) {
-  tt <- tab[[nm]]
-  nms <- names(tt)
-  iNA <- which(is.na(nms))
-  
-  data.frame(
-    Range = nm,
-    `FALSE` = as.integer(if ("FALSE" %in% nms) tt[["FALSE"]] else 0),
-    `TRUE`  = as.integer(if ("TRUE"  %in% nms) tt[["TRUE"]]  else 0),
-    `NA`    = as.integer(if (length(iNA)) tt[iNA] else 0),
-    row.names = NULL,
-    check.names = FALSE
-  )
-}))
-
+# NEXT STEP: Before continuing, pass these results through the validation
+#            function located in "Clean Raw Data_Step 2 HPC_2023 Format.R". 
+#            Steps on how to do this locally or in the HPC are provided in 
+#            section "PART A: UTILIZING THE HPC".
 
 
 ## --------------------
-## SUBSECTION A3: Assess the Algorithms Performance
+## SUBSECTION A2: Compile the Results
 
-# If the environment crashes, replace the progress saved in step_2 to the same
-# variable.
-same <- bind_rows(step_2, same[same$abi %!in% step_2$abi, ])
+# Define the base file location with the saved results.
+dir_path <- "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/HPC Results"
+
+# Generate all qualifying file locations.
+files <- file.path(dir_path, paste0("Step 2_2023 Format_USPS Output_", processed_indices, ".csv"))
+
+# Import all the data frames as a list.
+dfs <- lapply(files, read_csv, show_col_types = FALSE,
+  col_types = cols(
+    rowname = col_character(),
+    zipcode = col_character(),
+    zipcode_ext = col_character()
+  )
+) %>%
+  `names<-`(processed_indices)
 
 
-same[same$abi %in% step_2$abi, "address_verified"] %>% table()
-sum(is.na(same[same$abi %in% step_2$abi, "address_verified"]))
+# Prior to compiling the results, the following quality checks are performed:
+#   1. Evaluate the dimensions of each subset
+#   2. Confirm that the indices in each subset fully represent the expected range
+#   3. Assess the number of verified addresses; a high rate of failures may 
+#      warrant re-processing that index
 
-same[same$abi %in% step_2$abi & is.na(same$address_verified), ]
+# Generate the QC results, assuming each index range contains 42,000 indices,
+# with the exception of the last range, which may differ.
+qc_results <- qc_validation_results(dfs, denom = 42000)
+
+# Not all subsets share the same number of columns, but the row counts for each 
+# subset are as expected, excluding the last index range.
+qc_results$dims %>% as.data.frame()
+qc_results$row_representation
+qc_validation_results(dfs[-29], denom = 42000)$row_representation_ratio
+
+# All indices span the expected range, suggesting that all entries have been 
+# processed and is accounted for.
+#qc_results$per_row
+qc_results$within_expected_table
+qc_results$per_file %>% as.data.frame()
+
+# Several index ranges yielded fewer validation matches than expected,
+# with one range producing no matches at all. Re-processing will be skipped,
+# as the 2026 Format dataset will be used for the final dashboard instead.
+qc_results$address_verifications
 
 
-# Load in the pre-produced test results for evaluation.
-step_2 <- read_csv("data/Raw KEEP LOCAL/Cleaning Wide Format Steps/Step 02_Church Wide_Convert to Preferred USPS Address_COMPLETED_06.07.2025.csv.gz") %>% 
+# As observed in the dimensions QC results, not all tables share the same number
+# of columns. This discrepancy arises because some results were produced locally
+# using the full dataset, while others were produced on the HPC using a subset
+# that lacks certain metadata columns.
+#
+# The following function automatically associates the correct metadata where
+# needed before combining the rows of each subset.
+
+# Save the table summarizing the dimensions of each subset.
+dims_tbl <- qc_results$dims %>% as.data.frame()
+
+# Combine all results.
+step_2 <- combine_mixed_dfs(dfs, dims_tbl) %>% 
+  # Remove the rowname columns introduced during the subset merge and reorder.
+  select(colnames(step_1))
+
+# Final confirmation that all rowname entries have been accounted for.
+length(step_1$rowname[step_1$rowname %!in% step_2$rowname]) == 0 &
+  length(step_2$rowname[step_2$rowname %!in% step_1$rowname]) == 0
+
+
+
+
+## ----------------------------------------------------------------
+## PART B: Complete Handling of Special Cases
+
+# Address collapsing introduced duplicate year-opened and year-closed values
+# that were not present prior to that step. Duplicates arose from two sources:
+# (1) cross-cluster address matches that incorrectly associated records across
+# groups, and (2) address matches with multiple metadata variations that
+# inflated row upon joining.
+# 
+# Together, these resulted in year-opened and year-closed values being counted
+# multiple times across different address lines.
+# 
+# Additionally, some entries failed the geolocation test as a consequence of
+# the collapsing step. These failures fell into two categories: addresses
+# incorrectly collapsed together (i.e., distinct addresses treated as one),
+# and discrepancies between likely identical addresses and their attributed
+# geolocations.
+# 
+# Failed entries were re-clustered using exact compiled address matches only, 
+# and those assumed to represent the same address were marked for a geolocation 
+# test override.
+# 
+# Recall the results codebook:
+
+#' @description 
+#' Codebook for the new output fields produced by the data cleaning and 
+#' validation Step 1.
+#'
+#'#' @field override_duplicate Boolean. TRUE if the address was manually
+#'                             identified as the same physical address,
+#'                             indicating that the failed longitude and latitude 
+#'                             similarity test should be overridden. FALSE if 
+#'                             the failed test still applies. NA if this 
+#'                             evaluation did not apply.
+#'                           
+#' @field same_num_clusters Expanded: addresses that were initially collapsed,
+#'                          failed the longitude and latitude similarity test, 
+#'                          and required expansion for individual validation. 
+#'                          TRUE: addresses that also failed the similarity test 
+#'                          but clustered to an exact match and were kept 
+#'                          collapsed. FALSE: other addresses associated with 
+#'                          the same business where expansion assessment is not 
+#'                          applicable.
+
+
+## --------------------
+## SUBSECTION B1: ABI-Specific Duplication Confirmation
+
+# First, confirm that duplications are only detected among entries associated
+# with the expected ABI. Should duplications be detected among other entries,
+# those entries will require duplication reconciliation as well.
+
+# Review outcome distributions across duplicated and geolocation-failed entries.
+table("Same Address Line 1" = step_2$override_duplicate, "Same Number of Clusters" = step_2$same_num_clusters, useNA = "ifany")
+
+
+# --------------------
+# Subset entries based on prior edge-case address handling.
+
+# Isolate ABIs requiring no further address collapsing or special handling.
+not_special_case <- step_2 %>% 
+  group_by(abi) %>%
+  filter(all(is.na(override_duplicate)) & all(is.na(same_num_clusters))) %>%
+  pull(abi) %>%
+  unique()
+
+# Isolate ABIs assessed for expansion only, with no duplication override,
+# as no addresses were identified as matching.
+fix_expanded <- step_2 %>% 
+  group_by(abi) %>%
+  filter(all(is.na(override_duplicate)) & any(!is.na(same_num_clusters))) %>%
+  pull(abi) %>%
+  unique()
+
+# Isolate ABIs with addresses identified as matching, regardless of expansion
+# applicability, as this may affect any address in the set.
+fix_diff_metadata <- step_2 %>% 
+  group_by(abi) %>%
+  filter(any(!is.na(override_duplicate))) %>%
+  pull(abi) %>%
+  unique()
+
+# Confirm all ABI have been accounted for.
+( length(unique(step_2$abi)) - length(unique(step_2$abi) %in% c(not_special_case, fix_expanded, fix_diff_metadata)) ) == 0 &
+  ( length(unique(step_2$abi)) - length(c(not_special_case, fix_expanded, fix_diff_metadata) %in% unique(step_2$abi)) ) == 0
+
+# Confirm none of the special cases are in the not special case subset.
+length(not_special_case[not_special_case %in% c(fix_expanded, fix_diff_metadata)]) == 0 &
+  length(c(fix_expanded, fix_diff_metadata)[c(fix_expanded, fix_diff_metadata) %in% not_special_case]) == 0
+
+# Confirm that the special cases are themselves mutually exclusive.
+length(fix_expanded[fix_expanded %in% fix_diff_metadata]) == 0 &
+  length(fix_diff_metadata[fix_diff_metadata %in% fix_expanded]) == 0
+
+
+# --------------------
+# Verify that duplications are limited to the two "fix" ABI sets and absent
+# from entries requiring no special handling. Comment or uncomment as needed
+# to filter for the correct entries and result.
+
+# NOTE: Results were already generated and saved. Load them below.
+
+
+# Count the number of unique ABIs.
+total_groups <- step_2 %>%
+
+  # Comment/uncomment which ABI is being assessed.
+  filter(abi %in% not_special_case) %>%
+  #filter(abi %in% fix_expanded) %>%
+  #filter(abi %in% fix_diff_metadata) %>%
+
+  group_by(abi) %>% n_groups()
+
+# Initialize progress bar
+pb <- progress_bar$new(
+  format = "  processing [:bar] :percent eta: :eta",
+  total = total_groups,
+  clear = FALSE, width = 60
+)
+
+# Run the duplication test with progress bar.
+test_no_dup <- step_2 %>%
+
+  # Comment/uncomment which ABI is being assessed.
+  filter(abi %in% not_special_case) %>%
+  #filter(abi %in% fix_expanded) %>%
+  #filter(abi %in% fix_diff_metadata) %>%
+
+  # Group the data by ABI to be processed separately.
+  group_by(abi) %>%
+  # Apply the custom function 'check_all_counts_0_or_1' with progress tracking to each group.
+  group_modify(~ process_with_progress(pb, .x, check_all_counts_0_or_1)) %>%
+  # Remove the grouping to return to an ungrouped data frame.
+  ungroup() %>%
+  # Convert the grouped data back to a standard data frame.
   as.data.frame()
 
 
-step_2$address_verified %>% table()
+#' @description 
+#' Codebook for the output fields produced by the evaluation.
+#'
+#' @field abi Unique business identifier. Evaluation is performed over each 
+#'            unique business ID.
+#'
+#' @field `2001:2021` Column-wise sum of all entries associated with the given 
+#'                    business ID.
+#'
+#' @field all_counts_0_or_1 Boolean. TRUE if all date entry sums for the given
+#'                          business ID are equal to 0 or 1.
 
-step_2[str_detect(step_2$address_line_1, "PO BOX"), "address_verified"] %>% table()
+# # Commit results.
+# write.csv(test_no_dup, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/Step 2 Subsection B_All Other Data_06.04.2026.csv")
+# write.csv(test_no_dup, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/Step 2 Subsection B_Fix Expanded_06.04.2026.csv")
+# write.csv(test_no_dup, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/Step 2 Subsection B_Fix Metadata_06.04.2026.csv")
 
 
-step_2[step_2$address_verified %in% FALSE, ]
-step_2[step_2$abi %in% 101275956, ]
+# Read in previously generated results.
+not_special_case_results <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/Step 2 Subsection B_All Other Data_06.04.2026.csv", 
+                                     col_types = cols(...1 = col_skip())) %>% as.data.frame()
+fix_expanded_results     <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/Step 2 Subsection B_Fix Expanded_06.04.2026.csv", 
+                                     col_types = cols(...1 = col_skip())) %>% as.data.frame()
+fix_metadata_results     <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/Step 2 Subsection B_Fix Metadata_06.04.2026.csv", 
+                                     col_types = cols(...1 = col_skip())) %>% as.data.frame()
 
+# FALSE represents ABIs for which duplications were detected.
+table(not_special_case_results$all_counts_0_or_1, useNA = "ifany")
+table(fix_expanded_results$all_counts_0_or_1, useNA = "ifany")
+table(fix_metadata_results$all_counts_0_or_1, useNA = "ifany")
 
-# Less than 30% of the data had a verified address from this database. Most
-# entries with a PO BOX failed, but surprisingly 20% were verified as well.
-# One alternative source is going to be explored to try and bolster these
-# numbers, the Google Maps API. This source is also expected to verify the
-# geolocation of the address, which merges with the next step.
-
+# 89% of businesses will not require re-clustering.
+round( nrow(not_special_case_results)/length(unique(step_2$abi)) * 100, digits = 2)
 
 
 ## --------------------
-## Inspect the 1.6% duplicates added in Step 1
+## SUBSECTION B2: Consolidate Duplications and Remove Difficult Cases
 
-# In Step 1, similar addresses were sometimes counted multiple times because
-# the address_line_1 variable was similar, but there were differences with
-# the other aspects of a address that caused the function to identify them
-# as different. These were then collapsed multiple times only based on
-# address_line_1 similarity, thus introducing duplicated response records for 
-# relevant spans of time.
+# Duplicate records introduced during address collapsing are reconciled using a
+# staged approach. In the first stage, exact duplicates are removed by retaining
+# one copy. Records that remain duplicated due to heterogeneous year-opened or
+# year-closed outcomes are repaired with the original values recovered from 
+# the raw data to resolve any conflicting entries.
+# 
+# Additional strategies to further reduce candidate entries, such as ones
+# with the exact same address, are done in subsequent sections.
 
-dup_verify <- step_2[step_2$abi %in% dup_added, ] %>% 
-  # Keep the row associated with this subset.
-  mutate(row_designation = rownames(.))
+search_space <- c(
+  not_special_case_results[not_special_case_results$all_counts_0_or_1 == FALSE, "abi"],
+  fix_expanded_results[fix_expanded_results$all_counts_0_or_1 == FALSE, "abi"],
+  fix_metadata_results$abi
+)
 
-# Some addresses were over counted once and as many as three times (sums = 2 to 4).
-test_no_dup %>%
-  select(starts_with("20")) %>%
-  as.data.frame() %>%
-  as.matrix() %>% as.vector() %>% unique() %>% sort()
+supplement_build <- vector("list", length(search_space))  # Initialize an empty list
+pb = txtProgressBar(min = 0, max = length(search_space), style = 3)  # Initialize progress bar
 
+finish_build <- vector("list", length(search_space))  # Initialize an empty list
+qc_tbl <- NULL # Initialize an empty variable
 
-# 87% percent do not have a verifiable address in the USPS database.
-dup_verify[dup_verify$compiled_address %in% "No address match found", "abi"] %>% 
-  unique() %>% (\(x) { round(length(x)/length(dup_added)*100, digits = 2) })
-
-
-# Most of the entries do not have verified addresses for each duplicate.
-# Therefore we will need to be more nuanced about selecting the duplicates. 
-# Below is a for loop that selects down to the most informative address 
-# available for a given ABI within a nexus of longitude/latitude coordinates.
-
-# Add the missing column where the keep/drop binary will be stored.
-dup_verify <- dup_verify %>% mutate(keep_binary = NA)
-
-# Define the search space by all unique ABI's associated with some duplication.
-search_space <- unique(dup_verify$abi)
-
-infoDropped <- c()
-confirm_one_keep <- c()
-for(i in 1:length(search_space)) {
-  # Subset to show only the entries associated with one duplicated ABI.
-  subset <- dup_verify[dup_verify$abi %in% search_space[i], ]
+for (i in 1:length(search_space)) {
+  # Pull business information where erroneous reduplications were detected.
+  subset <- step_2 %>%
+    filter(abi %in% search_space[i])
   
-  # Identify the rows where duplicated responses were introduced in Step 1.
-  col_sums <- subset %>% summarise(across(starts_with("20"), sum)) %>% as.data.frame()
-  exceeding_cols <- colnames(col_sums)[col_sums[1, ] > 1]
-
-  # Subset those rows to proceed with.
-  dup_introduced <- subset %>% filter(if_any(all_of(exceeding_cols), ~ . == 1))
+  # Pull related raw data for date column overwrite. Applied only if the 
+  # duplication removal step fails.
+  subset_raw <- church_wide %>%
+    filter(abi %in% search_space[i])
   
-  # Those not subset as duplicated, mark to keep.
-  subset[subset$row_designation %!in% dup_introduced$row_designation, "keep_binary"] <- "Keep"
+  # Initialize all entries as corrected. If the duplication reduction step does
+  # not fully resolve all entries, a direct override is attempted. If the
+  # override also fails, all_corrected is set to FALSE.
+  all_corrected = TRUE
   
-  # We are going to assume that addresses that are meant to reflect the same
-  # physical location of a church have similar longitudes and latitudes. If
-  # multiple addresses were over counted for a given ABI, we need to handle them
-  # separately.
-  #
-  # Use K-means density clustering to identify addresses with similar longitude 
-  # and latitude. Add a condition that if there are missing longitude and latitudes,
-  # then simply say everything is in the same cluster.
-  if( sapply(dup_introduced[, c("longitude", "latitude")], is.na) %>% as.vector() %>% any() ) {
-    dup_introduced$cluster <- 1
-    message(sprintf("There are NA's in the coordinates. Row ID's: %s.", str_flatten(dup_introduced$row_designation, collapse = ", ")))
-    problemGeo <- TRUE
-  } else {
-    dup_introduced$cluster <- dbscan::dbscan(dup_introduced[, c("longitude", "latitude")], eps = 1, minPts = 2)$cluster
-    problemGeo <- FALSE
-  }
-  
-  
-  one_kept <- c()
-  for( j in 1:length(unique(dup_introduced$cluster)) ) {
-    # Subset by the selected cluster.
-    one_location <- dup_introduced[dup_introduced$cluster %in% unique(dup_introduced$cluster)[j], ]
-    
-    # Any addresses that had no match in the USPS database get dropped.
-    if( any(one_location$compiled_address %in% "No address match found") ) {
-      one_location[one_location$compiled_address %in% "No address match found", "keep_binary"] <- "Drop"
-      
-      # If in the rare cases there were no other candidate addresses to use,
-      # then use the most informative unverified address.
-      if( all(one_location$compiled_address %in% "No address match found") ) {
-        one_location[one_location$compiled_address %in% "No address match found", "keep_binary"] <- NA
-      }
-    }
-    
-    # Rows to keep evaluating after the first prune.
-    keep_eval <- which(one_location$keep_binary %!in% "Drop")
-    
-    
-    ## --------------------
-    ## Save the duplicate with the most informative or most accurate address.
-    
-    # We want to select addresses by the one that provides the most information.
-    # Technically, each one of these (that wasn't dropped earlier) is a valid
-    # address according to the USPS database. We will therefore use the following
-    # three conditions to arbitrarily select one address to collapse to:
-    #   1. Has a Address Line 2
-    #   2. Has the longest Address Line 1
-    #   3. If multiple entries have the same Address Line 1, select the one 
-    #      associated with the shortest city name that is not an acronym.
-    
-    selectors <- data.frame("rowIndex" = keep_eval,
-                            "Line1" = str_length(one_location[keep_eval, ]$address_line_1), 
-                            "Line2" = str_length(one_location[keep_eval, ]$address_line_2),
-                            "city" = str_length(one_location[keep_eval, ]$city))
-    
-    
-    # If an Address Line 2 is given, then drop all entries where there is no
-    # Address Line 2 present.
-    if( any(!is.na(selectors$Line2)) ) {
-      one_location[keep_eval, ][is.na(selectors$Line2), "keep_binary"] <- "Drop"
-      # Update the addresses to continue for evaluating.
-      keep_eval <- which(one_location$keep_binary %!in% "Drop")
-    }
-    
-    
-    # We'd like to save the most informative Address Line 1, which is determined
-    # to be one with numerics and is near the largest, or else is the largest
-    # Address Line 1 option.
-    if( any(str_detect(one_location[keep_eval, ]$address_line_1, "[0-9]")) ) {
-      contains_num <- str_detect(one_location[keep_eval, ]$address_line_1, "[0-9]")
-      is_also_max  <- str_detect(one_location[keep_eval, ]$address_line_1, "[0-9]") & 
-        selectors[keep_eval, "Line1"] %in% max(selectors[keep_eval, "Line1"])
-      
-      # If the address contains a numeric and is also the max, then save that one.
-      if( any(is_also_max) ) {
-        one_location[keep_eval[!is_also_max], "keep_binary"] <- "Drop"
-        # Update the addresses to continue for evaluating.
-        keep_eval <- which(one_location$keep_binary %!in% "Drop")
-        
-      # If the address contains a numeric is not also the max, then save the next
-      # largest, otherwise save the largest.
-      } else {
-        selectors <- selectors %>%
-          mutate(similarLength = dbscan::dbscan(selectors[, c("Line1"), drop = FALSE], eps = 2, minPts = 2)$cluster)
-        
-        # If if any of the entries with a numeric are in the range of the max,
-        # then drop the non-numeric ones.
-        if( any(selectors[selectors$Line1 %in% max(selectors$Line1), "similarLength"] %in% selectors[contains_num, "similarLength"]) ) {
-          one_location[keep_eval, ][!contains_num, "keep_binary"] <- "Drop"
-          # Update the addresses to continue for evaluating.
-          keep_eval <- which(one_location$keep_binary %!in% "Drop")
-          
-        # If the numeric entries are not in the range of the max, then drop the
-        # numeric ones, and only keep the longest addresses.
-        } else {
-          one_location[keep_eval, ][selectors$Line1 %!in% max(selectors$Line1), "keep_binary"] <- "Drop"
-          # Update the addresses to continue for evaluating.
-          keep_eval <- which(one_location$keep_binary %!in% "Drop")
-        }
-      }
-      
-    # If no duplicated have numerics, then simply save the longest.
-    } else {
-      one_location[keep_eval, ][selectors$Line1 %!in% max(selectors$Line1), "keep_binary"] <- "Drop"
-      # Update the addresses to continue for evaluating.
-      keep_eval <- which(one_location$keep_binary %!in% "Drop")
-    }
-    
-    
-    # If the number of rows is reduced to one, then save the row_designation
-    # associated with this address.
-    if( length(keep_eval) == 1 ) {
-      one_location[keep_eval, "keep_binary"] <- "Keep"
-      
-    # If more than one entries meet the previous two conditions, choose the
-    # one with the shortest city name that is not also an acronym.
-    } else if( length(keep_eval) > 1 ) {
-      # Test which cities are recognized as the preferred city name.
-      any_city <- sapply(one_location[keep_eval, "city"], is_acronym_or_city)
-      
-      if( any(any_city %in% "City") ) {
-        # Capture one of the valid cities (even if more than one comes up).
-        one_location[ keep_eval[which(any_city %in% "City")[1]], "keep_binary"] <- "Keep"
-        
-      } else if( !any(any_city %in% "City") ) {
-        # Search for any city 
-        search_city <- us_cities[us_cities$state_id %in% one_location$state[1] & 
-                                   us_cities$zips %in% one_location$zipcode[1], "city"]
-        
-        # If any candidate cities are pulled.
-        if( length(search_city) >= 1 ) {
-          # Find the city most similar to any given entry.
-          any_match <- lapply(find_similar_addresses(c(one_location[keep_eval, "city"], search_city[[1]])), function(x) any(x %in% search_city[[1]])) %>% unlist()
-          
-        # Otherwise, randomly save the first entry in the keep_eval vector.
-        } else {
-          one_location[keep_eval[1], "keep_binary"] <- "Keep"
-          message(sprintf("No city match found. Random one chosen. Row ID's: %s.", str_flatten(one_location$row_designation, collapse = ", ")))
-          
-        }
-        
-        # If only one candidate city, then save the entry associated with that.
-        if( sum(any_match == TRUE) == 1 ) {
-          # If none of the cities matched, then randomly keep one of the addresses.
-          if( any_match %>% which() %>% keep_eval[.] %>% is.na() ) {
-            keep_eval <- keep_eval[1]
-            message(sprintf("No city match found. Random one chosen. Row ID's: %s.", str_flatten(one_location$row_designation, collapse = ", ")))
-          } else {
-            keep_eval <- any_match %>% which() %>% keep_eval[.]
-          }
-          one_location[keep_eval, "keep_binary"] <- "Keep"
-          
-          # Replace the city name with the match.
-          one_location[keep_eval, "city"] <- search_city[[1]][1]
-          
-        # If more than one candidate city, then randomly choose the first one to keep.
-        } else {
-          any_match %>% which() %>% keep_eval[.] %>% .[1]
-          one_location[keep_eval, "keep_binary"][1] <- "Keep"
-          message(sprintf("More than one city match found. Random one chosen. Row ID's: %s.", str_flatten(one_location$row_designation, collapse = ", ")))
-        }
-      }
-      
-      
-    # If no addresses are left for evaluating, then choose the nearest, non-PO BOX
-    # address to replace all duplicates.
-    } else if( length(keep_eval) < 1 ) {
-      
-      candidate_replacement <- which(!str_detect(subset$compiled_address, "PO BOX") & !subset$compiled_address %in% "No address match found")
-      one_location <- bind_rows(one_location, subset[candidate_replacement, ])
-      
-      one_location$cluster <- dbscan::dbscan(one_location[, c("longitude", "latitude")], eps = 1, minPts = 2)$cluster
-      
-      # Store the indices for each type of entry: duplciated or address for
-      # supplementing the missing valid address.
-      index_dup  <- 1:(nrow(one_location) - length(candidate_replacement))
-      index_cand <- (nrow(one_location) - length(candidate_replacement) + 1):nrow(one_location)
-      
-      if( length(candidate_replacement) == 1 && length(unique(one_location$cluster)) == 1 ) {
-        # Compress all information into the keep row.
-        one_location[index_cand, colnames(select(one_location, starts_with("20")))] <- one_location %>% 
-          summarise(across(starts_with("20"), sum)) %>%
-          mutate(across(everything(), ~ if_else(. != 0 & . != 1, 1, .)))
-        
-      } else if( length(candidate_replacement) > 1 && any(unique(one_location$cluster[index_dup]) %in% unique(one_location$cluster[index_cand])) ) {
-        # Which in the index_cand to keep.
-        replace_with <- index_cand[which(one_location[index_cand, "cluster"] %in% unique(one_location$cluster[index_dup]))]
-        
-        # Reconstruct the combined dataframe.
-        one_location <- bind_rows(one_location[index_dup, ], subset[replace_with, ])
-        
-        # Compress all information into the keep row.
-        one_location[replace_with, colnames(select(one_location, starts_with("20")))] <- one_location %>% 
-          summarise(across(starts_with("20"), sum)) %>%
-          mutate(across(everything(), ~ if_else(. != 0 & . != 1, 1, .)))
-        
-      # Hard stop if no address was chosen.
-      } else {
-        stop(sprintf("No other non-PO BOX candidate addresses in range! Row ID's: %s.", str_flatten(one_location$row_designation, collapse = ", ")))
-      }
-      
-    }
-    
-    
-    # Designate all remaining keep_binary entries as "Drop"
-    if( any(one_location$keep_binary %in% "Keep") ) {
-      one_location[one_location$keep_binary %!in% c("Keep", "Drop"), "keep_binary"] <- "Drop"
-      
-      
-    # Hard stop if no address was chosen.
-    } else {
-      stop(sprintf("No candidate addresses were chosen to keep! Row ID's: %s.", str_flatten(one_location$row_designation, collapse = ", ")))
-    }
-    
-    # Compress all information into the keep row.
-    one_location[one_location$keep_binary %in% "Keep", colnames(select(one_location, starts_with("20")))] <- one_location %>% 
-      summarise(across(starts_with("20"), sum)) %>%
-      mutate(across(everything(), ~ if_else(. != 0 & . != 1, 1, .)))
-    
-    # Commit the changes to the one geo location (one_location) subset.
-    subset[subset$row_designation %in% one_location$row_designation, ] <- suppressMessages(subset[subset$row_designation %in% one_location$row_designation, ] %>%
-      (\(x) { bind_cols(x[, -39], one_location[, c(38:39)]) }) () %>%
-      select(-row_designation...39) %>%
-      rename(row_designation = row_designation...38)
-    )
-    
-    
-    ## --------------------
-    ## Quality Checks
-    
-    # We want to confirm that no information is getting lost in our choice
-    # of entry. If all the represented columns for keep_binary = "Keep" are
-    # 0 or 1 only, then if the sums over the dropped and kept subsets are
-    # consistent (sum should come to not 1).
-    #
-    # NOTE: If dropped_all_1 == FALSE, the the consistency test might fail.
-    all_represented <- rbind(one_location[one_location$keep_binary %in% "Drop", ] %>% 
-                               check_all_counts_0_or_1() %>% as.data.frame(),
-                             one_location[one_location$keep_binary %in% "Keep", ] %>% 
-                               check_all_counts_0_or_1() %>% as.data.frame()
-    ) %>% `rownames<-`(c("Dropped", "Kept"))
-    
-    consistent <- all_represented %>%
-      # Summarize the selected year columns (columns starting with "20") by 
-      # summing them.
-      summarise(across(starts_with("20"), sum)) %>%
-      # Ensure subsequent operations are performed row-wise.
-      rowwise() %>%
-      # Add a new column `all_counts_not_1`; TRUE if all counts are not 1.
-      mutate(all_counts_not_1 = all(across(starts_with("20"), ~ . %!in% c(1)))) %>%
-      # Remove row-wise grouping to avoid unintentional side effects.
-      ungroup() %>%
-      as.data.frame()
-    
-    # Compile the metrics used to determine if any information might have been
-    # dropped. Here, "Kept" only referrs to the duplicate kept, and "Dropped"
-    # only referrs to the duplicate(s) dropped.
-    infoDropped <- rbind(infoDropped, c(unique(one_location$abi), all_represented[, "all_counts_0_or_1"], consistent[, "all_counts_not_1"], problemGeo)) %>%
-      `rownames<-`(NULL) %>%
-      `colnames<-`(c("abi", "dropped_all_1", "kept_all_1", "consistent", "geoNA"))
-    
-    
-    # Finally, we want to confirm that only one value was saved.
-    one_kept <- c(one_kept, sum(one_location$keep_binary %in% "Keep") == 1)
-    
-  }
-  
-  # Commit the changes from subset to dup_verify to save results.
-  dup_verify[dup_verify$row_designation %in% subset$row_designation, ] <- suppressMessages(dup_verify[dup_verify$row_designation %in% subset$row_designation, ] %>%
-    (\(x) { bind_cols(x[, -39], subset[, c(38:39)]) }) () %>%
-    select(-row_designation...39) %>%
-    rename(row_designation = row_designation...38)
+  # Initialize the QC data table
+  qc_tbl[[i]] <- data.frame(
+    "abi"  = unique(subset$abi),
+    "Attempt Replacement" = FALSE,
+    "Lost Data" = NA,
+    "No Match Found" = NA
   )
   
-  # Compile the results of the QC test.
-  confirm_one_keep <- rbind(confirm_one_keep, one_kept)
+  
+  # --------------------
+  # Replace "No address match found" with the compiled form of the given address.
+  
+  subset <- subset %>%
+    dplyr::mutate(
+      compiled_address = dplyr::if_else(
+        compiled_address == "No address match found",
+        stringr::str_squish(paste0(
+          dplyr::coalesce(address_line_1, ""), ", ",
+          dplyr::coalesce(address_line_2, ""), ", ",
+          dplyr::coalesce(city, ""), ", ",
+          dplyr::coalesce(state, ""), " ",
+          dplyr::coalesce(zipcode, ""),
+          dplyr::if_else(is.na(zipcode_ext) | zipcode_ext == "", "", paste0("-", zipcode_ext))
+        )),
+        compiled_address
+      )
+    )
+  
+  # --------------------
+  # Reconcile metadata with mismatched outcomes within assigned groups.
+  
+  subset = subset[, -c(1)] %>% distinct()
+  
+  # Assess if the duplications were removed by distinct().
+  distinct_worked <- subset %>%
+    # Apply the custom function 'check_all_counts_0_or_1'.
+    group_modify(~ check_all_counts_0_or_1(.x)) %>%
+    # Remove the grouping to return to an ungrouped data frame.
+    ungroup() %>%
+    # Pull the result.
+    pull(all_counts_0_or_1)
+  
+  # If distinct() fails, replace affected entries with the original address
+  # where a match is found. Two QC checks are performed to ensure no
+  # information is lost and only exact matches are applied.
+  if(!distinct_worked) {
+    
+    # QC denoting a replacement was attempted.
+    attempt_replacement <- TRUE
+    
+    # --------------------
+    # Prepare the raw dataset to match with addresses.
+    
+    # Add the compiled_address variable.
+    subset_raw_dates <- subset_raw[, c(6, 4, 3, 5, 11:31)] %>%
+      mutate(zipcode = as.character(zipcode)) %>%
+      mutate(
+        compiled_address = stringr::str_squish(paste0(
+          coalesce(address_line_1, ""), ", , ",
+          coalesce(city, ""), ", ",
+          coalesce(state, ""), " ",
+          coalesce(as.character(zipcode), "")
+        ))
+      ) %>%
+      relocate(compiled_address, .after = zipcode)
+    
+    # Identify the unique outcomes available for collapsing.
+    idx <- subset_raw_dates %>%
+      mutate(.idx = row_number()) %>%
+      group_by(compiled_address) %>%
+      summarise(indices = list(.idx), n = n(), .groups = "drop")
+    
+    hits <- idx %>% filter(n >= 2) %>% pull(indices)
+    no_hits <- idx %>% filter(n == 1) %>% pull(indices) %>%
+      (\(x) {unlist(x, use.names = FALSE)} )()
+    
+    if(length(hits) != 0L) {
+      # Stepwise collapse the duplicates.
+      build <- NULL
+      for (j in 1:length(hits)) {
+        # Pull out rows that are affiliated with similar addresses.
+        change_these <- hits[[j]]
+        
+        # Use the support function find_similar_addresses() to compare the 
+        # addresses and assign them into groups based on degree of similarity.
+        match <- find_similar_addresses(as.character(subset_raw_dates[change_these, "compiled_address"]), threshold = 0)
+        
+        if (length(match) != 1) stop("Expected exactly one match group.")
+        match <- match[[1]]
+        
+        # Sum over the openings.
+        dates <- sapply(subset_raw_dates[change_these, 6:26], function(x) sum(x, na.rm = TRUE)) %>%
+          (\(x) { as.data.frame(t(x)) }) ()
+        
+        build <- rbind(build, cbind(
+          # Deconstruct the expanded columns representation of the address.
+          str_match(
+            match,
+            "^\\s*([^,]*?)\\s*,\\s*([^,]*?)\\s*,\\s*([^,]*?)\\s*,\\s*([A-Z]{2})\\s+(\\d{5})(?:-(\\d{4}))?\\s*$"
+          ) %>%
+            (\(m) {
+              x <- as.data.frame(t(m[1, 2:6]), stringsAsFactors = FALSE)  # drop zip ext
+              names(x) <- c("address_line_1","address_line_2","city","state","zipcode")
+              x[] <- lapply(x, \(v) { v <- stringr::str_trim(v); dplyr::na_if(v, "") })
+              x
+            })(),
+          # Store the compiled address string.
+          as.data.frame(match) %>% `colnames<-`(c("compiled_address")),
+          # Add the summed dates.
+          dates
+        ))
+      }
+      
+      # Commit the reduced raw data.
+      subset_raw_dates <- build %>%
+        bind_rows(subset_raw_dates[no_hits, ]) %>%
+        mutate(across(matches("^\\d{4}$"), ~ tidyr::replace_na(., 0)))
+    }
+    
+    # --------------------
+    # Two critical quality checks.
+
+    # Setup: year columns + helper.
+    date_cols <- as.character(2001:2021)
+    normalize_compiled_address <- function(x) {
+      x <- sub("(\\d{5})-\\d{4}\\s*$", "\\1", x)  # ZIP+4 -> ZIP5
+      
+      # normalize the 5-digit ZIP that follows the state abbreviation:
+      # drop leading zeros and trailing zeros (only within that ZIP token)
+      x <- sub("(\\b[A-Z]{2}\\s+)(\\d{5})(\\b)", "\\1\\2\\3", x, perl = TRUE)
+      x <- gsub("(\\b[A-Z]{2}\\s+)0+(\\d{1,5})\\b", "\\1\\2", x, perl = TRUE)   # leading zeros
+      x <- gsub("(\\b[A-Z]{2}\\s+\\d{1,5})0+\\b", "\\1", x, perl = TRUE)       # trailing zeros
+      
+      x
+    }
+    
+    # Find rows that contribute to any year-column whose total > 1 in subset.
+    years_mat <- subset[, date_cols, drop = FALSE]
+    dup_cols  <- colSums(years_mat, na.rm = TRUE) > 1L
+    dup_rows  <- which(rowSums(years_mat[, dup_cols, drop = FALSE], na.rm = TRUE) > 0L)
+    
+    # Match by address after stripping ZIP+4 to ZIP5.
+    sub_keys <- normalize_compiled_address(subset$compiled_address)[dup_rows]
+    raw_keys <- normalize_compiled_address(subset_raw_dates$compiled_address)
+    idx <- match(sub_keys, raw_keys)
+    
+    has_match <- !is.na(idx)
+    
+    # QC 1:1 ONLY (ignores no-match; those are handled separately):
+    # For rows that DID match, the key must be unique in raw and in the 
+    # subset slice.
+    sub_key_unique <- !duplicated(sub_keys) & !duplicated(sub_keys, fromLast = TRUE)
+    raw_key_unique_for_row <- rep(FALSE, length(sub_keys))
+    raw_key_unique_for_row[has_match] <- {
+      rk <- raw_keys[idx[has_match]]
+      !duplicated(rk) & !duplicated(rk, fromLast = TRUE)
+    }
+    
+    # 1:1 among matched rows
+    qc_1to1 <- has_match & sub_key_unique & raw_key_unique_for_row
+    
+    # Separate flag for failed-to-match
+    qc_no_match <- !has_match
+    
+    # QC Ensure no loss of positives: 
+    # Any year where subset has >0 for the rows being updated must also be 
+    # >0 in subset_raw_dates.
+    sub_any <- colSums(subset[dup_rows[has_match], date_cols, drop = FALSE], na.rm = TRUE) > 0L
+    raw_any <- colSums(subset_raw_dates[idx[has_match], date_cols, drop = FALSE], na.rm = TRUE) > 0L
+    
+    missing_in_raw <- sub_any & !raw_any
+    missing_cols <- names(missing_in_raw)[missing_in_raw]
+    
+    lost_data <- length(missing_cols) > 0L
+    
+    # Update the QC data.
+    qc_tbl[[i]] <- data.frame(
+      "abi"  = unique(subset$abi),
+      "Attempt Replacement" = attempt_replacement,
+      "Lost Data" = lost_data,
+      "No Match Found" = any(qc_no_match) == TRUE
+    )
+    
+    # --------------------
+    # If QC passes, overwrite the year columns for matched rows in the raw data.
+    
+    if (all(qc_1to1) == TRUE & lost_data == FALSE) {
+      subset[dup_rows[has_match], date_cols] <- subset_raw_dates[idx[has_match], date_cols]
+    } else {
+      all_corrected = FALSE
+    }
+    
+  }
+
+  # Save the result.
+  finish_build[[i]] <- subset %>%
+    mutate(all_duplicates_corrected = all_corrected)
+  
+  # Print the for loop's progress.
+  setTxtProgressBar(pb, i)
 }
 
-##
-##
-## IS THERE A BETTER WAY TO HANDLE THE ADDRESSES WHERE SOME LON/LAT ARE NA?
-## GOING TO NEED TO FIX THE CONSISTENT CHECK, CAN REMOVE KEPT_ALL_1.
-## MAKE SURE ALL INFORMATION FOR DUPLICATES GETS FORCED INTO KEPT
+# Combine all data tables in the list into one data table.
+finish_build <- rbindlist(finish_build, use.names = TRUE, fill = TRUE)
+qc_results   <- rbindlist(qc_tbl, use.names = TRUE, fill = TRUE) %>% as.data.frame()
 
-infoDropped <- as.data.frame(infoDropped)
-infoDropped[, -1] <- infoDropped %>%
-  (\(x) { sapply(x[, -1], as.logical) }) ()
+# Replace NA values in the date columns with zero.
+finish_build[, (as.character(2001:2021)) := lapply(.SD, \(x) fifelse(is.na(x), 0, x)), .SDcols = as.character(2001:2021)]
 
+# Duplication was resolved for most entries; 7% could not be reconciled.
+round(table(finish_build$all_duplicates_corrected, useNA = "ifany") / nrow(finish_build) * 100, digits = 2)
 
-table("Consistent" = infoDropped$consistent, "Lon/Lat NA" = infoDropped$geoNA)
-table("Consistent" = infoDropped$consistent, "Dropped All 0/1" = infoDropped$dropped_all_1)
-
-step_2[step_2$abi %in% infoDropped[infoDropped$geoNA %in% TRUE, ][2, ], ]
-dup_verify[dup_verify$abi %in% infoDropped[infoDropped$geoNA %in% TRUE, ][2, ], ]
+# Most entries require patching the year from the raw dataset; 20% were 
+# resolved with distinct(), and ~5% remained unresolved.
+round((table("Lost Data" = qc_results$Lost.Data, "No Match Found" = qc_results$No.Match.Found, useNA = "ifany") / length(search_space)) * 100, digits = 2)
 
 
-## FINISH BY CHECKING THAT FOR EACH ABI ALL INFORMATION IS UNIQUE OVER THE DATES
-## FOR LON/LAT NA KEEP THE LON/LAT IF ONE IS REPORTED
+# Less than 1% of all entries (~0.09% of businesses) could not be resolved
+# algorithmically and may require manual review. These failures are likely
+# due to corrected addresses returned by the USPS API. These will be removed 
+# from the main dataset to avoid inducing errors.
+
+round(table(finish_build$all_duplicates_corrected)["FALSE"][[1]] / nrow(step_2) * 100, digits = 2)
+
+finish_build %>% 
+  group_by(abi) %>%
+  filter(any(!all_duplicates_corrected, na.rm = TRUE)) %>%
+  n_groups() %>%
+  (\(x) {round(x / length(unique(step_2$abi)) * 100, digits = 2)} )()
+
+
+# Confirm that all entries flagged for duplication checks were successfully 
+# resolved. Reconciled entries are committed back to the main dataset.
+
+# Count the number of unique ABIs.
+total_groups <- finish_build %>%
+  group_by(abi) %>%
+  filter(all(all_duplicates_corrected, na.rm = TRUE)) %>%
+  n_groups()
+
+# Initialize progress bar
+pb <- progress_bar$new(
+  format = "  processing [:bar] :percent eta: :eta",
+  total = total_groups,
+  clear = FALSE, width = 60
+)
+
+# Run the duplication test with progress bar.
+test_no_dup <- finish_build %>%
+  group_by(abi) %>%
+  filter(all(all_duplicates_corrected, na.rm = TRUE)) %>%
+  # Group the data by ABI to be processed separately.
+  group_by(abi) %>%
+  # Apply the custom function 'check_all_counts_0_or_1' with progress tracking to each group.
+  group_modify(~ process_with_progress(pb, .x, check_all_counts_0_or_1)) %>%
+  # Remove the grouping to return to an ungrouped data frame.
+  ungroup() %>%
+  # Convert the grouped data back to a standard data frame.
+  as.data.frame()
+
+# Confirm all duplicates were corrected.
+test_no_dup$all_counts_0_or_1 %>% table()
+
+# Save entries where all duplicate instances were fully resolved for all
+# addresses associated with an ABI.
+corrected_dup <- finish_build %>%
+  group_by(abi) %>%
+  filter(all(all_duplicates_corrected, na.rm = TRUE)) %>%
+  ungroup() %>%
+  as.data.frame()
+
+
+## --------------------
+## SUBSECTION B3: Consolidate Addresses with Different City
+
+# We assumed that identical address_line_1 within an ABI indicates the same 
+# location. Geolocation mismatches for these cases were overridden. If API 
+# validation produced a unique address the records were retained separately; if 
+# not, the unvalidated record was linked to an available validated address in 
+# the ABI, preferring temporally adjacent entries.
+
+# Separate duplicate-corrected records to identify those overridden and 
+# containing at least one validated and one unvalidated address.
+fix_diff_metadata_df <- corrected_dup %>%
+  filter(abi %in% fix_diff_metadata) %>%
+  group_by(abi) %>%
+  filter(
+    any(address_verified == TRUE  & override_duplicate == TRUE, na.rm = TRUE) &
+      any(address_verified == FALSE & override_duplicate == TRUE, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+
+# Records passed for a second aggregation pass represent 0.02% of ABI entries.
+round( length(unique(fix_diff_metadata_df$abi))/length(unique(step_2$abi)) * 100, digits = 2)
+
+
+# The pipe associates each unvalidated entry with an available validated address, 
+# replacing the unvalidated form. Note: subsequent prior/next replacement 
+# behavior depends on the ordering produced by this step.
+
+fix_diff_metadata_df <- fix_diff_metadata_df %>%
+  # Sort rows by abi (ascending).
+  arrange(abi) %>%
+  
+  # Compute the first year (2001–2021) where the row has a 1 in the year columns.
+  mutate(
+    First_One_Year = pmap_chr(
+      select(., all_of(as.character(2001:2021))),
+      find_first_one
+    )
+  ) %>%
+  
+  # If year columns are named like X2001, X2002, ... remove the "X" prefix.
+  rename_with(~ sub("^X", "", .), starts_with("X")) %>%
+  
+  # Within each abi, sort so the oldest address record comes first.
+  # This ordering defines what “immediately prior” means.
+  group_by(abi) %>%
+  arrange(First_One_Year, .by_group = TRUE) %>%
+  ungroup() %>%
+  
+  # Now do override-based replacement within each (abi, address_line_1) timeline.
+  group_by(abi, address_line_1) %>%
+  
+  # Only apply replacement logic if at least one row in the group has override_duplicate == TRUE.
+  mutate(any_override = any(override_duplicate %in% TRUE, na.rm = TRUE)) %>%
+  
+  mutate(
+    # For each field we want to copy, keep its value ONLY on verified rows; otherwise NA.
+    # These become the “donor” values we carry forward/backward.
+    v_compiled = if_else(address_verified %in% TRUE, compiled_address, NA_character_),
+    v_line2    = if_else(address_verified %in% TRUE, address_line_2, NA_character_),
+    v_city     = if_else(address_verified %in% TRUE, city, NA_character_),
+    v_state    = if_else(address_verified %in% TRUE, state, NA_character_),
+    v_zip      = if_else(address_verified %in% TRUE, zipcode, NA_character_),
+    v_zipext   = if_else(address_verified %in% TRUE, zipcode_ext, NA_character_),
+    
+    # PRIOR verified values (nearest verified row ABOVE in the sorted order):
+    # - fill downward (carry last verified value down through NAs)
+    # - then lag() so it’s strictly “above” the current row
+    prior_compiled = { x <- v_compiled; for (i in seq_along(x)) if (i>1 && is.na(x[i])) x[i] <- x[i-1]; lag(x) },
+    prior_line2    = { x <- v_line2;    for (i in seq_along(x)) if (i>1 && is.na(x[i])) x[i] <- x[i-1]; lag(x) },
+    prior_city     = { x <- v_city;     for (i in seq_along(x)) if (i>1 && is.na(x[i])) x[i] <- x[i-1]; lag(x) },
+    prior_state    = { x <- v_state;    for (i in seq_along(x)) if (i>1 && is.na(x[i])) x[i] <- x[i-1]; lag(x) },
+    prior_zip      = { x <- v_zip;      for (i in seq_along(x)) if (i>1 && is.na(x[i])) x[i] <- x[i-1]; lag(x) },
+    prior_zipext   = { x <- v_zipext;   for (i in seq_along(x)) if (i>1 && is.na(x[i])) x[i] <- x[i-1]; lag(x) },
+    
+    # NEXT verified values (nearest verified row BELOW in the sorted order):
+    # - fill upward (carry next verified value up through NAs)
+    # - then lead() so it’s strictly “below” the current row
+    next_compiled = { x <- v_compiled; for (i in length(x):1) if (i<length(x) && is.na(x[i])) x[i] <- x[i+1]; lead(x) },
+    next_line2    = { x <- v_line2;    for (i in length(x):1) if (i<length(x) && is.na(x[i])) x[i] <- x[i+1]; lead(x) },
+    next_city     = { x <- v_city;     for (i in length(x):1) if (i<length(x) && is.na(x[i])) x[i] <- x[i+1]; lead(x) },
+    next_state    = { x <- v_state;    for (i in length(x):1) if (i<length(x) && is.na(x[i])) x[i] <- x[i+1]; lead(x) },
+    next_zip      = { x <- v_zip;      for (i in length(x):1) if (i<length(x) && is.na(x[i])) x[i] <- x[i+1]; lead(x) },
+    next_zipext   = { x <- v_zipext;   for (i in length(x):1) if (i<length(x) && is.na(x[i])) x[i] <- x[i+1]; lead(x) },
+    
+    # Choose replacement values:
+    # prefer the prior verified row; if none exists, fall back to the next verified row.
+    repl_compiled = coalesce(prior_compiled, next_compiled),
+    repl_line2    = coalesce(prior_line2,    next_line2),
+    repl_city     = coalesce(prior_city,     next_city),
+    repl_state    = coalesce(prior_state,    next_state),
+    repl_zip      = coalesce(prior_zip,      next_zip),
+    repl_zipext   = coalesce(prior_zipext,   next_zipext),
+    
+    # Change condition:
+    # - override is active for this group
+    # - this row is not verified
+    # - we have a donor verified row (we key off repl_compiled being present)
+    will_change = any_override & !(address_verified %in% TRUE) & !is.na(repl_compiled),
+    
+    # Apply replacements to ALL requested fields.
+    compiled_address = if_else(will_change, repl_compiled, compiled_address),
+    address_line_2   = if_else(will_change, repl_line2,    address_line_2),
+    city             = if_else(will_change, repl_city,     city),
+    state            = if_else(will_change, repl_state,    state),
+    zipcode          = if_else(will_change, repl_zip,      zipcode),
+    zipcode_ext      = if_else(will_change, repl_zipext,   zipcode_ext),
+    
+    # Mark changed rows explicitly; keep verified rows as "TRUE".
+    # (This converts address_verified to character.)
+    address_verified = case_when(
+      will_change ~ "Updated",
+      address_verified %in% TRUE ~ "TRUE",
+      TRUE ~ as.character(address_verified)
+    )
+  ) %>%
+  ungroup() %>%
+  
+  # Remove helper columns created for ordering/replacement.
+  select(
+    -First_One_Year, -any_override,
+    -starts_with("v_"),
+    -starts_with("prior_"), -starts_with("next_"),
+    -starts_with("repl_"),
+    -will_change
+  ) %>%
+  
+  as.data.frame()
+
+
+# About 35% were able to be matched with a verified address.
+round((table(fix_diff_metadata_df$address_verified, useNA = "ifany") / nrow(fix_diff_metadata_df)) * 100, digits = 2)
+
+# The majority of flagged entries failed geolocation (85%). This was also common 
+# among verified addresses, affecting 56%.
+tab <- table(
+  "Address Verified" = fix_diff_metadata_df$address_verified,
+  "Geolocation Test" = fix_diff_metadata_df$lonLat_test,
+  useNA = "ifany"
+)
+round(prop.table(tab, margin = 1) * 100, 2)
+
+
+# Re-aggregate entries flagged for additional consolidation.
+
+search_space2 <- fix_diff_metadata_df %>% # Isolate ABIs that need to be expanded
+  pull(abi) %>%
+  unique()
+
+finish_build2 <- vector("list", length(search_space2))  # Initialize an empty list
+pb = txtProgressBar(min = 0, max = length(search_space2), style = 3)  # Initialize progress bar
+
+for (i in 1:length(search_space2)) {
+  subset <- fix_diff_metadata_df %>%
+    filter(abi %in% search_space2[i])
+  
+  # --------------------
+  # Match addresses that are similar for compression.
+
+  # Make the entire address elements into one string.
+  compile_address <- subset$compiled_address
+
+  # Use the support function find_similar_addresses() to compare the addresses
+  # and assign them into groups based on exact similarity.
+  if (length(compile_address) == 0) {
+    stop("compile_address has length 0; cannot determine match.")
+  } else if (length(compile_address) == 1) {
+    match <- compile_address
+  } else { # length > 1
+    match <- find_similar_addresses(as.character(compile_address), threshold = 0)
+  }
+
+  # --------------------
+  # Reconcile metadata with mismatched outcomes within assigned groups.
+
+  # Retain the metadata stored from the first attempt at collapsing addresses.
+  extra_naics_code <- subset %>% pull(extra_naics_code) %>% .[1]
+  year_est         <- subset %>% pull(year_established) %>% .[1]
+
+  # --------------------
+  # Rebuild the dataframe and remove erroneous reduplicates
+
+  # Define the starting structure of the metadata that will be used to build the
+  # new dataframe that collapses reduplicates.
+  seed <- data.frame("abi" = unique(subset$abi), "year_established" = year_est,
+                     "primary_naics_code" = 813110, "extra_naics_code" = extra_naics_code,
+                     "naics8_descriptions" = "Religious Organizations")
+
+  # Stepwise collapse the duplicates.
+  build <- NULL
+  for (j in 1:length(match)) {
+    # Pull out rows that are affiliated with the same addresses.
+    change_these <- match[[j]] %>% as.vector() %>%
+      (\(y) { map_lgl(subset$compiled_address, ~ str_detect(.x, regex(paste0("^", str_trim(y), "(,|$)"), ignore_case = TRUE))) })()
+
+    # Sum over the openings.
+    dates <- sapply(subset[change_these, 17:37], function(x) sum(x, na.rm = TRUE)) %>%
+      (\(x) { as.data.frame(t(x)) }) ()
+
+    # Test how similar the longitude and latitude are.
+    negligible_change <- 0.002  # Change in degrees (~222 meters or 728 feet)
+
+    lonLat_test <- if (nrow(subset[change_these, ]) == 1) {
+      subset[change_these, ]$lonLat_test
+    } else {
+      abs(max(subset[change_these, ]$longitude) - min(subset[change_these, ]$longitude)) < negligible_change &
+        abs(max(subset[change_these, ]$latitude)  - min(subset[change_these, ]$latitude))  < negligible_change
+    }
+
+    # compute the flag once (and make it 1 value, not a 1-col df with no name)
+    address_verified_ok <- !any(subset$address_verified %in% FALSE, na.rm = TRUE) &&
+      all(subset$address_verified %in% c(TRUE, "Updated"), na.rm = TRUE)
+    
+    addr_parts <- str_split(match[[j]][1], ", ", simplify = TRUE)
+    # addr_parts is 1x4: address_line_1, city, state, zipcode
+    
+    new_row <- dplyr::bind_cols(
+      seed[1, 1, drop = FALSE],  # ABI (1 row)
+      tibble::tibble(
+        address_line_1 = addr_parts[1, 1],
+        address_line_2 = NA_character_,
+        city          = addr_parts[1, 2],
+        state         = addr_parts[1, 3],
+        zipcode       = addr_parts[1, 4],
+        zipcode_ext   = NA_character_,
+        same_num_clusters   = NA,
+        override_duplicate  = NA,
+        compiled_address    = match[[j]][1],
+        address_verified    = address_verified_ok,
+        lonLat_test         = lonLat_test,
+        latitude            = mean(subset[change_these, "latitude"],  na.rm = TRUE),
+        longitude           = mean(subset[change_these, "longitude"], na.rm = TRUE)
+      ),
+      seed[1, -1, drop = FALSE],   # rest of metadata, 1 row
+      dates,                       # must be 1 row
+      tibble::tibble(
+        all_duplicates_corrected =
+          unique(subset[change_these, "all_duplicates_corrected"])[1]
+      )
+    ) %>%
+      dplyr::relocate(address_line_2, .after = address_line_1) %>%
+      dplyr::relocate(zipcode_ext, .after = zipcode) %>%
+      dplyr::relocate(override_duplicate, .after = "2021") %>%
+      dplyr::relocate(same_num_clusters, .after = override_duplicate)
+    
+    build <- dplyr::bind_rows(build, new_row)
+  }
+
+  # Store 'build' in the list.
+  finish_build2[[i]] <- build %>%
+    mutate(
+      zipcode = as.character(zipcode),
+      override_duplicate = TRUE,
+      all_duplicates_corrected = TRUE
+    )
+
+  # Print the for loop's progress.
+  setTxtProgressBar(pb, i)
+}
+
+# Combine all data tables in the list into one data table.
+finish_build2 <- rbindlist(finish_build2, use.names = TRUE, fill = TRUE)
+
+
+
+
+## ----------------------------------------------------------------
+## PART C: Organize and Save the Results
+
+# Before recompiling the datasets, verify that all components are accounted for
+# and will be retained after parsing.
+
+# Compile each component
+abi_sets <- list(
+  fix_diff_metadata = finish_build2$abi,
+  corrected_dup     = corrected_dup$abi[corrected_dup$abi %!in% fix_diff_metadata_df$abi],
+  finish_build      = finish_build$abi[finish_build$abi %!in% corrected_dup$abi],
+  not_special_case  = not_special_case[not_special_case %!in% finish_build$abi],
+  fix_expanded      = fix_expanded_results$abi[fix_expanded_results$abi %!in% finish_build$abi]
+)
+
+# Drop NAs and coerce to character so comparisons are consistent
+abi_sets <- lapply(abi_sets, function(v) as.character(stats::na.omit(v)))
+
+# Pairwise overlap check (mutual exclusivity requires all intersections to be empty)
+overlap_counts <- outer(
+  names(abi_sets), names(abi_sets),
+  Vectorize(function(a, b) {
+    if (a == b) return(NA_integer_)
+    length(intersect(unique(abi_sets[[a]]), unique(abi_sets[[b]])))
+  })
+)
+
+# Confirmed: diagonal entries are NA and all off-diagonal entries are zero
+overlap_counts
+
+
+# Compile all the different pieces of the dataset, including portions that
+# did not require further assessment and those that were processed Only entries
+# where verification was attempted but the mitigation efforts were not 
+# successful were removed.
+
+# NOTE: this is equivalent to 
+#       finish_build$abi[finish_build$abi %!in% corrected_dup$abi]
+failed_dup_correction <- finish_build %>%
+  group_by(abi) %>%
+  filter(any(!all_duplicates_corrected, na.rm = TRUE)) %>%
+  ungroup() %>%
+  as.data.frame()
+
+# List the dataframes to be recompiled, excluding any ABIs that failed resolution.
+df_list <- list(
+  fix_diff_metadata = finish_build2,
+  
+  corrected_dup = corrected_dup %>%
+    filter(abi %!in% fix_diff_metadata_df$abi),
+  
+  not_special_case = step_2 %>% 
+    filter(abi %in% not_special_case[not_special_case %!in% finish_build$abi]),
+  
+  fix_expanded = step_2 %>%
+    filter(abi %in% fix_expanded_results$abi[fix_expanded_results$abi %!in% finish_build$abi])
+)
+
+# Standardize column formatting
+df_list <- lapply(df_list, \(d) d %>% mutate(address_verified = as.character(address_verified)))
+
+# Combine all elements and remove the excess columns
+combined_df <- bind_rows(df_list, .id = "source") %>%
+  mutate(abi = as.character(abi)) %>%
+  filter(!is.na(abi)) %>%
+  `rownames<-`(NULL) %>% 
+  select(-source) %>%
+  relocate(rowname, .before = abi)
+
+# Confirm all ABI are accounted for, only excluding any ABIs that failed resolution. 
+( length(unique(step_2$abi)) - length(unique(step_2$abi)[unique(step_2$abi) %in% unique(combined_df$abi)]) ) == length(unique(failed_dup_correction$abi)) &
+  ( length(unique(step_2$abi)) - length(unique(combined_df$abi)[unique(combined_df$abi) %in% unique(step_2$abi)]) ) == length(unique(failed_dup_correction$abi))
+
+# Confirm all the columns are present, where all_duplicates_corrected is new
+# for the final result.
+all(c(colnames(step_2), "all_duplicates_corrected") %in% colnames(combined_df)) && all(colnames(combined_df) %in% c(colnames(step_2), "all_duplicates_corrected"))
+
+# # Commit results.
+# write.csv(combined_df, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/Step 02_Completed Result_06.01.2026.csv")
+
+# Read in previously generated results.
+step_2_final <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/Step 02_Completed Result_06.01.2026.csv", 
+                         col_types = cols(...1 = col_skip())) %>% as.data.frame()
+
+
+
+
+## ----------------------------------------------------------------
+## PART D: Assess the Algorithms Performance
+
+# After reconciling duplications, the final dataset has 2.5% more rows than step_1.
+(length(step_2_final) - length(step_1)) / length(step_1) * 100
+
+# 876 unique ABIs could not be fully corrected for duplication (these ABIs were 
+# removed/excluded), representing 0.09% of all unique ABIs.
+length(unique(failed_dup_correction$abi))
+round(length(unique(failed_dup_correction$abi)) / length(unique(step_2$abi)) * 100, 2)
+
+# Almost 6% of addresses were verified.
+round(prop.table(table(step_2_final$address_verified, useNA = "ifany")) * 100, 2)
+
+# Most addresses that were verified either passed or did not require a geolocation test.
+round(prop.table(
+  table("Geolocation Test" = step_2_final$lonLat_test,
+        "Address Verified" = step_2_final$address_verified,
+        useNA = "ifany")
+) * 100, 2)
+
+
+# PO Boxes require special attention to verify their geolocation.
+
+# Isolate all PO Boxes.
+poBox_all <- step_2_final %>%
+  dplyr::filter(stringr::str_detect(
+    dplyr::coalesce(address_line_1, ""),
+    stringr::regex("\\bP\\s*\\.?\\s*O\\s*\\.?\\s*Box\\b", ignore_case = TRUE)
+  ))
+
+# Most PO Box entries failed to verify against the USPS API; however, most passed
+# the geolocation test when consolidated.
+round(prop.table(
+  table("Geolocation Test" = poBox_all$lonLat_test,
+        "Address Verified" = poBox_all$address_verified,
+        useNA = "ifany")
+) * 100, 2)
+
+
+
+
+
+
+
+
 
 
