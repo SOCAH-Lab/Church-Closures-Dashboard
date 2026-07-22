@@ -1,8 +1,8 @@
-![GitHub Repo stars](https://img.shields.io/github/stars/ysph-dsde/church-closures) ![GitHub watchers](https://img.shields.io/github/watchers/ysph-dsde/church-closures) ![GitHub forks](https://img.shields.io/github/forks/ysph-dsde/church-closures)
+![GitHub Repo stars](https://img.shields.io/github/stars/SOCAH-Lab/Church-Closures-Dashboard) ![GitHub watchers](https://img.shields.io/github/watchers/SOCAH-Lab/Church-Closures-Dashboard) ![GitHub forks](https://img.shields.io/github/forks/SOCAH-Lab/Church-Closures-Dashboard)
 
-![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/ysph-dsde/church-closures) ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues-pr/ysph-dsde/church-closures) ![GitHub Release Date](https://img.shields.io/github/release-date/ysph-dsde/church-closures) ![GitHub repo size](https://img.shields.io/github/repo-size/ysph-dsde/church-closures)
+![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/SOCAH-Lab/Church-Closures-Dashboard) ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues-pr/SOCAH-Lab/Church-Closures-Dashboard) ![GitHub Release Date](https://img.shields.io/github/release-date/SOCAH-Lab/Church-Closures-Dashboard) ![GitHub repo size](https://img.shields.io/github/repo-size/SOCAH-Lab/Church-Closures-Dashboard)
 
-![GitHub contributors](https://img.shields.io/github/contributors/ysph-dsde/church-closures) ![GitHub last commit](https://img.shields.io/github/last-commit/ysph-dsde/church-closures) ![GitHub commit activity](https://img.shields.io/github/commit-activity/w/ysph-dsde/church-closures) ![GitHub language count](https://img.shields.io/github/languages/count/ysph-dsde/church-closures) ![GitHub top language](https://img.shields.io/github/languages/top/ysph-dsde/church-closures)
+![GitHub contributors](https://img.shields.io/github/contributors/SOCAH-Lab/Church-Closures-Dashboard) ![GitHub last commit](https://img.shields.io/github/last-commit/SOCAH-Lab/Church-Closures-Dashboard) ![GitHub commit activity](https://img.shields.io/github/commit-activity/w/SOCAH-Lab/Church-Closures-Dashboard) ![GitHub language count](https://img.shields.io/github/languages/count/SOCAH-Lab/Church-Closures-Dashboard) ![GitHub top language](https://img.shields.io/github/languages/top/SOCAH-Lab/Church-Closures-Dashboard)
 
 # About This Project
 
@@ -20,7 +20,7 @@ This codebase includes a [GitHub Pages website](https://socah-lab.github.io/Chur
 
 # Our Collaborators
 
-The  Church Closure Dashboard is a collaborative effort led by the Yale School of Public Health Society Connectedness & Health Lab's (SOCAH Lab).
+The Church Closure Dashboard is a collaborative effort led by the Yale School of Public Health Society Connectedness & Health Lab's (SOCAH Lab).
 
 # Access Restrictions and Requirements
 
