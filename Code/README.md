@@ -22,4 +22,8 @@ Each script used to review or process the Data Axle data is prefixed by a descri
 
 **Directory Specific Notes:**
 
-1.  
+1. The `Support Functions/` directory contains all custom functions used across respective scripts. Some are step-specific, while others are generalized and may be used across multiple scripts.
+
+2.  `"USPS SLURM_2023 Format.sh"`" is the preconfigured batch array shell script used for deploying batch arrays for `"Clean Raw Data_Step 2 HPC_2023 Format.R"`.
+
+3.  `"Validation SLURM_2026 Format.sh"`" is the preconfigured batch array shell script used for deploying batch arrays for `"Clean Raw Data_Step 2 HPC v2_2026 Format.R"`. It is also compatible with `"Clean Raw Data_Step 2 HPC v1_2026 Format.R"` with minor file reference changes.
