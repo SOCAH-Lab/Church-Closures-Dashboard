@@ -4,8 +4,8 @@ project:
   render:
     - "*.qmd"
     - "!KEEP LOCAL/"
-    - "!Pages/Reports/"    # Comment out when writing the report
-    - "!Scripts/For Analytical Reports/"    # Comment out when writing the report
+    #- "!Pages/Reports/"    # Comment out when writing the report
+    #- "!Scripts/For Analytical Reports/"    # Comment out when writing the report
 
 website:
   title: "Church Closures Dashboard"
