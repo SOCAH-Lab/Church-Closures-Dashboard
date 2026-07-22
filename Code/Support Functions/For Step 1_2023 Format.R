@@ -90,6 +90,7 @@ preprocess_address <- function(address) {
 
 
 
+
 find_components <- function(node, visited, address_graph) {
   #' @description
   #' This function performs Depth-First Search (DFS) to find all nodes in 
@@ -132,6 +133,7 @@ find_components <- function(node, visited, address_graph) {
   }
   return(component)
 }
+
 
 
 
@@ -191,6 +193,7 @@ find_similar_addresses <- function(addresses, threshold = 0.15) {
 
 
 
+
 find_first_one <- function(...) {
   #' @description
   #' This function finds the first column where a 1 occurs in a given row of a 
@@ -224,6 +227,7 @@ find_first_one <- function(...) {
 
 
 
+
 process_abi_group <- function(abi_group) {
   #' @description
   #' Processes a group of ABI entries by extracting compiled addresses and
@@ -248,6 +252,7 @@ process_abi_group <- function(abi_group) {
     similar = similar_matches
   )
 }
+
 
 
 
@@ -279,6 +284,7 @@ count_sublists <- function(main_list) {
     stringsAsFactors = FALSE
   )
 }
+
 
 
 

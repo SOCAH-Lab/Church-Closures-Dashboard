@@ -1,5 +1,5 @@
 ## ----------------------------------------------------------------
-## Explore and test the validity of data assumptions.
+## Explore and Test the Validity of Data Assumptions
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025
@@ -10,23 +10,6 @@
 ##              analytical methods previously employed by Dr. Insang Song.
 ##              The findings are used to justify modifications to the data
 ##              cleaning, harmonization, and metric calculation processes.
-## 
-## Sections:
-##    - SET UP THE ENVIRONMENT
-##    - LOAD IN THE DATA
-##    - OPPORTUNITIES TO USE THE LONG FORMAT
-##    - AMERICAN BUSINESS IDENTIFIER (ABI) REDUPLICATES
-##        * Identify Source of Reduplicated Entries
-##        * Source of Reduplicated Entries - Assumptions #1
-##        * Source of Reduplicated Entries - Assumptions #2
-##        * Source of Reduplicated Entries - Assumptions #3
-##        * Source of Reduplicated Entries - Assumptions #4
-##        * Source of Reduplicated Entries - Assumptions #5
-##        * Source of Reduplicated Entries - Assumptions #6
-##        * Source of Reduplicated Entries - Assumptions #7
-## 
-##    - ASSUMPTION TO REMOVE PO BOX'S
-##    - STATES REPRESENTED
 ## 
 ## NOTE: The Data Use Agreements (DUAs) with the data owner, Data Axle, prohibit
 ##       public distribution of the raw data. Accordingly, individual-level files
@@ -41,6 +24,24 @@
 ##       API keys are user-specific and are not publicly distributed. Where
 ##       applicable, instructions have been provided to help users obtain their
 ##       own API keys.
+## 
+## Sections:
+##    - SET UP THE ENVIRONMENT
+##    - LOAD IN THE DATA
+##    - OPPORTUNITIES TO USE THE LONG FORMAT
+## 
+##    - AMERICAN BUSINESS IDENTIFIER (ABI) REDUPLICATES
+##        * Identify Source of Reduplicated Entries
+##        * Source of Reduplicated Entries - Assumptions #1
+##        * Source of Reduplicated Entries - Assumptions #2
+##        * Source of Reduplicated Entries - Assumptions #3
+##        * Source of Reduplicated Entries - Assumptions #4
+##        * Source of Reduplicated Entries - Assumptions #5
+##        * Source of Reduplicated Entries - Assumptions #6
+##        * Source of Reduplicated Entries - Assumptions #7
+## 
+##    - ASSUMPTION TO REMOVE PO BOX'S
+##    - STATES REPRESENTED
 
 
 ## ----------------------------------------------------------------
@@ -160,51 +161,52 @@ duplicated(church_wide$abi) %>% table()
 # results have also been saved so you can skip the function and load in those
 # pre-produced results.
 
-# search_space <- church_wide$abi[duplicated(church_wide$abi)] %>% unique()
-# 
-# # Add a progress bar to show where the function is in the for loop.
-# pb = txtProgressBar(min = 0, max = length(search_space), style = 3)
-# 
-# result <- NULL
-# for(i in 1:length(search_space)) {
-#   # Subset to show only the entries associated with one reduplicated ABI.
-#   subset <- church_wide[church_wide$abi %in% search_space[i], ]
-# 
-#   # 1. Confirm the date binaries are mutually exclusive. A passing result will
-#   #    say "TRUE".
-#   test_1 <- sapply(subset[, 11:31], function(x) sum(x, na.rm = TRUE)) %!in% c(0, 1) %>% any() == FALSE
-# 
-# 
-#   # 2. Confirm the other metadata are consistent. This is excluding the
-#   #    longitude and latitude values.
-# 
-#   # Same zip code? A passing result will say "TRUE".
-#   test_2a <- subset$zipcode %>% unique() %>% length() == 1
-# 
-#   # All reduplicated entries metadata are same? A passing result will say "TRUE".
-#   test_2b <- subset[, c("year_established", "state", "city", "primary_naics_code", "naics8_descriptions")] %>%
-#     unique() %>% nrow() == 1
-# 
-# 
-#   # 3. Confirm the longitude and latitude are within error of each other. A
-#   #    passing result will say "TRUE".
-#   test_3 <- max(subset$longitude) - min(subset$longitude) < 1 & max(subset$latitude) - min(subset$latitude) < 1
-# 
-#   result <- rbind(result, cbind(search_space[i], test_1, test_2a, test_2b, test_3))
-# 
-#   # Print the for loop's progress.
-#   setTxtProgressBar(pb, i)
-# }
-# 
-# # Commit result with reformatting.
-# result <- result %>% as.data.frame() %>%
-#   `colnames<-`(c("abi", "Exclusive", "Zip_Same", "Metadata_Same", "LonLat_Similar"))
-# 
-# # Convert results from binary back to logical.
-# result[, -1] <- apply(result[, -1], 2, function(x) as.logical(x))
+search_space <- church_wide$abi[duplicated(church_wide$abi)] %>% unique()
+
+# Add a progress bar to show where the function is in the for loop.
+pb = txtProgressBar(min = 0, max = length(search_space), style = 3)
+
+result <- NULL
+for(i in 1:length(search_space)) {
+  # Subset to show only the entries associated with one reduplicated ABI.
+  subset <- church_wide[church_wide$abi %in% search_space[i], ]
+
+  # 1. Confirm the date binaries are mutually exclusive. A passing result will
+  #    say "TRUE".
+  test_1 <- sapply(subset[, 11:31], function(x) sum(x, na.rm = TRUE)) %!in% c(0, 1) %>% any() == FALSE
 
 
-#' @description Codebook for the output fields produced by the evaluation.
+  # 2. Confirm the other metadata are consistent. This is excluding the
+  #    longitude and latitude values.
+
+  # Same zip code? A passing result will say "TRUE".
+  test_2a <- subset$zipcode %>% unique() %>% length() == 1
+
+  # All reduplicated entries metadata are same? A passing result will say "TRUE".
+  test_2b <- subset[, c("year_established", "state", "city", "primary_naics_code", "naics8_descriptions")] %>%
+    unique() %>% nrow() == 1
+
+
+  # 3. Confirm the longitude and latitude are within error of each other. A
+  #    passing result will say "TRUE".
+  test_3 <- max(subset$longitude) - min(subset$longitude) < 1 & max(subset$latitude) - min(subset$latitude) < 1
+
+  result <- rbind(result, cbind(search_space[i], test_1, test_2a, test_2b, test_3))
+
+  # Print the for loop's progress.
+  setTxtProgressBar(pb, i)
+}
+
+# Commit result with reformatting.
+result <- result %>% as.data.frame() %>%
+  `colnames<-`(c("abi", "Exclusive", "Zip_Same", "Metadata_Same", "LonLat_Similar"))
+
+# Convert results from binary back to logical.
+result[, -1] <- apply(result[, -1], 2, function(x) as.logical(x))
+
+
+#' @description 
+#' Codebook for the output fields produced by the evaluation.
 #' 
 #' @field abi Unique business identifier over which the evaluation is performed.
 #'                        
@@ -376,38 +378,38 @@ church_wide$primary_naics_code %>% unique()
 church_wide$naics8_descriptions %>% unique()
 
 
-# The following is commented out since it take a while to run. Load in the 
-# pre-run results to review.
+# The following take a while to run. Load in the pre-run results to review.
 
-# search_space <- subset_2$abi
-# 
-# # Add a progress bar to show where the function is in the for loop.
-# pb = txtProgressBar(min = 0, max = length(search_space), style = 3)
-# 
-# result2 <- NULL
-# for(i in 1:length(search_space)) {
-#   # Subset to show only the entries associated with one reduplicated ABI.
-#   subset <- church_2[church_2$abi %in% search_space[i], ]
-# 
-#   year_unique  <- length(unique(subset$year_established)) == 1
-#   state_unique <- length(unique(subset$state)) == 1
-#   city_unique  <- length(unique(subset$city)) == 1
-#   naics_unique <- length(unique(subset$primary_naics_code)) == 1
-# 
-#   result2 <- rbind(result2, cbind(search_space[i], year_unique, state_unique, city_unique, naics_unique))
-# 
-#   # Print the for loop's progress.
-#   setTxtProgressBar(pb, i)
-# }
-# # Commit result with reformatting.
-# result2 <- result2 %>% as.data.frame() %>%
-#   `colnames<-`(c("abi", "Year", "State", "City", "NAICS"))
-# 
-# # Convert results from binary back to logical.
-# result2[, -1] <- apply(result2[, -1], 2, function(x) as.logical(x))
+search_space <- subset_2$abi
+
+# Add a progress bar to show where the function is in the for loop.
+pb = txtProgressBar(min = 0, max = length(search_space), style = 3)
+
+result2 <- NULL
+for(i in 1:length(search_space)) {
+  # Subset to show only the entries associated with one reduplicated ABI.
+  subset <- church_2[church_2$abi %in% search_space[i], ]
+
+  year_unique  <- length(unique(subset$year_established)) == 1
+  state_unique <- length(unique(subset$state)) == 1
+  city_unique  <- length(unique(subset$city)) == 1
+  naics_unique <- length(unique(subset$primary_naics_code)) == 1
+
+  result2 <- rbind(result2, cbind(search_space[i], year_unique, state_unique, city_unique, naics_unique))
+
+  # Print the for loop's progress.
+  setTxtProgressBar(pb, i)
+}
+# Commit result with reformatting.
+result2 <- result2 %>% as.data.frame() %>%
+  `colnames<-`(c("abi", "Year", "State", "City", "NAICS"))
+
+# Convert results from binary back to logical.
+result2[, -1] <- apply(result2[, -1], 2, function(x) as.logical(x))
 
 
-#' @description Codebook for the output fields produced by the evaluation.
+#' @description 
+#' Codebook for the output fields produced by the evaluation.
 #' 
 #' @field abi Unique business identifier. Evaluation is performed over each
 #'            unique business ID in the subset that meets the second set of
@@ -467,107 +469,108 @@ str_replace(unique(church_wide$primary_naics_code), "813110", "") %>% sort()
 # "move" event.
 table("City" = result2$City)
 
-# The following is commented out since it take a while to run. Load in the 
-# pre-run results to review.
 
-# search_space <- result2[result2$City == FALSE, "abi"]
-# 
-# # Add a progress bar to show where the function is in the for loop.
-# pb = txtProgressBar(min = 0, max = length(search_space), style = 3)
-# 
-# result3 <- NULL
-# for(i in 1:length(search_space)) {
-#   # Subset to show only the entries associated with one reduplicated ABI.
-#   subset <- church_2[church_2$abi %in% search_space[i], ]
-# 
-#   # Preferred city for that entry.
-#   zip_code <- unique(subset$zipcode)
-# 
-#   # Some of the entered zip codes are invalid. In most cases, it seems a leading
-#   # or trailing zero was erroneously removed.
-#   if(str_length(zip_code) != 5) {
-#     listed_city <- str_c("Invalid Zip Code: ", zip_code)
-# 
-#   # If the zip code is valid, then check for the preferred city name.
-#   } else if(str_length(zip_code) == 5) {
-#     query_result <- get_city_info(unique(subset$zipcode), zip_city_lookup)
-# 
-#     # Sometimes that query might not result in a match to the API database.
-#     if(is.null(query_result) ) {
-#       listed_city <- str_c("Invalid Zip Code: ", zip_code)
-#     } else {
-#       listed_city <- query_result
-#     }
-#   }
-# 
-#   # Number of entries total.
-#   num_entries <- nrow(subset)
-# 
-#   # Variation due to a PO Box?
-#   any_poBox   <- length(str_which(subset$address_line_1, "(?i)PO Box|P O Box")) != 0
-# 
-#   # Report the cities that are similar to other entries, match within some
-#   # threshold, and compare with those that are uniquely reported.
-#   similar_entries <- find_similar_addresses(subset$city) %>% unlist() %>% unique() %>%
-#     (\(x) { str_flatten(x, collapse = ", ") }) ()
-# 
-#   unique_entries  <- find_similar_addresses(subset$city, threshold = 0) %>% unlist() %>%
-#     unique() %>% (\(x) { str_flatten(x, collapse = ", ") }) ()
-# 
-#   result3 <- rbind(result3, cbind(search_space[i], listed_city, num_entries, any_poBox, similar_entries, unique_entries))
-# 
-#   # Print the for loop's progress.
-#   setTxtProgressBar(pb, i)
-# }
-# # Commit result with reformatting.
-# result3  <- result3 %>% as.data.frame() %>%
-#    `colnames<-`(c("abi", "Preferred City Name", "# Entries", "PO Box?", "Similar Names", "Unique Names"))
-# 
-# Calculate summary metrics to facilitate assessment of the results.
-# result3 <- result3 %>%
-#   mutate(
-#     # Calculate the difference between the number of unique cities and the number
-#     # of cities with minor typographical differences (i.e. similar).
-#     c1 = str_split(`Unique Names`, "\\s*,\\s*"),
-#     c2 = str_split(`Similar Names`, "\\s*,\\s*"),
-#     `Unique-Similar` = map2_int(c1, c2, ~ length(.x) - length(.y)),
-#     # Count the number of unique suggested cities.
-#     c3 = if_else(
-#       str_detect(`Preferred City Name`, "Invalid Zip Code:|No Matches Found:"),
-#       list(NA_character_),
-#       str_split(`Preferred City Name`, "\\s*,\\s*")
-#     ),
-#     `# Cities Suggested` = map_int(
-#       c3,
-#       \(x) {
-#         if (is.null(x)) return(NA_integer_)
-#         x <- as.character(x)
-#         x <- str_trim(x)
-#         x <- x[x != ""]
-#         if (length(x) == 0 || (length(x) == 1 && is.na(x))) NA_integer_ else length(x)
-#       }
-#     ),
-#     # Calculate the difference between the number of unique cities and the number
-#     # of cities suggested as preferred.
-#     `Unique-Preferred` = map2_int(
-#       c1,
-#       `# Cities Suggested`,
-#       \(x, y) {
-#         if (anyNA(x) || anyNA(y)) return(NA_integer_)
-#         length(x) - length(y)
-#       }
-#     ),
-#     # Verify whether the preferred address is present in the unique address vector.
-#     `Preferred in Unique?` = if_else(
-#       str_detect(`Preferred City Name`, "Invalid Zip Code:|No Matches Found:"),
-#       NA,
-#       map2_lgl(`Unique Names`, `Preferred City Name`, ~ str_detect(.x, fixed(.y)))
-#     )
-#   ) %>%
-#   select(-c1, -c2, -c3)
+# The following take a while to run. Load in the pre-run results to review.
+
+search_space <- result2[result2$City == FALSE, "abi"]
+
+# Add a progress bar to show where the function is in the for loop.
+pb = txtProgressBar(min = 0, max = length(search_space), style = 3)
+
+result3 <- NULL
+for(i in 1:length(search_space)) {
+  # Subset to show only the entries associated with one reduplicated ABI.
+  subset <- church_2[church_2$abi %in% search_space[i], ]
+
+  # Preferred city for that entry.
+  zip_code <- unique(subset$zipcode)
+
+  # Some of the entered zip codes are invalid. In most cases, it seems a leading
+  # or trailing zero was erroneously removed.
+  if(str_length(zip_code) != 5) {
+    listed_city <- str_c("Invalid Zip Code: ", zip_code)
+
+  # If the zip code is valid, then check for the preferred city name.
+  } else if(str_length(zip_code) == 5) {
+    query_result <- get_city_info(unique(subset$zipcode), zip_city_lookup)
+
+    # Sometimes that query might not result in a match to the API database.
+    if(is.null(query_result) ) {
+      listed_city <- str_c("Invalid Zip Code: ", zip_code)
+    } else {
+      listed_city <- query_result
+    }
+  }
+
+  # Number of entries total.
+  num_entries <- nrow(subset)
+
+  # Variation due to a PO Box?
+  any_poBox   <- length(str_which(subset$address_line_1, "(?i)PO Box|P O Box")) != 0
+
+  # Report the cities that are similar to other entries, match within some
+  # threshold, and compare with those that are uniquely reported.
+  similar_entries <- find_similar_addresses(subset$city) %>% unlist() %>% unique() %>%
+    (\(x) { str_flatten(x, collapse = ", ") }) ()
+
+  unique_entries  <- find_similar_addresses(subset$city, threshold = 0) %>% unlist() %>%
+    unique() %>% (\(x) { str_flatten(x, collapse = ", ") }) ()
+
+  result3 <- rbind(result3, cbind(search_space[i], listed_city, num_entries, any_poBox, similar_entries, unique_entries))
+
+  # Print the for loop's progress.
+  setTxtProgressBar(pb, i)
+}
+# Commit result with reformatting.
+result3  <- result3 %>% as.data.frame() %>%
+   `colnames<-`(c("abi", "Preferred City Name", "# Entries", "PO Box?", "Similar Names", "Unique Names"))
+
+Calculate summary metrics to facilitate assessment of the results.
+result3 <- result3 %>%
+  mutate(
+    # Calculate the difference between the number of unique cities and the number
+    # of cities with minor typographical differences (i.e. similar).
+    c1 = str_split(`Unique Names`, "\\s*,\\s*"),
+    c2 = str_split(`Similar Names`, "\\s*,\\s*"),
+    `Unique-Similar` = map2_int(c1, c2, ~ length(.x) - length(.y)),
+    # Count the number of unique suggested cities.
+    c3 = if_else(
+      str_detect(`Preferred City Name`, "Invalid Zip Code:|No Matches Found:"),
+      list(NA_character_),
+      str_split(`Preferred City Name`, "\\s*,\\s*")
+    ),
+    `# Cities Suggested` = map_int(
+      c3,
+      \(x) {
+        if (is.null(x)) return(NA_integer_)
+        x <- as.character(x)
+        x <- str_trim(x)
+        x <- x[x != ""]
+        if (length(x) == 0 || (length(x) == 1 && is.na(x))) NA_integer_ else length(x)
+      }
+    ),
+    # Calculate the difference between the number of unique cities and the number
+    # of cities suggested as preferred.
+    `Unique-Preferred` = map2_int(
+      c1,
+      `# Cities Suggested`,
+      \(x, y) {
+        if (anyNA(x) || anyNA(y)) return(NA_integer_)
+        length(x) - length(y)
+      }
+    ),
+    # Verify whether the preferred address is present in the unique address vector.
+    `Preferred in Unique?` = if_else(
+      str_detect(`Preferred City Name`, "Invalid Zip Code:|No Matches Found:"),
+      NA,
+      map2_lgl(`Unique Names`, `Preferred City Name`, ~ str_detect(.x, fixed(.y)))
+    )
+  ) %>%
+  select(-c1, -c2, -c3)
 
 
-#' @description Codebook for the output fields produced by the evaluation.
+#' @description 
+#' Codebook for the output fields produced by the evaluation.
 #' 
 #' @field abi Unique business identifier. Evaluation is performed over each 
 #'            unique business ID in the subset that meets the second set of 
@@ -831,81 +834,82 @@ church_long[524, 1:3]
 # 
 # The full extent of this issue warrants further assessment.
 
-# The following is commented out since it take a while to run. Load in the 
-# pre-run results to review.
 
-# search_space <- church_wide[str_which(church_wide$address_line_1, "(?i)PO Box|P O Box"), "abi"] %>% 
-#   unique() # Isolate ABIs that filed under a PO Box at one point
-# church_wide_dt <- as.data.table(church_wide)  # Convert for efficient data manipulation
-# result4 <- vector("list", length(search_space))  # Initialize an empty list
-# pb = txtProgressBar(min = 0, max = length(search_space), style = 3)  # Initialize progress bar
-# 
-# for (i in 1:length(search_space)) {
-#   # Subset to show only the entries associated with one reduplicated ABI.
-#   subset <- church_wide_dt[abi %in% search_space[i]]
-#   
-#   # --------------------
-#   # Identify PO Box address rows for this ABI, then compare each PO Box row’s
-#   # longitude/latitude to every NON–PO Box row for the same ABI (i.e., all rows
-#   # excluding the PO Box row itself and all other PO Box rows).
-#   
-#   index <- str_which(subset$address_line_1, "(?i)PO Box|P O Box")
-#   
-#   build <- vector("list", length(index))
-#   for(j in 1:length(index)){
-#     po_box <- index[j]
-#     others <- setdiff(seq_len(nrow(subset)), union(po_box, index))
-#     
-#     # Test how similar the longitude and latitude are.
-#     negligible_change <- 0.002  # Change in degrees (~222 meters or 728 feet)
-#     
-#     lon_test <- abs(subset$longitude[others] - subset$longitude[po_box])
-#     lat_test <- abs(subset$latitude[others] - subset$latitude[po_box])
-#     lonLat_test <- lon_test < negligible_change & lat_test < negligible_change
-#     
-#     # Compile the results.
-#     build[[j]] <- cbind(
-#       # Use the ABI as the first column.
-#       unique(subset$abi),
-#       # Add the PO Box name.
-#       subset[po_box, "address_line_1"],
-#       # Add the summary results capturing if any comparisons passed.
-#       any(lonLat_test, na.rm = TRUE),
-#       # Number of failed Boolean tests.
-#       lonLat_test %>% (\(y) sum(!y, na.rm = TRUE)) (),
-#       # Total number of comparisons.
-#       lonLat_test %>% (\(y) length(y)) (),
-#       # Summary statistics of the failed Boolean tests (longitude diffs).
-#       lon_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else min(y,  na.rm = TRUE)) (),
-#       lon_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else mean(y, na.rm = TRUE)) (),
-#       lon_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else max(y,  na.rm = TRUE)) (),
-#       # Summary statistics of the failed Boolean tests (latitude diffs).
-#       lat_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else min(y,  na.rm = TRUE)) (),
-#       lat_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else mean(y, na.rm = TRUE)) (),
-#       lat_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else max(y,  na.rm = TRUE)) ()
-#     )
-#   }
-#   
-#   # Store 'build' in the list.
-#   result4[[i]] <- do.call(rbind, build) %>% 
-#     `colnames<-`(c("abi","address_line_1","Summary Outcome", "n_failed","n_total",
-#                    "lon_failed_min","lon_failed_mean","lon_failed_max", 
-#                    "lat_failed_min","lat_failed_mean","lat_failed_max"))
-#   
-#   # Print the for loop's progress.
-#   setTxtProgressBar(pb, i)
-# }
-# # Commit result with reformatting.
-# result4 <- rbindlist(result4, use.names = TRUE, fill = TRUE) %>%
-#   (\(DT) {
-#     cols_to_round <- c("lon_failed_min", "lon_failed_mean","lon_failed_max",
-#                        "lat_failed_min","lat_failed_mean","lat_failed_max")
-#     DT[, (cols_to_round) := as.data.table(sapply(.SD, round, digits = 3)),
-#        .SDcols = cols_to_round]
-#   })()
+# The following take a while to run. Load in the pre-run results to review.
+
+search_space <- church_wide[str_which(church_wide$address_line_1, "(?i)PO Box|P O Box"), "abi"] %>%
+  unique() # Isolate ABIs that filed under a PO Box at one point
+church_wide_dt <- as.data.table(church_wide)  # Convert for efficient data manipulation
+result4 <- vector("list", length(search_space))  # Initialize an empty list
+pb = txtProgressBar(min = 0, max = length(search_space), style = 3)  # Initialize progress bar
+
+for (i in 1:length(search_space)) {
+  # Subset to show only the entries associated with one reduplicated ABI.
+  subset <- church_wide_dt[abi %in% search_space[i]]
+
+  # --------------------
+  # Identify PO Box address rows for this ABI, then compare each PO Box row’s
+  # longitude/latitude to every NON–PO Box row for the same ABI (i.e., all rows
+  # excluding the PO Box row itself and all other PO Box rows).
+
+  index <- str_which(subset$address_line_1, "(?i)PO Box|P O Box")
+
+  build <- vector("list", length(index))
+  for(j in 1:length(index)){
+    po_box <- index[j]
+    others <- setdiff(seq_len(nrow(subset)), union(po_box, index))
+
+    # Test how similar the longitude and latitude are.
+    negligible_change <- 0.002  # Change in degrees (~222 meters or 728 feet)
+
+    lon_test <- abs(subset$longitude[others] - subset$longitude[po_box])
+    lat_test <- abs(subset$latitude[others] - subset$latitude[po_box])
+    lonLat_test <- lon_test < negligible_change & lat_test < negligible_change
+
+    # Compile the results.
+    build[[j]] <- cbind(
+      # Use the ABI as the first column.
+      unique(subset$abi),
+      # Add the PO Box name.
+      subset[po_box, "address_line_1"],
+      # Add the summary results capturing if any comparisons passed.
+      any(lonLat_test, na.rm = TRUE),
+      # Number of failed Boolean tests.
+      lonLat_test %>% (\(y) sum(!y, na.rm = TRUE)) (),
+      # Total number of comparisons.
+      lonLat_test %>% (\(y) length(y)) (),
+      # Summary statistics of the failed Boolean tests (longitude diffs).
+      lon_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else min(y,  na.rm = TRUE)) (),
+      lon_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else mean(y, na.rm = TRUE)) (),
+      lon_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else max(y,  na.rm = TRUE)) (),
+      # Summary statistics of the failed Boolean tests (latitude diffs).
+      lat_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else min(y,  na.rm = TRUE)) (),
+      lat_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else mean(y, na.rm = TRUE)) (),
+      lat_test[!lonLat_test] %>% (\(y) if (length(y) == 0) NA_real_ else max(y,  na.rm = TRUE)) ()
+    )
+  }
+
+  # Store 'build' in the list.
+  result4[[i]] <- do.call(rbind, build) %>%
+    `colnames<-`(c("abi","address_line_1","Summary Outcome", "n_failed","n_total",
+                   "lon_failed_min","lon_failed_mean","lon_failed_max",
+                   "lat_failed_min","lat_failed_mean","lat_failed_max"))
+
+  # Print the for loop's progress.
+  setTxtProgressBar(pb, i)
+}
+# Commit result with reformatting.
+result4 <- rbindlist(result4, use.names = TRUE, fill = TRUE) %>%
+  (\(DT) {
+    cols_to_round <- c("lon_failed_min", "lon_failed_mean","lon_failed_max",
+                       "lat_failed_min","lat_failed_mean","lat_failed_max")
+    DT[, (cols_to_round) := as.data.table(sapply(.SD, round, digits = 3)),
+       .SDcols = cols_to_round]
+  })()
 
 
-#' @description Codebook for the output fields produced by the evaluation.
+#' @description 
+#' Codebook for the output fields produced by the evaluation.
 #'
 #' @field abi Unique business identifier. Evaluation is performed over each 
 #'            unique business ID associated with at least one PO Box address.
