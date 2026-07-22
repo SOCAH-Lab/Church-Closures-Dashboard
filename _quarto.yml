@@ -4,6 +4,8 @@ project:
   render:
     - "*.qmd"
     - "!KEEP LOCAL/"
+    - "!Pages/Reports/"    # Comment out when writing the report
+    - "!Scripts/For Analytical Reports/"    # Comment out when writing the report
 
 website:
   title: "Church Closures Dashboard"
@@ -17,27 +19,32 @@ website:
   repo-actions: [source, issue]
   navbar:
     right:
-      - text: "Review"
+      - text: "Dashboard"
+        href: https://www.socahlab.org/church-closures
+      - text: "Pipeline"
+        href: Pages/Pipeline.qmd
+      - text: "Development"
+        href: Pages/Development.qmd
+      - text: "TEMP"
         menu:
-          - text: "2023 Format"
-            href: Pages/Review_2023 Format.qmd
-          - text: "2026 Format"
+          - text: "2026 Format Review"
             href: Pages/Review_2026 Format.qmd
-      - text: "Preparation"
-        menu:
-          - text: "2023 Format"
+          - text: "2023 Format Cleaning"
             href: Pages/Cleaning and Harmonization_2023 Format.qmd
-          - text: "2026 Format"
+          - text: "2026 Format Cleaning"
             href: Pages/Cleaning and Harmonization_2026 Format.qmd
-      - text: "Metrics"
-        href: Pages/Metric Calculation.qmd
-      - text: Contact
-        href: https://ysph.yale.edu/public-health-research-and-practice/research-centers-and-initiatives/public-health-data-science-and-data-equity/contact-us/
-        target: _blank
+          - text: "Metrics"
+            href: Pages/Metric Calculation.qmd
   page-footer:
     background: dark 
     left: "This site was built on a ysph-dsde.github.io page. It was rendered using Quarto (v 1.6.39) and theme [Lux](https://bootswatch.com/lux/)." 
-    center: "This report was prepared by [Shelby Golden, M.S.](https://www.linkedin.com/in/shelby-golden/), a Data Scientist at YSPH DSDE."
+    center:
+      - text: "Dashboard"
+        href: https://www.socahlab.org/church-closures
+      - text: "Pipeline"
+        href: Pages/Pipeline.qmd
+      - text: "Development"
+        href: Pages/Development.qmd
     right: 
       - icon: globe
         href: https://ysph.yale.edu/public-health-research-and-practice/research-centers-and-initiatives/public-health-data-science-and-data-equity/
@@ -59,6 +66,7 @@ format:
     toc: true
     toc-depth: 4
     theme: lux
-    css: styles.css
+    css: _styles/styles.css
     from: markdown+autolink_bare_uris
 
+editor: source

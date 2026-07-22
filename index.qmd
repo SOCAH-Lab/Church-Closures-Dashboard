@@ -1,39 +1,26 @@
 ---
-title: "Overview"
+title: "About This Project" 
+toc: false
 ---
 
-Dynamically visualize data from [Data Axle](https://doc.arcgis.com/en/esri-demographics/latest/arcgis-places/data-axle.htm) to display four metrics related to church closures at the tract level over various date ranges. Include 'snapshot' views of socioeconomic information about the areas alongside the church closure metrics.
+The Yale School of Public Health [Society Connectedness & Health Lab's (SOCAH Lab)](https://www.socahlab.org/) premier Church Closure Dashboard is designed to dynamically display metrics describing church closures down to the block group level over user-provided date ranges. Users can select regions to explore socioeconomic information alongside church closure metrics, or apply institutional filters to refine their view.
 
-## Project Goals
+Shelby Golden, MS from the Yale School of Public Health [Data Science and Data Equity](https://ysph.yale.edu/research/research-centers-and-initiatives/public-health-data-science-and-data-equity/) team was contracted to review and update the data cleaning, validation, and harmonization methods previously employed by [Dr. Insang Song](https://sigmafelix.wixsite.com/mysite) to generate data compatible with dynamic visualization on the dashboard map.
 
-Findings addressing each of these objectives are accessible via the navigation bar in the top right.
+This codebase includes a [GitHub Pages website](https://socah-lab.github.io/Church-Closures-Dashboard/) outlining the development process and describing the pipeline for researchers interested in replicating results or preparing the raw data for their own work. [Scripts](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Code) include detailed annotations explaining the code and provide guidelines to help subsequent analysts reproduce results or adapt the process for improvements or other applications.
 
-1. **REVIEW:** Evaluate the raw data and previously outlined cleaning, validation, and harmonization methods employed by [Dr. Insang Song](https://sigmafelix.wixsite.com/mysite) for accuracy and identify opportunities for improvement.
+**Project Principal Investigator (PI):** [Yusuf Ransome, MPH, DrPH](https://ysph.yale.edu/profile/yusuf-ransome/)
 
-2. **PREPARATION:** Implement identified improvements to prepare the dataset for analysis and distribution to qualifying collaborators.
+**Project Manager:** [Katelyn Kostakis, MPH](https://www.linkedin.com/in/katelyn-kostakis/)
 
-3. **METRICS:** Calculate the metrics necessary for dynamic visualization.
+**Developer and Analyst:** [Shelby Golden, MS](https://www.linkedin.com/in/shelby-golden/)
 
-## Important Links and Locations
+# Our Collaborators
 
-In accordance with the Data Use Agreement for this dataset, some repositories may not be publicly accessible or may contain local files that are not tracked by Git and or included on GitHub. Complete copies of the data and summary results can be accessed in the 'SOCAH LAB\\Church closing\\Raw data' folder on Yale's OneDrive.
+The  Church Closure Dashboard is a collaborative effort led by the Yale School of Public Health Society Connectedness & Health Lab's (SOCAH Lab).
 
-Active dashboard prototype: [Closed Churches in the US](https://church-closing-dashboard.vercel.app/)
+# Access Restrictions and Requirements
 
-Original GitHub Repo by Dr. Song: [sigmafelix/healthreligion_project](https://github.com/sigmafelix/healthreligion_project)
+Under the Data Use Agreements (DUAs) with Data Axle and the USPS API license, raw data cannot be publicly distributed and is stored locally in `~/KEEP LOCAL` directories. Some code or results may also be restricted. All publicly distributed results are summarized, and publicly distributed code has been constructed to avoid referencing individual-level data. Executing the code below requires access to the raw data and results.
 
-Current Project GitHub Repo by Shelby: [SOCAH-Lab/Church-Closures-Dashboard](https://github.com/SOCAH-Lab/Church-Closures-Dashboard)
-
-## Repository Note
-
-The Data Use Agreements (DUAs) with the data owner, Data Axle, prohibit public distribution of the raw data. Accordingly, individual-level files are stored in `~/KEEP LOCAL` directories. While most local-only files are individual-level data, some code or results may also be restricted.
-
-All publicly distributed results are summarized, and all publicly distributed code has been constructed to avoid directly revealing or referencing individual-level results. Executing all code below requires access to the raw data and results.
-
-API keys are user-specific and are not publicly distributed. Where applicable, instructions have been provided to help users obtain their own API keys.
-
-## 2023 vs. 2026 Format
-
-In May 2026, an updated version of the raw data was provided in a different format than the version exported in July 2023 and provided in the summer of 2025. As a result, data processing was split into two paths: one for the 2023 format and one for the 2026 format.
-
-The 2026 versions of comparable sections should be treated as the most current method applicable for ongoing research. Insights from the 2023 format are assumed to apply to the 2026 format as well. Unexpected outcomes or shortcomings in algorithm performance identified in the 2023 drafts were used to inform improvements applied in the 2026 version.
+API keys are user-specific and, where applicable, instructions have been provided to help users obtain their own and configure them locally or on a High Performance Computer (HPC).

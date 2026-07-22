@@ -1,0 +1,275 @@
+% Options for packages loaded elsewhere
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+%
+\documentclass[
+  letterpaper,
+  DIV=11,
+  numbers=noendperiod]{scrartcl}
+\usepackage{xcolor}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+% Make \paragraph and \subparagraph free-standing
+\makeatletter
+\ifx\paragraph\undefined\else
+  \let\oldparagraph\paragraph
+  \renewcommand{\paragraph}{
+    \@ifstar
+      \xxxParagraphStar
+      \xxxParagraphNoStar
+  }
+  \newcommand{\xxxParagraphStar}[1]{\oldparagraph*{#1}\mbox{}}
+  \newcommand{\xxxParagraphNoStar}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+  \let\oldsubparagraph\subparagraph
+  \renewcommand{\subparagraph}{
+    \@ifstar
+      \xxxSubParagraphStar
+      \xxxSubParagraphNoStar
+  }
+  \newcommand{\xxxSubParagraphStar}[1]{\oldsubparagraph*{#1}\mbox{}}
+  \newcommand{\xxxSubParagraphNoStar}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+\makeatother
+
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{255,255,255}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.83,0.21,0.51}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.71,0.54,0.00}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.20,0.20,0.20}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.16,0.63,0.60}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.35,0.43,0.46}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.35,0.43,0.46}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.16,0.63,0.60}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.71,0.54,0.00}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.71,0.54,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.71,0.54,0.00}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.51,0.58,0.59}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.86,0.20,0.18}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{\textcolor[rgb]{0.16,0.63,0.60}{#1}}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.71,0.54,0.00}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.15,0.55,0.82}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.16,0.63,0.60}{#1}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.58,0.63,0.63}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.42,0.44,0.77}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{\textcolor[rgb]{0.20,0.20,0.20}{#1}}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.71,0.54,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.16,0.63,0.60}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.71,0.54,0.00}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{\textcolor[rgb]{0.20,0.20,0.20}{#1}}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.71,0.54,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.16,0.63,0.60}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.16,0.63,0.60}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.71,0.54,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.16,0.63,0.60}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.71,0.54,0.00}{\textbf{\textit{#1}}}}
+
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+
+
+
+
+
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+
+
+ 
+
+
+\input{LaTeX Formatting/PDF Formatting Script.tex}
+\KOMAoption{captions}{tableheading}
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\AtBeginDocument{%
+\ifdefined\contentsname
+  \renewcommand*\contentsname{Table of contents}
+\else
+  \newcommand\contentsname{Table of contents}
+\fi
+\ifdefined\listfigurename
+  \renewcommand*\listfigurename{List of Figures}
+\else
+  \newcommand\listfigurename{List of Figures}
+\fi
+\ifdefined\listtablename
+  \renewcommand*\listtablename{List of Tables}
+\else
+  \newcommand\listtablename{List of Tables}
+\fi
+\ifdefined\figurename
+  \renewcommand*\figurename{Figure}
+\else
+  \newcommand\figurename{Figure}
+\fi
+\ifdefined\tablename
+  \renewcommand*\tablename{Table}
+\else
+  \newcommand\tablename{Table}
+\fi
+}
+\@ifpackageloaded{float}{}{\usepackage{float}}
+\floatstyle{ruled}
+\@ifundefined{c@chapter}{\newfloat{codelisting}{h}{lop}}{\newfloat{codelisting}{h}{lop}[chapter]}
+\floatname{codelisting}{Listing}
+\newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
+\makeatother
+\makeatletter
+\makeatother
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\@ifpackageloaded{subcaption}{}{\usepackage{subcaption}}
+\makeatother
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX via pandoc}}
+
+
+\author{}
+\date{}
+\begin{document}
+
+
+\clearpage
+\null
+\thispagestyle{empty}
+\newpage
+\setcounter{page}{1}
+
+This document applies code highlighting to Verbatim code environments,
+which are used to render formatted indentation in code blocks because
+this is not not natively supported in Quarto LaTeX documents. Below are
+the two steps to generate a formatted code block.
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  Paste the code to be highlighted into the bash\_snippets list item.
+  This will parse all provided code list items using the defined
+  algorithm and generate a new TeX file named formatted\_bash.tex. The
+  resulting output may require manual adjustments, which can be made in
+  the following two code block sections.
+\item
+  Adjust the formatting by pasting the output below where Quarto will
+  apply code highlighting, and in the following
+  \texttt{\textbackslash{}\textbackslash{}begin\{Verbatim\}} section.
+  The available commands are:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{\textbackslash{}\textbackslash{}kw} for Keywords
+  \item
+    \texttt{\textbackslash{}\textbackslash{}func} for Functions
+  \item
+    \texttt{\textbackslash{}\textbackslash{}str} for Strings
+  \item
+    \texttt{\textbackslash{}\textbackslash{}com} for Comments
+  \item
+    \texttt{\textbackslash{}\textbackslash{}op} for Operators
+  \item
+    \texttt{\textbackslash{}\textbackslash{}atr} for Atributes
+  \end{itemize}
+\end{enumerate}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{duplicated}\NormalTok{(church\_wide}\SpecialCharTok{$}\NormalTok{abi) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{table}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{list}{}{\setlength\leftmargin{2.5em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{Command-Line Interface} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+  \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\func{duplicated}(church\_wide\op{\$}abi) \op{\%>\%} \func{table}()
+  \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}
+\end{list}
+
+
+
+
+\end{document}

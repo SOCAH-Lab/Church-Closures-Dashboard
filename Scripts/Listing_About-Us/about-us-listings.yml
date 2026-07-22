@@ -1,0 +1,93 @@
+# =============================================================================
+# Yale School of Public Health (YSPH)
+# Resource Navigation Tool — About Us Page (github.io)
+# YAML listing documentation
+# =============================================================================
+#
+# Overview
+# --------
+# This file defines the YAML listing that populates the About Us page. Entries
+# are rendered as people/profile tiles in the order they appear under "items"
+# (left-to-right, then continuing on subsequent rows).
+#
+# Author / Maintenance
+# --------------------
+# Author: Shelby Golden, M.S.
+# Created: May 10, 2025
+#
+# Last updated: April 15, 2026
+# Last updated by: Shelby Golden
+#
+# Adding new tiles (YAML / data file)
+# ----------------------------------
+#   - Add new entries under "items".
+#   - Tiles display in listing order (left-to-right).
+#
+# Tile fields
+# -----------
+# Required:
+#   - name
+#   - titles
+#   - bio
+#   - image (headshot)
+#   - date-added
+#   - date-updated
+#
+# Optional fields (links/icons):
+#   - ysph-site: Beatrix webpage
+#   - group: Lab group webpage
+#   - linkedin
+#   - google_scholar
+#   - orcid: URL containing the 16-digit ORCID iD
+#
+# Optional fields (bio/contact):
+#   - email
+#   - phone
+#
+# Editing existing tiles
+# ----------------------
+#   - Confirm any new/updated links work.
+#   - Update the tile’s `date-updated` value.
+#   - Update the page-level "Last updated" text at the top of the page.
+# =============================================================================
+
+items:
+  tiles:
+    - name: Bhramar Mukherjee, PhD
+      date-added: 2025-06-11
+      date-updated: 2025-06-11
+      titles: |
+        Senior Associate Dean of Public Health Data Science and Data Equity; Anna M.R. Lauder Professor of Biostatistics; Professor of Epidemiology (Chronic Diseases) and of Statistics and Data Science; Affiliated Faculty, Yale Institute for Global Health
+      bio: |
+        Professor Bhramar Mukherjee is the Anna M.R. Lauder Professor of Biostatistics and Professor of Chronic Disease Epidemiology at the Yale School of Public Health (YSPH). Professor Mukherjee serves as the inaugural Senior Associate Dean of Public Health Data Science and Data Equity at YSPH. She holds a secondary appointment in the Department of Statistics and Data Science and is affiliated with the MacMillan Center and the Institute for the Foundations of Data Science. She serves on the Yale Cancer Center Director’s cabinet.
+      image: ../Images/People/bhramar-mukherjee.jpeg
+      email: bhramar.mukherjee@yale.edu
+      phone: 203-737-8644
+      ysph-site: https://ysph.yale.edu/profile/bhramar-mukherjee/
+      group: https://ysph-dsde.github.io/mukherjee-lab/
+      linkedin: https://www.linkedin.com/in/bhramar-mukherjee-483810320/
+    - name: Michaela Dinan, PhD
+      date-added: 2025-06-11
+      date-updated: 2025-06-11
+      titles: |
+        Associate Professor Tenure; Co-Leader, Cancer Prevention and Control, Yale Cancer Center; Associate Director for Research Training and Education, Yale Cancer Center
+      bio: |
+        Dr. Michaela Dinan is an Associate Professor of Epidemiology in the Yale School of Public Health, and Co-Leader of the Cancer Prevention and Control Research Program at the Yale Comprehensive Cancer Center, Yale School of Medicine. She is also a member of the Cancer Outcomes, Public Policy, and Effectiveness Research (COPPER) Center. Dr. Dinan has extensive research expertise in leveraging existing real-world data sources as well as novel data linkages to examine oncology outcomes.
+      image: ../Images/People/michaela-dinan.jpeg
+      email: michaela.dinan@yale.edu
+      phone: 203-785-7124
+      ysph-site: https://ysph.yale.edu/profile/michaela-dinan/
+    - name: Shelby Golden, M.S.
+      date-added: 2025-06-11
+      date-updated: 2025-06-11
+      titles: | 
+        Data Scientist I
+      bio: |
+        Shelby Golden is a data scientist with a background in computational mathematics, molecular biology, and biochemistry. She holds a Master of Science in Applied Computational Mathematics from Johns Hopkins University and dual Bachelor of Science degrees in Molecular, Cellular, Developmental Biology and Biochemistry with a minor in Engineering in Applied Mathematics.
+      image: ../Images/People/shelby-golden.jpeg
+      email: shelby.golden@yale.edu
+      phone: 203-737-8644
+      ysph-site: https://ysph.yale.edu/profile/shelby-golden/
+      group: https://ysph-dsde.github.io/mukherjee-lab/
+      linkedin: https://www.linkedin.com/in/shelby-golden/
+      
