@@ -32,18 +32,14 @@
 ##       similarity using a specified threshold. It preprocesses the addresses, 
 ##       builds a similarity graph, and identifies groups of similar addresses.
 ## 
-##    4. find_first_one: Finds the date column name where the first 1 
-##       occurs. Used for arranging the rows associated with one ABI 
-##       in descending order: i.e. older address to recent address.
-## 
-##    5. process_abi_group: Processes a group of ABI entries by extracting 
+##    4. process_abi_group: Processes a group of ABI entries by extracting 
 ##       compiled addresses and identifying similar addresses within the group.
 ## 
-##    6. count_sublists: For each ABI element, compare the number of sublists 
+##    5. count_sublists: For each ABI element, compare the number of sublists 
 ##       in $exact vs $similar and return a boolean indicating whether they are 
 ##       the same length.
 ## 
-##    7. check_duplicates_unique_info: Within each address group, checks whether 
+##    6. check_duplicates_unique_info: Within each address group, checks whether 
 ##       rows are duplicated based on the specified columns (typically 
 ##       year-related fields). Adds:
 ##          - `has_duplicates`: TRUE if any duplicates exist in the group (by 
@@ -189,40 +185,6 @@ find_similar_addresses <- function(addresses, threshold = 0.15) {
   unique_address_groups <- lapply(unique_string_groups, function(sgroup) unlist(strsplit(sgroup, " \\|\\|\\| ")))
   
   return(unique_address_groups)
-}
-
-
-
-
-find_first_one <- function(...) {
-  #' @description
-  #' This function finds the first column where a 1 occurs in a given row of a 
-  #' data frame. It is used for arranging rows in descending order, from older 
-  #' dates to more recent dates.
-  #' 
-  #' @param ... Variable arguments representing the elements of a row in a given 
-  #'            data frame.
-  #' 
-  #' @return A character string representing the name of the first column where 
-  #'         a 1 occurs. If no 1 is found, returns NA.
-  
-  
-  # Convert the row elements into a single vector.
-  row <- c(...)
-  
-  # Find the index of the first occurrence of 1.
-  first_one_index <- which(row == 1)
-  
-  if (length(first_one_index) == 0) {
-    # If there is no 1 in the row, return NA.
-    return(NA)
-    
-  } else {
-    # Return the name of the first column where a 1 occurs, removing any "X" 
-    # prefix added to numeric column names.
-    return(str_replace(names(row)[first_one_index[1]], "X", ""))
-    
-  }
 }
 
 

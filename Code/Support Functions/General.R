@@ -33,6 +33,10 @@
 ##
 ##   5. capture_warnings: This function evaluates an expression and captures 
 ##      any warnings generated during the evaluation. 
+## 
+##   6. find_first_one: Finds the date column name where the first 1 occurs. 
+##      Used for arranging the rows associated with one ABI in descending 
+##      order: i.e. older address to recent address.
 
 ## ----------------------------------------------------------------
 ## FUNCTIONS
@@ -63,6 +67,7 @@ check_all_counts_0_or_1 <- function(data) {
 
 
 
+
 process_with_progress <- function(pb, .data, func) {
   #' @description
   #' This function processes a group within a data frame while updating 
@@ -85,6 +90,7 @@ process_with_progress <- function(pb, .data, func) {
 
 
 
+
 process_with_progress_txt <- function(pb, .data, func, i) {
   #' @description
   #' This function processes a group within a data frame, updates the base R 
@@ -104,6 +110,7 @@ process_with_progress_txt <- function(pb, .data, func, i) {
   # Apply the specified function to the current group and return the result
   func(.data)
 }
+
 
 
 
@@ -144,6 +151,7 @@ mutate_with_progress <- function(df, cols_to_convert, grouping_cols, conversion_
   
   return(results)
 }
+
 
 
 
@@ -200,6 +208,40 @@ capture_warnings <- function(expr) {
   
   # Return a list containing the result and captured warnings
   list(result = result, warnings = warnings)
+}
+
+
+
+
+find_first_one <- function(...) {
+  #' @description
+  #' This function finds the first column where a 1 occurs in a given row of a 
+  #' data frame. It is used for arranging rows in descending order, from older 
+  #' dates to more recent dates.
+  #' 
+  #' @param ... Variable arguments representing the elements of a row in a given 
+  #'            data frame.
+  #' 
+  #' @return A character string representing the name of the first column where 
+  #'         a 1 occurs. If no 1 is found, returns NA.
+  
+  
+  # Convert the row elements into a single vector.
+  row <- c(...)
+  
+  # Find the index of the first occurrence of 1.
+  first_one_index <- which(row == 1)
+  
+  if (length(first_one_index) == 0) {
+    # If there is no 1 in the row, return NA.
+    return(NA)
+    
+  } else {
+    # Return the name of the first column where a 1 occurs, removing any "X" 
+    # prefix added to numeric column names.
+    return(str_replace(names(row)[first_one_index[1]], "X", ""))
+    
+  }
 }
 
 

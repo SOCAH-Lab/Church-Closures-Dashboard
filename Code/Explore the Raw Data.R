@@ -11,19 +11,17 @@
 ##              The findings are used to justify modifications to the data
 ##              cleaning, harmonization, and metric calculation processes.
 ## 
-## NOTE: The Data Use Agreements (DUAs) with the data owner, Data Axle, prohibit
-##       public distribution of the raw data. Accordingly, individual-level files
-##       are stored in "~/KEEP LOCAL" directories. While most local-only files
-##       are individual-level data, some code or results may also be restricted.
-##
-##       All publicly distributed results are summarized, and all publicly
-##       distributed code has been constructed to avoid directly revealing or
-##       referencing individual-level results. Executing all code below requires
-##       access to the raw data and results.
+## NOTE: Under the Data Use Agreements (DUAs) with Data Axle and the USPS API 
+##       license, raw data cannot be publicly distributed and is stored locally 
+##       in "~/KEEP LOCAL" directories. Some code or results may also be 
+##       restricted. All publicly distributed results are summarized, and 
+##       publicly distributed code has been constructed to avoid referencing 
+##       individual-level data. Executing the code below requires access to the 
+##       raw data and results.
 ## 
-##       API keys are user-specific and are not publicly distributed. Where
-##       applicable, instructions have been provided to help users obtain their
-##       own API keys.
+##       API keys are user-specific and, where applicable, instructions have 
+##       been provided to help users obtain their own and configure them locally 
+##       or on a High Performance Computer (HPC).
 ## 
 ## Sections:
 ##    - SET UP THE ENVIRONMENT

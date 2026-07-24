@@ -27,6 +27,39 @@
 ##              conducted to confirm that all expected business entries were
 ##              retained and assess the algorithms performance.
 ## 
+## NOTE: Under the Data Use Agreements (DUAs) with Data Axle and the USPS API 
+##       license, raw data cannot be publicly distributed and is stored locally 
+##       in "~/KEEP LOCAL" directories. Some code or results may also be 
+##       restricted. All publicly distributed results are summarized, and 
+##       publicly distributed code has been constructed to avoid referencing 
+##       individual-level data. Executing the code below requires access to the 
+##       raw data and results.
+## 
+##       API keys are user-specific and, where applicable, instructions have 
+##       been provided to help users obtain their own and configure them locally 
+##       or on a High Performance Computer (HPC).
+## 
+## NOTE: In Spring 2026, the pipeline developed for the Summer 2025 symposium
+##       prototype was lightly refactored for clarity and rerun to process all
+##       entries not covered in the initial pass. Core methods remained 
+##       consistent with the prototype. An updated dataset delivered in May 2026 
+##       prompted further expansion of the pipeline to support two designated 
+##       format variations: the 2023 Format and the 2026 Format.
+##
+##       The Spring 2026 refactoring was not completed across all steps. Steps
+##       1 and 2 reflect the full updates, with results generated for the
+##       entire dataset. Steps 3-5 were updated for reporting clarity only and
+##       continue to process the restricted 2023 Format produced for the
+##       Summer 2025 symposium.
+## 
+##       Results from the refactored pipeline are stored in:
+##         "~/KEEP LOCAL/From Clean Raw Data/Step *_2023 Format/"
+##       Results from the original prototype run are archived in:
+##         "~/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED"
+##       GeoJSON files visualized on the dashboard are in:
+##         "~/Dashboard Datasets/"
+##       and reflect data as of June 2025.
+## 
 ## Sections:
 ##    - SET UP THE ENVIRONMENT
 ##    - LOAD IN THE DATA
