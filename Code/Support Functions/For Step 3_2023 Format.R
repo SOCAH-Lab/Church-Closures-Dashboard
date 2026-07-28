@@ -1,5 +1,5 @@
 ## ----------------------------------------------------------------
-## Define functions used in the Step 2 script for the 2023 Formatted data.
+## Define functions used in the Step 3 script for the 2023 Formatted data.
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025

@@ -265,8 +265,10 @@ step_3 <- step_3_2 %>%
   as.data.frame()
 
 
-#' @description 
-#' Codebook for the output fields produced by the evaluation.
+#' @description
+#' Codebook for new output fields produced during the data cleaning and
+#' validation step. All other fields were present in the Step 2 form of
+#' the data.
 #'
 #' @field verifiedLat The suggested latitude returned by matching the address.
 #'                    If multiple matches are returned by the geocoder, the first
@@ -279,7 +281,7 @@ step_3 <- step_3_2 %>%
 #' @field similarLat  Boolean. TRUE if the absolute difference between the given
 #'                    latitude and verified latitude is less than 1 degree;
 #'                    otherwise FALSE.
-#'                    
+#'
 #' @field similarLon  Boolean. TRUE if the absolute difference between the given
 #'                    longitude and verified longitude is less than 1 degree;
 #'                    otherwise FALSE.
@@ -307,19 +309,27 @@ step_3 <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Da
 round(prop.table(table(step_3$address_verified))*100, digits = 2)
 round(prop.table(table(step_3$verifiedGeo))*100, digits = 2)
 
-# Addresses matched by the geocoder were predominantly verified, while
-# unverified addresses showed a lower match rate. API failures, potentially
-# attributable to timeouts, were more common among unverified addresses,
-# though the difference may fall within expected error.
+# All verified geographies are within 1 degree of the listed geocoordinate.
+step_3 %>%
+  filter(verifiedGeo == TRUE) %>%
+  (\(x) {round(prop.table(table(x$similarLat))*100, digits = 2)} )()
+
+step_3 %>%
+  filter(verifiedGeo == TRUE) %>%
+  (\(x) {round(prop.table(table(x$similarLon))*100, digits = 2)} )()
+
+# Addresses matched by the geocoder were predominantly verified (86%), while
+# unverified addresses had a lower match rate (46%). API failures, potentially
+# due to timeouts, were more prevalent among unverified addresses (10%) than
+# verified addresses (1%).
 round(prop.table(
-  table("Geocoordinates" = step_3$verifiedGeo,
-        "Address" = step_3$address_verified,
+  table("Address" = step_3$address_verified,
+         "Geocoordinates" = step_3$verifiedGeo,
         useNA = "ifany"),
   margin = 1
   ) * 100, 
  2
 )
-
 
 # PO Boxes had low verification rates in the preceding step and may also
 # consequentially have higher geocoder failure rates.
@@ -333,12 +343,17 @@ step_3 <- step_3 %>%
     )
   )
 
+# The majority of PO Boxes in this subset were verified by the USPS API (95%).
+step_3 %>%
+  filter(is_po_box) %>%
+  (\(x) {round(prop.table(table(x$address_verified))*100, digits = 2)} )()
+
 # Of the entries that were matched, none of them were a PO Box. Interestingly,
 # hardly any of these outcomes failed to interact with the API, entries that
 # failed to verify came from a failuter to match with the geocoder database.
 round(prop.table(
-  table("Geocoordinates" = step_3$verifiedGeo,
-        "PO Box" = step_3$is_po_box,
+  table("PO Box" = step_3$is_po_box,
+        "Geocoordinates" = step_3$verifiedGeo,
         useNA = "ifany"),
   margin = 1
   ) * 100, 

@@ -103,10 +103,6 @@ suppressPackageStartupMessages({
 # Set up the plan for parallel processing.
 plan(multisession, workers = 4)
 
-# Load in the functions.
-source("./Code/Support Functions/General.R")
-source("./Code/Support Functions/For Step 3_2023 Format.R")
-
 # Define the "not in" operation
 "%!in%" <- function(x,y)!("%in%"(x,y))
 
@@ -118,6 +114,30 @@ source("./Code/Support Functions/For Step 3_2023 Format.R")
 
 # Read in previously generated results.
 step_3 <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 03_Church Wide_Verified Geolocation_06.16.2025.csv.gz") %>% as.data.frame()
+
+# Only data with a verified geocoordinates will be used for the prototype.
+# Stringency for this will be reviewed with the team and more closely assessed 
+# for subsequent iterations of the dashboard.
+
+# Identify ABIs where all entries passed geocoordinate verification.
+abi_all_pass <- step_3 %>%
+  group_by(abi) %>%
+  summarize(all(verifiedGeo %in% "TRUE")) %>%
+  ungroup() %>%
+  as.data.frame()
+
+# As noted in Step 3, ~82% of entries were verified, corresponding to ~80% of ABI.
+round(table(abi_all_pass$`all(verifiedGeo %in% "TRUE")`)/nrow(abi_all_pass)*100, digits = 2)
+
+# Subset to ABI where all entries passed geocoordinate verification.
+step_3 <- step_3 %>%
+  filter(abi %in% abi_all_pass[abi_all_pass$`all(verifiedGeo %in% "TRUE")` == TRUE, "abi"]) %>%
+  # Replace original coordinates with verified geocoordinates.
+  rename(latitude_remove = latitude, longitude_remove = longitude) %>% 
+  rename(latitude = verifiedLat, longitude = verifiedLon) %>%
+  # Retain only required columns and reorder for consistency.
+  relocate(verifiedGeo, .after = longitude)
+
 
 # Running this algorithm on the full dataset was not feasible within the
 # time constraints of the Summer 2025 symposium prototype. Consequently,
@@ -238,7 +258,7 @@ out
 # when at least two points fall within a radius of 1 (in the units of the input 
 # coordinates), labeling points that don’t meet this density requirement as 
 # noise (0) and assigning clustered points to groups 1, 2, etc. Cluster labels 
-# restart within each business.
+# are applied independently within each business ID.
 # 
 # DBSCAN cluster label per ABI: 
 #   - 0 = not grouped with other addresses
@@ -282,6 +302,7 @@ confirm_dim <- cluster_moved %>%
     clusters  = str_flatten(sort(unique(area)), collapse = ", "),
     .groups   = "drop"
   ) %>%
+  left_join(move_check, by = "abi") %>%
   as.data.frame()
 
 # Businesses with two to four entries resulted in no clusters, while those
@@ -289,6 +310,18 @@ confirm_dim <- cluster_moved %>%
 # collapsed into a single cluster, with only two businesses forming two
 # distinct clusters.
 table(`# Rows` = confirm_dim$n_rows, `# Clusters` = confirm_dim$clusters)
+
+# Entries with the largest relocations detected (> 50 miles) resulted in the
+# greatest heterogeneity, with some businesses grouped into a single cluster.
+# All other distance bands were grouped into a single cluster, including
+# those with coordinate differences between 10 and 50 miles.
+#
+# These results highlight the limitations of using dbscan() clustering for this
+# application.
+with(
+  transform(confirm_dim, dist_band = factor(dist_band, levels = bands[-1], ordered = TRUE)),
+  table(`Distance Band` = dist_band, `# Clusters` = clusters)
+)
 
 # Annotate presence of all PO Boxes.
 cluster_moved <- cluster_moved %>%
@@ -362,7 +395,8 @@ cluster_moved %>%
 # 5 miles.
 move_check %>%
   filter(diffLon < 0.5 & diffLat < 0.5) %>%
-  (\(x) { round(prop.table(table(x$dist_band))*100, digits = 2) } )
+  mutate(dist_band = factor(dist_band, levels = bands, ordered = TRUE)) %>%
+  (\(x) round(prop.table(table(x$dist_band)) * 100, digits = 2))()
 
 # Group addresses by how similar their longitude and latitude are with one another.
 cluster_not_moved <- step_3 %>%
@@ -402,6 +436,21 @@ confirm_dim <- cluster_not_moved %>%
 # results highlight the limitations of using dbscan() clustering for this
 # application.
 table(`# Rows` = confirm_dim$n_rows, `# Clusters` = confirm_dim$clusters)
+
+# Entries with the largest relocations detected (> 50 miles) resulted in the
+# greatest heterogeneity, with some businesses grouped into a single cluster.
+# All other distance bands were grouped into a single cluster, including
+# those with coordinate differences between 10 and 50 miles.
+#
+# These results highlight the limitations of using dbscan() clustering for this
+# application.
+confirm_dim <- confirm_dim %>%
+  left_join(move_check, by = "abi")
+
+with(
+  transform(confirm_dim, dist_band = factor(dist_band, levels = bands[], ordered = TRUE)),
+  table(`Distance Band` = dist_band, `# Clusters` = clusters)
+)
 
 # Because there is a clean separation between noise and clusters, both
 # values 0 and 1 are assigned the same area designation: "Area #1".
@@ -552,22 +601,24 @@ for (i in seq_along(fill_compiled)) {
 ## SUBSECTION B3: Save Results
 
 #' @description
-#' Codebook for the output fields produced by the evaluation.
+#' Codebook for new output fields produced during the data cleaning and
+#' validation step. All other fields were present in the Step 3 form of
+#' the data.
 #'
 #' @field area The k-means cluster that the years-open and years-closed
 #'             results represent.
 #'
-#' @field `all address fields` All address fields ("address_line_1",
-#'                             "address_line_2", "city", "state", "zipcode",
-#'                             "zipcode_ext", and "compiled_address") selected
+#' @field `all address fields` All address fields (`address_line_1`,
+#'                             `address_line_2`, `city`, `state`, `zipcode`,
+#'                             `zipcode_ext`, and `compiled_address`) selected
 #'                             from one of the addresses clustered to the same
 #'                             area and then aggregated together. Exact address
 #'                             details and geocoordinates do not correspond to
 #'                             the actual location for the years-open and
 #'                             years-closed information.
 #'
-#' @field `other metadata` All other metadata fields ("address_verified",
-#'                         "lonLat_test", and "verifiedGeo") relate to the
+#' @field `other metadata` All other metadata fields (`address_verified`,
+#'                         `lonLat_test`, and `verifiedGeo`) relate to the
 #'                         selected address associated with this cluster area.
 #'
 #' @field latitude/longitude The longitude/latitude of the selected address.
@@ -587,7 +638,7 @@ for (i in seq_along(fill_compiled)) {
 # write_csv(step_3, "./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 04_Cluster Addresses and Collapse By Area_06.17.2025.csv.gz")
 
 # Load in the pre-produced test results for evaluation.
-step_4 <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 04_Cluster Addresses and Collapse By Area_06.17.2025.csv.gz",
+step_4 <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 03_Church Wide_Verified Geolocation_06.16.2025.csv.gz",
                    col_types = cols(...1 = col_skip())) %>% as.data.frame()
 
 

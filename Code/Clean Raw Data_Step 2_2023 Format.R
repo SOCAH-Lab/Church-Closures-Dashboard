@@ -231,7 +231,7 @@ processed_indices <- c(
 ## SUBSECTION A1: Prepare Subset for HPC
 
 # Create a subset of the data only relevant to verifying the listed addresses in
-# the HPC environemnt.
+# the HPC environment.
 step_1_subset <- step_1 %>%
   select(rowname, address_line_1, address_line_2, city, state,
          zipcode, zipcode_ext, compiled_address, address_verified)
@@ -381,7 +381,7 @@ not_special_case <- step_2 %>%
   pull(abi) %>%
   unique()
 
-# Isolate ABIs assessed for expansion only, with no duplication override,
+# Isolate ABIs assessed that were expanded, with no duplication override,
 # as no addresses were identified as matching.
 fix_expanded <- step_2 %>% 
   group_by(abi) %>%
@@ -1016,7 +1016,7 @@ for (i in 1:length(search_space2)) {
     addr_parts <- str_split(match[[j]][1], ", ", simplify = TRUE)
     # addr_parts is 1x4: address_line_1, city, state, zipcode
     
-    new_row <- dplyr::bind_cols(
+    new_row <- bind_cols(
       seed[1, 1, drop = FALSE],  # ABI (1 row)
       tibble::tibble(
         address_line_1 = addr_parts[1, 1],
@@ -1035,7 +1035,7 @@ for (i in 1:length(search_space2)) {
       ),
       seed[1, -1, drop = FALSE],   # rest of metadata, 1 row
       dates,                       # must be 1 row
-      tibble::tibble(
+      tibble(
         all_duplicates_corrected =
           unique(subset[change_these, "all_duplicates_corrected"])[1]
       )
@@ -1143,6 +1143,38 @@ combined_df <- bind_rows(df_list, .id = "source") %>%
 # for the final result.
 all(c(colnames(step_2), "all_duplicates_corrected") %in% colnames(combined_df)) && all(colnames(combined_df) %in% c(colnames(step_2), "all_duplicates_corrected"))
 
+
+#' @description
+#' Codebook for new output fields produced during the data cleaning and
+#' validation step. All other fields were present in the Step 1 form of
+#' the data.
+#'
+#' @field rowname Represents the row names of some processed subsets. Does not
+#'                contain relevant information; this column can be ignored or
+#'                removed.
+#'
+#' @field `all address fields` All address fields (`address_line_1`,
+#'                             `address_line_2`, `city`, `state`, `zipcode`,
+#'                             `zipcode_ext`, and `compiled_address`) reflect
+#'                             the validated address when `address_verified` is
+#'                             TRUE or `compiled_address` is not "No address
+#'                             match found"; otherwise, they reflect the
+#'                             original raw form. Note that `address_line_2`
+#'                             and `zipcode_ext` are fields new to this step.
+#'
+#' @field address_verified Boolean. TRUE if a verified address was retrieved
+#'                         from the USPS API database. FALSE if there was no
+#'                         match or an API retrieval error occurred.
+#'
+#' @field all_duplicates_corrected Boolean. From *SUBSECTION B2: Consolidate
+#'                                 Duplications and Remove Difficult Cases*.
+#'                                 TRUE if detected duplications were reconciled
+#'                                 without adding or losing information. FALSE
+#'                                 if the deduplication process introduced
+#'                                 errors or could not reconcile the detected
+#'                                 duplications. NA if the entry was not
+#'                                 duplicated and this field is not applicable.
+
 # # Commit results.
 # write.csv(combined_df, file = "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/Step 02_Completed Result_06.01.2026.csv")
 
@@ -1184,14 +1216,19 @@ poBox_all <- step_2_final %>%
     regex("\\bP\\s*\\.?\\s*O\\s*\\.?\\s*Box\\b", ignore_case = TRUE)
   ))
 
-# Most PO Box entries failed to verify against the USPS API; however, most passed
-# the geolocation test when consolidated.
-round(prop.table(
-  table("Geolocation Test" = poBox_all$lonLat_test,
-        "Address Verified" = poBox_all$address_verified,
-        useNA = "ifany")
-) * 100, 2)
+# Most PO Box entries failed to verify against the USPS API (94%); however, 
+# most passed the geolocation test when consolidated.
+poBox_all %>%
+  (\(x) {round(prop.table(table(x$address_verified))*100, digits = 2)} )()
 
+round(prop.table(
+  table("Address Verified" = poBox_all$address_verified,
+        "Geolocation Test" = poBox_all$lonLat_test,
+        useNA = "ifany"),
+  margin = 1
+  ) * 100, 
+ 2
+)
 
 
 
