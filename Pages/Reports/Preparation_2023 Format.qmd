@@ -359,14 +359,14 @@ All packages required for this step are documented in the **SET UP THE ENVIRONME
 
 \vspace{1em}
 
-The algorithm implementing the described methods has been separated into a dedicated HPC script, contained in ["Clean Raw Data_Step 2 HPC_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202%20HPC_2023%20Format.R), which includes its own **SET UP THE ENVIRONMENT** section. **SUBSECTION A1: Utilizing the HPC** further describes how to reproducibly run the script within the HPC environment as both a live session or batch array. The preconfigured batch array shell script used for deploying batch arrays is ["USPS SLURM_2023 Format.sh"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/USPS%20SLURM_2023%20Format.sh).
+The algorithm implementing the described methods has been separated into a dedicated HPC script, contained in ["Clean Raw Data_Step 2 HPC_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202%20HPC_2023%20Format.R), which includes its own **SET UP THE ENVIRONMENT** section. **SUBSECTION A1: Utilizing the HPC** further describes how to reproducibly run the script within the HPC environment as both a live session or batch array. The preconfigured shell script used for deploying batch arrays is ["USPS SLURM_2023 Format.sh"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/USPS%20SLURM_2023%20Format.sh).
 :::
 
 \vspace{1em}
 
 As described in the [Results - Step 1: Address Deduplication via String Similarity Matching](#results-1) section, the deduplication step reduced the number of entries associated with ABIs with multiple listed addresses to approximately 36.4\% of the original count. However, the step had the unintended effect of inducing duplications in the columns containing the years-open and years-closed binary indicators for 2.6\% of ABIs.
 
-This substantial reduction indicates a significant degree of address variation within the dataset. However, excessive deviation from standard address formatting has the potential to contribute to failed matches with the [U.S. Census Bureau's Geocoder API](https://geocoding.geo.census.gov/geocoder/), used in **Step 3** to validate the geocoordinates associated with each address. To mitigate this risk, addresses were first processed against the [USPS Address API](https://developers.usps.com/addressesv3) to retrieve the preferred, standardized form of each address prior to geocoding.
+This substantial reduction indicates a significant degree of address variation within the dataset. However, excessive deviation from standard address formatting has the potential to contribute to failed matches with the [U.S. Census Bureau's Geocoder API](https://geocoding.geo.census.gov/geocoder/), used in **Step 3** to validate the geocoordinates associated with each address\ [@us_census_bureau_geocoder]. To mitigate this risk, addresses were first validated against the [USPS Address API](https://developers.usps.com/addressesv3) to retrieve the preferred, standardized form of each address prior to geocoding\ [@usps_3_api].
 
 \vspace{1em}
 
@@ -394,7 +394,7 @@ If the initial USPS validation failed to return a match, the script employed two
 
 The first alternative strategy was of particular importance for this dataset. During the initial raw data assessment, it was revealed that the ZIP code columns had at some point been converted to numerical values, causing leading and trailing zeros to be stripped. Prior to querying, these ZIP codes were normalized to the expected five-digit length; however, padding zeros were added arbitrarily.
 
-To mitigate potential match failures against the API database, candidate ZIP code variations were generated using the custom function `make_zip5_candidates()`. For example, `make_zip5_candidates("01230")` would generate "01230", "00123", and "12300". The custom function `get_city_info()` then retrieved the recommended city associated with each candidate ZIP code. Valid ZIP code and city pairings were subsequently used in place of the raw values to resubmit the query, though the algorithm only attempted the first valid pairing returned by `get_city_info()`. The look-up table was prepared from the SimpleMaps Basic [United States Cities Database](https://simplemaps.com/data/us-cities) (version 1.90) using the custom function `build_zip_city_lookup()` \[@simplemaps].
+To mitigate potential match failures against the API database, candidate ZIP code variations were generated using the custom function `make_zip5_candidates()`. For example, `make_zip5_candidates("01230")` would generate "01230", "00123", and "12300". The custom function `get_city_info()` then retrieved the recommended city associated with each candidate ZIP code. Valid ZIP code and city pairings were subsequently used in place of the raw values to resubmit the query, though the algorithm only attempted the first valid pairing returned by `get_city_info()`. The look-up table was prepared from the SimpleMaps Basic [United States Cities Database](https://simplemaps.com/data/us-cities) (version 1.90) using the custom function `build_zip_city_lookup()`\ [@simplemaps].
 
 \vspace{1em}
 
@@ -405,7 +405,7 @@ Users who wish to utilize this resource for their own work will need to register
 
 \vspace{1em}
 
-The client key and secret must be kept private and must not be shared. Instructions for configuring these credentials are provided in the header of ["Clean Raw Data_Step 2_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202%20HPC_2023%20Format.R).
+The client key and secret must be kept private and must not be shared. Instructions for configuring these credentials are provided in the header of ["Code/Clean Raw Data_Step 2_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202%20HPC_2023%20Format.R).
 :::
 
 :::{.callout-warning}
@@ -415,7 +415,7 @@ As of August 1\textsuperscript{st}, 2026, the USPS upgraded the API from version
 
 \vspace{1em}
 
-Users should be aware that the algorithm reported here was designed for version 3.2.3 and may not be fully compatible with the updated API without modification. Additionally, the 2023 Format implementation assumes unrestricted access to the API, whereas the 2026 Format implementation was updated with a version 2 allowing users to specify the number of addresses queried against the USPS API, thereby enabling cost management.
+Users should be aware that the algorithm reported here was designed for version 3.2.3 and may not be fully compatible with the updated API without modification. Additionally, the 2023 Format implementation assumes unrestricted access to the API, whereas the 2026 Format implementation was updated with a version 2 allowing users to specify the number of addresses queried against the USPS API, enabling cost management.
 :::
 
 \vspace{1em}
@@ -424,15 +424,111 @@ This process was designed to be run both locally and within Yale's HPC environme
 
 After preparing the required subset in **SUBSECTION A1: Prepare Subset for HPC** of "Clean Raw [Data_Step 2_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2023%20Format.R), users run the algorithm outlined in ["Clean Raw Data_Step 2 HPC_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202%20HPC_2023%20Format.R). **PART A: UTILIZING THE HPC** details the required environment configuration, necessary file uploads, and instructions for running the script within the HPC via either a live session or batch array. The file ["USPS SLURM_2023 Format.sh"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/USPS%20SLURM_2023%20Format.sh) is the preconfigured shell script used to execute the batch array.
 
-Following this run, the output was validated using the custom function `qc_validation_results()` to ensure consistency with expectations and to assess the address verification status distribution across subset chunks. The function performs six diagnostic checks on the list of chunked output files: verifying the dimensions of each chunk, assessing total row coverage, validating that each row and file falls within its expected row range, and summarizing the distribution of address verification outcomes per file.
+Following this run, the custom function `qc_validation_results()` was used to validate the results and ensure consistency with expectations across all data chunks prior to merging. The function performs six diagnostic checks: verifying the dimensions of each chunk, assessing total row coverage, validating that each row and file falls within its expected row range, and summarizing the distribution of address verification outcomes per file.
 
+To address duplications introduced during **Step 1**, additional collapsing was applied to the 10\% following address verification. Exact duplicates where year-opened and year-closed values are identical were resolved by retaining a single record at random with `distinct()`. Entries not resolved by this approach were repaired by restoring raw data values. 
 
+Repaired entries were quality-checked for dataset mismatches and missing year-opened or year-closed values. The case was rare, likely reflecting cases where verified addresses or cluster assignments no longer corresponded to raw data entries, and were excluded. Together, these steps resolve all residual duplications in the dataset.
 
 Additional details regarding the algorithm's performance outcomes can be found in [Results - Step 2: USPS API Address Validation](#results-2).
 
 ### Step 3: Address Geocoding
 
-### Step 4: Linking PO Boxes to Physical Addresses
+:::{.callout-tip}
+# Computational Dependencies and Custom Functions
+
+All packages required for this step are documented in the **SET UP THE ENVIRONMENT** section of ["Clean Raw Data_Step 3_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%203_2023%20Format.R). Custom functions used throughout the script are in ["Support Functions/For Step 3_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Support%20Functions/For%20Step%203_2023%20Format.R).
+:::
+
+\vspace{1em}
+
+The dashboard visualizes aggregated addresses to show metrics summarized to different census boundary levels: block group, tract, county, state, and ZIP Code Tabulation Areas (ZCTA). For the Summer 2025 prototype, results needed to at least support aggregation to the county level. While the exact location of addresses is not critical for county-level aggregation, seemingly minor deviations can greatly influence granular census boundary results, such as block groups and tracts. 
+
+Additionally, in [Results - Step 1: Address Deduplication via String Similarity Matching](#results-1) it was noted that geocoordinates for addresses sharing the same `address_line_1`, and hence potentially the same physical location, varied by as much as 3 degrees (Table \ref{tbl-lonlat_failed_summary}). At mid-latitudes, 3 degrees corresponds to roughly 150–175 miles, approximately the distance between New Haven, CT and Philadelphia, PA.
+
+To mitigate these errors, addresses verified in **Step 2** are geocoded using the [U.S. Census Bureau's Geocoder API](https://geocoding.geo.census.gov/geocoder/) to retrieve the geocoordinates assigned to that address\ [@us_census_bureau_geocoder]. The API's documentation does not specify which part of the building the coordinates represent, such as the delivery entrance or rooftop centroid\ [@us_census_bureau_geocoder_docs]. All available address fields (address line 1, city, state, and five-digit ZIP code) were used to find matches, prioritizing verified addresses over raw, given values.
+
+The raw address fields are submitted to the database, and the response JSON is parsed to extract validated address components into discrete columns via the custom function `validate_geocoordinates_geoCoder()`. This function utilizes the `httr` and `jsonlite` packages for API interaction\ [@httr; @jasonlite]. Each query URL, shown below, is constructed using the parsed address components, the benchmark "Public AR Current", and the vintage "Census 2020". As the API query would occasionally time out, each failed query was resubmitted up to five times before moving on.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Construct the request URL for the Census Geocoder API.}
+base\_url \op{<-} \str{"https://geocoding.geo.census.gov/geocoder/geographies/address"}
+request\_url \op{<-} \func{paste0}(
+  base\_url, \str{"?format=json\&benchmark=Public\_AR\_Current\&vintage=Census2020\_Current"},
+  \str{"\&street="}, URLencode(street),
+  \str{"\&city="}, URLencode(city),
+  \str{"\&state="}, URLencode(state),
+  \str{"\&zip="}, URLencode(zip)
+)
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+If the response JSON returned more than one possible match, the first result was selected without further adjudication. The returned geocoordinates were then compared against the reported geocoordinates to determine whether their difference was less than 1 degree.
+
+Additional details regarding the algorithm's performance outcomes can be found in [Results - Step 3: Address Geocoding](#results-3).
+
+### Step 4: Linking PO Boxes to Physical Addresses {#methods-4}
+
+:::{.callout-tip}
+# Computational Dependencies and Custom Functions
+
+All packages required for this step are documented in the **SET UP THE ENVIRONMENT** section of ["Clean Raw Data_Step 4_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%204_2023%20Format.R). No custom functions were used in this script.
+:::
+
+\vspace{1em}
+
+Communities can be equally impacted by the loss of social services or other support offered by a religious institution if it closes or relocates outside of the community. To capture this, closures resulting from a relocation are also quantified, though at varying gradients, as some attendees may be able to travel greater distances than others. This effort does not attempt to reconcile the potential role of digital or remote service delivery; instead, it focuses exclusively on the impact to physical, in-person services.
+
+In order to support this computation, PO Boxes need to be specially handled. A possible assumption is that business owners open PO Boxes near a physical location. If this assumption holds, then the immediately preceding or following physical address should be reasonably close to the listed PO Box.
+
+\vspace{1em}
+
+:::{.callout-warning}
+# PO Box Geospatial Proximity Method (Prototype Only)
+
+The [Yale Center for Geospatial Solutions (YCGS)](https://geospatial.yale.edu/) recommended associating PO Boxes with physical addresses by creating simple features for each distance boundary around a community and applying point-in-polygon matching. However, this method is time-intensive, and the project PI did not have a specific distance threshold in mind and instead wanted to explore distances empirically.
+
+\vspace{1em}
+
+The k-means clustering method described here was developed to quickly assess the relative spatial proximity of addresses and PO Boxes associated with a given business. Due to the computational cost of these assessments and project time constraints at the time of development, geographic proximities were kept broad and not all assumptions were validated prior to the prototype release.
+
+\vspace{1em}
+
+Additionally, the assumption that PO Boxes could be reliably associated with a nearby physical address was later determined to be too strong to justify its use in the final methods. Instead, businesses with a PO Box listed within the selected date range are excluded from the metrics calculation altogether.
+
+\vspace{1em}
+
+The relocation identification method was completely revised for the 2026 Formatted version. This document is retained for posterity and reflects the method attempted for the prototype.
+:::
+
+:::{.callout-note}
+# Geocoordinates Preferred Over Census Boundaries for Consistency
+
+The original methods from Dr. Song quantified relocations by address change: different census tract, city, county, or state; and by coordinate distance:
+$\geq$ 100 meters, $\geq$ 500 meters, or $\geq$ 1000 meters. The physical distance implied by a census boundary change varies depending on whether the region is densely populated (smaller boundaries) or rural (larger boundaries). Therefore, the focus will remain on coordinate-based distances to ensure outcomes are treated more consistently.
+:::
+
+\vspace{1em}
+
+The `dbscan(eps = 1, minPts = 2)` function groups observations into clusters when at least two points fall within a radius of 1 (in the units of the input coordinates)\ [@hahsler_dbscan]. Points that do not meet this density requirement are labeled as noise (0), while all other points are assigned to cluster groups 1, 2, etc. Cluster labels are applied independently within each business ID. As shown in the [Results - Step 4: Linking PO Boxes to Physical Addresses](#results-4), this method inconsistently clustered coordinates that would otherwise be considered a relocation of meaningful distance.
+
+Given time constraints, the prototype was scoped to focus only on addresses not suspected to have relocated. Quantifying relocations was to be revisited after the symposium. Addresses were therefore first filtered to those assumed to have not moved, defined as a maximum longitude and latitude difference of less than 0.5 degrees across all addresses for a given business, then clustered into areas and aggregated prior to assigning census boundaries.
+
+Consolidated records were then annotated using address information and validation metrics drawn from one of the aggregated values. Priority was given to entries with both a verified address and verified geocoordinates from **Step 2** and **Step 3**, with additional conditions applied to rank the remaining cases in the following order: verified address > verified geography > first row. Consolidating records into localized clusters greatly expedited the point-in-polygon spatial assignment, enabling results to be presented at the prototype symposium; however, this was not considered a good approach for the final methods where more time was available.
+
+One other notable limitation warrants mention. The similarity between verified and reported geocoordinates was overly relied upon; for some addresses, the two differed enough to warrant using the verified coordinates over the raw, reported values. Both of these fundamental limitations were addressed in the revised 2026 formatted version pipeline.
+
+Additional details regarding the algorithm's performance outcomes can be found in [Results - Step 4: Linking PO Boxes to Physical Addresses](#results-4).
 
 ### Step 5: Point-in-Polygon Spatial Assignment
 
@@ -742,9 +838,172 @@ Refer to Appendix - [Step 1: Address Deduplication](#code-results-source-3), [St
 
 ### Step 2: USPS API Address Validation {#results-2}
 
+All compiled data passed the quality checks defined in `qc_validation_results()`. Notably, address verification rates varied substantially across arrays: approximately 30\% of arrays validated fewer than 10 out of 42,000 addresses, the highest verification rate observed was 30\%, and the average was approximately 6\%. Most addresses that were verified either passed or did not require a geolocation test. Only 5\% of PO Box entries were verified against the API, but most that were consolidated passed the geolocation test.
+
+As described in the **Step 2** methods, duplicates in the year-opened and year-closed columns were intentionally retained through address verification to support directed secondary handling. Duplicates were then reconciled in two stages: trivial cases were resolved via `distinct()`, and remaining entries were repaired by patching in raw year-opened or year-closed values. Of all induced duplicates, 20\% were resolved via `distinct()`, with the majority requiring raw data repair. Approximately 5\% remained unresolved by either method, affecting approximately 0.09\% of businesses in the dataset. Given the negligible impact, these entries were marked for removal rather than processed further.
+
+Entries flagged with `override_duplicate == TRUE` following **Step 1**, those with an identical `address_line_1`, were matched to a verified address, prioritizing earlier-listed candidates over later ones. Approximately 0.02\% of ABI records were processed in this step, of which 35\% were successfully matched to a verified address. Reconciling duplicates resulted in a slight increase in entries (2.5\%) from the previous step.
+
+Refer to Appendix - [Step 1: Address Deduplication](#code-results-source-3), [Step 1: Verify No Duplicates Got Added](#code-results-source-4), [Step 1: Override for Addresses With Same Physical Address Line 1](#code-results-source-5), [Step 1: Resolving Failed Geolocation Tests](#code-results-source-6), and [Step 1: Final Result](#code-results-source-7) for information on where to find the code that generates these results, as well as the results codebook.
+
 ### Step 3: Address Geocoding {#results-3}
 
+Due to time constraints, only one-third of the data processed through **Step 2** could be evaluated in this step prior to **Step 4**. These records were randomly selected to broadly represent counties across the contiguous US.
+
+81\% of these were successfully geocoded, 16\% returned no match for the provided address, and the remainder failed to complete the request. All verified geocoordinates fell within 1 degree of the provided geocoordinates. A higher proportion of addresses matched by the geocoding database were verified (86\%), compared to 46\% of unverified addresses. Additionally, unverified addresses had a higher rate of API failures, likely due to query timeouts, at 10\% compared to 1\% of verified addresses.
+
+\begin{tabular}{lrrr}
+ & \multicolumn{3}{c}{\textbf{Verified Geocoordinates}} \\
+\cmidrule(lr){2-4}
+\textbf{Verified Address} & \textbf{API failed} & \textbf{No match} & \textbf{TRUE} \\
+\midrule
+TRUE  & 0.98  & 12.35 & 86.67 \\
+FALSE & 10.34 & 43.60 & 46.06 \\
+\bottomrule
+\end{tabular}
+
+\vspace{1em}
+
+As noted in [Results - Step 2: USPS API Address Validation](#results-2) only 5\% of PO Box entries were verified by the USPS API overall. Within the processed subset, this proportion enriched to 95\%. Despite this, none of the verified PO Boxes were matched in the geocoder database.
+
+\begin{tabular}{lrrr}
+ & \multicolumn{3}{c}{\textbf{Verified Geocoordinates}} \\
+\cmidrule(lr){2-4}
+\textbf{PO Box} & \textbf{API failed} & \textbf{No match} & \textbf{TRUE} \\
+\midrule
+FALSE & 2.25 & 10.21 & 87.54 \\
+TRUE  & 0.00 & 100.00 & 0.00 \\
+\bottomrule
+\end{tabular}
+
+\vspace{1em}
+
 ### Step 4: Linking PO Boxes to Physical Addresses {#results-4}
+
+Development of this step and processing data through it were impeded by the short timeline leading up to the Summer 2025 symposium. In [Methods - Step 4: Linking PO Boxes to Physical Addresses](#methods-4), many of these design limitations and time-driven choices are described. As a further consequence of the time constraints, only half of the data processed through **Step 3** could be evaluated through this step prior to **Step 5**.
+
+Gross location changes are classified by the maximum difference in longitude and latitude coordinates listed across all addresses for a given business. To get a sense of maximal location change, a threshold of 0.001 degrees is applied uniformly to both coordinate differences, which approximates one city block.
+
+Note that the relationship between degrees and Euclidean distance differs between longitude and latitude and varies by location on the Earth's surface. This check intentionally simplifies those details to provide a quick and broad, high-level sense of address movement for a given business. For reference, 0.002 degrees $\approxeq$ 222 m, given that there are approximately 111,000 m per degree.
+
+#### Clustering Validity Assessment for Detecting Business Address Changes
+
+\begin{tabular}{lrr}
+\toprule
+\textbf{dist\_band} & \textbf{n} & \textbf{pct} \\
+\midrule
+within 1 block & 264300 & 85.5 \\
+within 1 mile  & 15334  & 4.96 \\
+1--5 miles     & 22182  & 7.18 \\
+5--10 miles    & 4937   & 1.6 \\
+10--50 miles   & 2050   & 0.66 \\
+$>$ 50 miles   & 245    & 0.08 \\
+\bottomrule
+\end{tabular}
+
+\vspace{1em}
+
+Nearly 86\% of businesses remained within one block of each other. An additional 12\% had a relocation within five miles, 1.6% between five and ten miles, and less than 1% moved more than ten miles, of which 0.08% moved more than 50 miles. Table \ref{tbl-confirm_dim_clusters_1} parses clustering results by number of unique addresses associated with a business and by maximum longitude/latitude coordinate difference detected.
+
+\noindent\begin{minipage}{\linewidth}
+\small
+\captionof{table}{Row Count and Cluster Composition (by \# Rows and by Distance Band)}
+\label{tbl-confirm_dim_clusters_1}
+
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{By \# Rows \& \# Clusters}
+
+\vspace{1em}
+\begin{tabular}{crrrr}
+ & \multicolumn{4}{c}{\textbf{\# Clusters}} \\
+\cmidrule(lr){2-5}
+\textbf{\# Rows} & \textbf{0} & \textbf{0, 1} & \textbf{1} & \textbf{1, 2} \\
+\midrule
+2 & 146 & 0  & 38{,}440 & 0 \\
+3 & 0   & 43 & 5{,}252  & 0 \\
+4 & 0   & 7  & 722      & 2 \\
+5 & 0   & 0  & 109      & 0 \\
+6 & 0   & 0  & 27       & 0 \\
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{By Distance Band \& \# Clusters}
+
+\vspace{1em}
+\begin{tabular}{lrrrr}
+ & \multicolumn{4}{c}{\textbf{\# Clusters}} \\
+\cmidrule(lr){2-5}
+\textbf{Distance Band} & \textbf{0} & \textbf{0, 1} & \textbf{1} & \textbf{1, 2} \\
+\midrule
+within 1 mile & 0   & 0  & 15{,}334 & 0 \\
+1--5 miles    & 0   & 0  & 22{,}182 & 0 \\
+5--10 miles   & 0   & 0  & 4{,}937  & 0 \\
+10--50 miles  & 0   & 0  & 2{,}050  & 0 \\
+$>$ 50 miles  & 146 & 50 & 47       & 2 \\
+\end{tabular}
+\end{minipage}
+
+\end{minipage}
+
+Businesses with no cluster generated had only two associated addresses; increasing the number of addresses generally resulted in clustering, though some remained unclustered regardless. A few businesses produced two separate clusters, but most had all addresses assigned to a single cluster regardless of the number of addresses available.
+
+When examining clustering results by maximum distance detected, all entries with a coordinate difference of 50 miles or less were grouped into a single cluster. Heterogeneous clustering outcomes were only observed when coordinate differences exceeded 50 miles. These results demonstrate that `dbscan(eps = 1, minPts = 2)` both inconsistently associates nearby addresses and fails to distinguish larger coordinate differences, highlighting its limitations for this application.
+
+99\% of PO Boxes were successfully matched to a physical address. Of those that were not, either no physical address was listed for that business, or the distance between the PO Box and any available physical addresses was too large for them to be clustered together.
+
+#### Algorithm Outcomes for Spatial Assignment Preparation
+
+To minimize processing time, only addresses flagged as unlikely to have moved outside of their county were processed for dashboard visualization. These were further aggregated to their identified cluster to reduce the number of addresses processed in **Step 5**, a time-intensive step. Together, these measures ensured the data was ready for the front-end developer, allowing sufficient time for dashboard prototype development prior to the Summer 2025 symposium.
+
+The threshold for selecting addresses unlikely to have moved between counties was arbitrarily set at 0.5 degrees longitude or latitude. Within this subset, 85\% of businesses had a maximum relocation distance no larger than one block, and 2\% had a relocation greater than 5 miles. No selected entry had a coordinate difference greater than 50 miles. Table \ref{tbl-confirm_dim_clusters_2} reflects the results seen in the previous section; entries with coordinate differences translating to large distances were clustered together.
+
+\noindent\begin{minipage}{\linewidth}
+\small
+\captionof{table}{Row Count and Cluster Composition (by \# Rows and by Distance Band)}
+\label{tbl-confirm_dim_clusters_2}
+
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{By \# Rows \& \# Clusters}
+
+\vspace{1em}
+\begin{tabular}{crr}
+ & \multicolumn{2}{c}{\textbf{\# Clusters}} \\
+\cmidrule(lr){2-3}
+\textbf{\# Rows} & \textbf{0} & \textbf{1} \\
+\midrule
+1 & 260{,}030 & 0 \\
+2 & 0 & 42{,}453 \\
+3 & 0 & 5{,}340 \\
+4 & 0 & 732 \\
+5 & 0 & 109 \\
+6 & 0 & 27 \\
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{By Distance Band \& \# Clusters}
+
+\vspace{1em}
+\begin{tabular}{lrr}
+ & \multicolumn{2}{c}{\textbf{\# Clusters}} \\
+\cmidrule(lr){2-3}
+\textbf{Distance Band} & \textbf{0} & \textbf{1} \\
+\midrule
+within 1 block & 260030 & 4{,}270 \\
+within 1 mile & 0 & 15{,}334 \\
+1--5 miles    & 0 & 22{,}182 \\
+5--10 miles   & 0 & 4{,}937 \\
+10--50 miles  & 0 & 1{,}938 \\
+$>$ 50 miles  & 0 & 0 \\
+\end{tabular}
+\end{minipage}
+
+\end{minipage}
 
 ### Step 5: Point-in-Polygon Spatial Assignment {#results-5}
 
@@ -798,7 +1057,7 @@ For the implementation, refer to **PART B: Standardize and Merge Similar Address
 \begingroup
 \captionof{table}{Codebook for newly generated evaluation fields.\\ All other fields come from the imported raw dataset.}
 \label{tab:codebook-3}
-\begin{tabular}{l p{0.78\linewidth}}
+\begin{tabular}{l p{0.72\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
 \addlinespace[10pt]
@@ -810,14 +1069,14 @@ For the implementation, refer to **PART B: Standardize and Merge Similar Address
 
 ## Step 1: Verify No Duplicates Got Added {#code-results-source-4}
 
-For the implementation, refer to **SUBSECTION B1: Verify No Duplicates Got Added** in ["Code/Clean Raw Data_Step 1_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R). The data processed was the deduplicated version of the wide-format received in Summer 2025. The data processed was stored in `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B_04.22.2026.csv"`, and the results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B1_04.22.2026.csv"`.
+For the implementation, refer to **SUBSECTION B1: Verify No Duplicates Got Added** in ["Code/Clean Raw Data_Step 1_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R). The data processed was the deduplicated version of the wide-format received in Summer 2025. The data processed was stored in `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B_04.22.2026.csv"`, and the results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B1_04.22. 2026.csv"`.
 
-\vspace{2ex}
+\newpage
 
 \begingroup
 \captionof{table}{Codebook for Evaluation Output Fields}
 \label{tab:codebook-4}
-\begin{tabular}{l p{0.78\linewidth}}
+\begin{tabular}{l p{0.72\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
 \addlinespace[10pt]
@@ -838,7 +1097,7 @@ For the implementation, refer to **SUBSECTION B2: Explore the Nature of Duplicat
 \begingroup
 \captionof{table}{Codebook for newly generated evaluation fields.\\ All other fields come from the results generated in \textbf{PART B}.}
 \label{tab:codebook-5}
-\begin{tabular}{l p{0.78\linewidth}}
+\begin{tabular}{l p{0.70\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
 \addlinespace[10pt]
@@ -850,12 +1109,12 @@ For the implementation, refer to **SUBSECTION B2: Explore the Nature of Duplicat
 
 For the implementation, refer to **PART C: Resolving Failed Geolocation Tests via Expansion** in ["Code/Clean Raw Data_Step 1_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R). The data processed were a deduplicated subset of the wide-format data received in Summer 2025, restricted to the ABIs identified as containing erroneous duplicate year-opened and year-closed columns. The data processed was stored in `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B2_04.26.2026.csv"`, and the results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection C1_04.27.2026.csv"`.
 
-\newpage
+\vspace{2ex}
 
 \begingroup
 \captionof{table}{Codebook for newly generated evaluation fields.\\ All other fields come from the results generated in \textbf{SUBSECTION B2}.}
 \label{tab:codebook-6}
-\begin{tabular}{l p{0.78\linewidth}}
+\begin{tabular}{l p{0.72\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
 \addlinespace[10pt]
@@ -865,8 +1124,106 @@ For the implementation, refer to **PART C: Resolving Failed Geolocation Tests vi
 
 ## Step 1: Final Result {#code-results-source-7}
 
-For the implementation, refer to **PART D: Cleaning for Saving the Result** in ["Code/Clean Raw Data_Step 1_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R). The data processed was a deduplicated version of the wide-format received in Summer 2025, annotated with the columns generated in preceding sections. The `no_duplicates` data was stored in `"./Data/Raw/KEEP LOCAL/church_wide_form_071723.csv"` and excludes ABI in the `df_duplicates` dataset processed through **PART B** and **PART C**. The results were written to `Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 01_Completed Result_04.29.2026.csv`.
+For the implementation, refer to **PART D: Cleaning for Saving the Result** in ["Code/Clean Raw Data_Step 1_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R). The data processed was a deduplicated version of the wide-format received in Summer 2025, annotated with the columns generated in preceding sections. The `no_duplicates` data was stored in `"./Data/Raw/KEEP LOCAL/church_wide_form_071723.csv"` and excludes ABI in the `df_duplicates` dataset processed through **PART B** and **PART C**. The results were written to `Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 01_Completed Result_04.29. 2026.csv`.
 
 No additional columns were generated after this evaluation.
+
+## Step 2: ABI-Specific Duplication Confirmation {#code-results-source-8}
+
+For the implementation, refer to **SUBSECTION B1: ABI-Specific Duplication Confirmation** in ["Code/Clean Raw Data_Step 2_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2023%20Format.R). The validated data was divided into three subsets based on how consolidated business address entries were handled after failing the geolocation similarity test and being expanded: those with no special cases (`not_special_case`), those expanded due to a failed geocoordinate test and not sharing the same `address_line_1` (`fix_expanded`), and those marked for consolidation and geolocation override after expansion (`fix_diff_metadata`). These were all tested for presence of duplications in the years-open and years-closed information that would require reconciliation.
+
+The processed data was stored in `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/HPC Results"` and consolidated in **SUBSECTION A2: Compile the Results**. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/Step 2 Subsection B_*"` as three files: `"..._All Other Data_06.04.2026.csv"`, `"..._Fix Expanded_06.04.2026.csv"`, and `"..._Fix Metadata_06.04.2026.csv"`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for the output fields produced by the evaluation.}
+\label{tab:codebook-7}
+\begin{tabular}{l p{0.72\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\addlinespace[10pt]
+\texttt{abi} & Unique business identifier. Evaluation is performed over each unique business ID. \\
+\addlinespace[10pt]
+\texttt{2001:2021} & Column-wise sum of all entries associated with the given business ID. \\
+\addlinespace[10pt]
+\texttt{all\_counts\_0\_or\_1} & Boolean. TRUE if all date entry sums for the given business ID are equal to 0 or 1. \\
+\end{tabular}
+\endgroup
+
+## Step 2: Final Result {#code-results-source-9}
+
+For the implementation, refer to **PART C: Organize and Save the Results** in ["Code/Clean Raw Data_Step 2_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2023%20Format.R). The data represents a recompilation of the subsets generated in **SUBSECTION B1: ABI-Specific Duplication Confirmation**, which were processed through subsequent sections only if flagged as requiring those steps. Businesses where duplication mitigation was unsuccessful were removed from this compilation prior to saving. Refer to **PART C: Organize and Save the Results**, `abi_sets` for details on how these datasets were recombined. The results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/Step 02_Completed Result_06.01.2026.csv"`.
+
+\newpage
+
+\begingroup
+\captionof{table}{Codebook for newly generated evaluation fields.\\ All other fields come from the imported \textbf{Step 1} dataset.}
+\label{tab:codebook-8}
+\begin{tabular}{l p{0.62\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\addlinespace[10pt]
+\texttt{rowname} & Represents the row names of some processed subsets. Does not contain relevant information; this column can be ignored or removed. \\
+\addlinespace[10pt]
+\texttt{all address fields} & All address fields (\texttt{address\_line\_1}, \texttt{address\_line\_2}, \texttt{city}, \texttt{state}, \texttt{zipcode}, \texttt{zipcode\_ext}, and \texttt{compiled\_address}) reflect the validated address when \texttt{address\_verified} is TRUE or \texttt{compiled\_address} is not ``No address match found''; otherwise, they reflect the original raw form. Note that \texttt{address\_line\_2} and \texttt{zipcode\_ext} are fields new to this step. \\
+\addlinespace[10pt]
+\texttt{address\_verified} & Boolean. TRUE if a verified address was retrieved from the USPS API database. FALSE if there was no match or an API retrieval error occurred. \\
+\addlinespace[10pt]
+\texttt{all\_duplicates\_corrected} & Boolean. From \textbf{SUBSECTION B2: Consolidate Duplications and Remove Difficult Cases}. TRUE if detected duplications were reconciled without adding or losing information. FALSE if the deduplication process introduced errors or could not reconcile the detected duplications. NA if the entry was not duplicated and this field is not applicable. \\
+\end{tabular}
+\endgroup
+
+## Step 3: Final Result {#code-results-source-10}
+
+For the implementation, refer to **SUBSECTION A2: Save Results** in ["Code/Clean Raw Data_Step 3_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%203_2023%20Format.R). Data processing was limited by time constraints ahead of the Summer 2025 symposium. Approximately one-third of the **Step 2** data was run through the algorithm, imported from `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 02_Church Wide_Convert to Preferred USPS Address_COMPLETED_06.07.2025"`. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 03_Church Wide_Verified Geolocation_06.16.2025.csv.gz"`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for new output fields produced during the data cleaning and validation step.\\ All other fields were present in the \textbf{Step 2} form of the data.}
+\label{tab:codebook-9}
+\begin{tabular}{l p{0.78\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\addlinespace[10pt]
+\texttt{verifiedLat} & The suggested latitude returned by matching the address. If multiple matches are returned by the geocoder, the first match is used. \\
+\addlinespace[10pt]
+\texttt{verifiedLon} & The suggested longitude returned by matching the address. If multiple matches are returned by the geocoder, the first match is used. \\
+\addlinespace[10pt]
+\texttt{similarLat} & Boolean. TRUE if the absolute difference between the given latitude and verified latitude is less than 1 degree; otherwise FALSE. \\
+\addlinespace[10pt]
+\texttt{similarLon} & Boolean. TRUE if the absolute difference between the given longitude and verified longitude is less than 1 degree; otherwise FALSE. \\
+\addlinespace[10pt]
+\texttt{verifiedGeo} & Stores the outcome of the geocoding attempt. TRUE indicates both coordinates were returned successfully; otherwise FALSE or a short message describing the issue (e.g., no match found, API request failed, or other warnings raised during geocoding). \\
+\end{tabular}
+\endgroup
+
+## Step 4: Final Result {#code-results-source-11}
+
+For the implementation, refer to **SUBSECTION B3: Save Results** in ["Code/Clean Raw Data_Step 4_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%204_2023%20Format.R). Results from **Step 2** were subset to those with validated geolocations ($\approx$ 80% of ABI entries). Due to processing limitations from time constraints ahead of the Summer 2025 symposium, approximately half of this subset was run through the algorithm. Data was imported from `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 03_Church Wide_Verified Geolocation_06.16.2025.csv.gz"`. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 03_Church Wide_Verified Geolocation_06.16.2025.csv.gz"`.
+
+\newpage
+
+\begingroup
+\captionof{table}{Codebook for new output fields produced during the data cleaning and validation step.\\ All other fields were present in the \textbf{Step 3} form of the data.}
+\label{tab:codebook-9}
+\begin{tabular}{l p{0.68\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\addlinespace[10pt]
+\texttt{area} & The k-means cluster that the years-open and years-closed results represent. \\
+\addlinespace[10pt]
+\texttt{all address fields} & All address fields (\texttt{address\_line\_1}, \texttt{address\_line\_2}, \texttt{city}, \texttt{state}, \texttt{zipcode}, \texttt{zipcode\_ext}, and \texttt{compiled\_address}) selected from one of the addresses clustered to the same area and then aggregated together. Exact address details and geocoordinates do not correspond to the actual location for the years-open and years-closed information. \\
+\addlinespace[10pt]
+\texttt{other metadata} & All other metadata fields (\texttt{address\_verified}, \texttt{lonLat\_test}, and \texttt{verifiedGeo}) relate to the selected address associated with this cluster area. \\
+\addlinespace[10pt]
+\texttt{latitude/longitude} & The longitude/latitude of the selected address. The assumption was that verified geographies closely corresponded with these coordinates. This was later found to be incorrect, and the verified geocoordinates were instead used in later iterations of this pipeline. \\
+\addlinespace[10pt]
+\texttt{2001:2021} & Column-wise sum of all entries associated with the given business ID and clustered area. \\
+\addlinespace[10pt]
+\texttt{all\_counts\_0\_or\_1} & Boolean. TRUE if all date entry sums for the given business ID are equal to 0 or 1. \\
+\end{tabular}
+\endgroup
 
 # References
