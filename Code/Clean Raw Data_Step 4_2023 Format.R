@@ -27,7 +27,7 @@
 ##              and project time constraints at the time of development,
 ##              geographic proximities were kept broad and not all assumptions
 ##              were validated prior to the prototype release.
-##
+## 
 ##              This method was later determined to rely on assumptions too
 ##              strong to justify its use in the final methods. Instead,
 ##              businesses with a PO Box listed within the selected date range
@@ -167,23 +167,18 @@ step_3 <- step_3 %>%
 ## SUBSECTION A1: Summarize Geographic Spread of Address Locations
 
 # Entries with missing geocoordinates cannot be processed in subsequent
-# steps and will therefore be removed.
+# steps and will therefore be removed. None are found to be missing.
 any(is.na(step_3$longitude))
 any(is.na(step_3$latitude))
 
 move_check <- step_3 %>%
-  # Use verified coords when available; otherwise fall back to original.
-  mutate(
-    lon = coalesce(verifiedLon, longitude),
-    lat = coalesce(verifiedLat, latitude)
-  ) %>%
-  # Keep rows with complete coords (both lon and lat present).
-  filter(!is.na(lon) & !is.na(lat)) %>%
+  # Keep rows with complete coords (both longitude and latitude present).
+  filter(!is.na(longitude) & !is.na(latitude)) %>%
   # For each ABI, compute coordinate range (spread).
   group_by(abi) %>%
   summarize(
-    diffLon = abs(max(lon) - min(lon)),
-    diffLat = abs(max(lat) - min(lat)),
+    diffLon = abs(max(longitude) - min(longitude)),
+    diffLat = abs(max(longitude) - min(longitude)),
     .groups = "drop"
   )
 
@@ -265,18 +260,13 @@ out
 #   - 1,2,... = cluster membership; addresses nearby each other
 
 cluster_moved <- step_3 %>%
-  # Use verified coords when available; otherwise fall back to original
-  mutate(
-    lon = coalesce(verifiedLon, longitude),
-    lat = coalesce(verifiedLat, latitude)
-  ) %>%
   # Focus only on clustering the businesses that might have moved
   filter(abi %!in% pull(move_check[move_check$dist_band %in% "within 1 block", "abi"])) %>%
-  # Keep rows with complete coords (both lon and lat present)
-  filter(!is.na(lon) & !is.na(lat)) %>%
+  # Keep rows with complete coords (both longitude and latitude present)
+  filter(!is.na(longitude) & !is.na(latitude)) %>%
   # Generate the clusters for addresses within a business.
   group_by(abi) %>%
-  mutate(area = dbscan(as.matrix(cbind(lon, lat)), eps = 1, minPts = 2)$cluster) %>%
+  mutate(area = dbscan(as.matrix(cbind(longitude, latitude)), eps = 1, minPts = 2)$cluster) %>%
   ungroup() %>%
   # Reorder columns and convert to dataframe.
   relocate(area, .after = abi) %>%
@@ -400,19 +390,14 @@ move_check %>%
 
 # Group addresses by how similar their longitude and latitude are with one another.
 cluster_not_moved <- step_3 %>%
-  # Use verified coords when available; otherwise fall back to original.
-  mutate(
-    lon = coalesce(verifiedLon, longitude),
-    lat = coalesce(verifiedLat, latitude)
-  ) %>%
   # Focus only on clustering businesses that moved no more than 1 degree in
   # longitude or latitude.
   filter(abi %in% pull(move_check[move_check$diffLon < 0.5 & move_check$diffLat < 0.5, "abi"])) %>%
-  # Keep rows with complete coords (both lon and lat present).
-  filter(!is.na(lon) & !is.na(lat)) %>%
+  # Keep rows with complete coords (both longitude and latitude present).
+  filter(!is.na(longitude) & !is.na(latitude)) %>%
   # Generate the clusters for addresses within a business.
   group_by(abi) %>%
-  mutate(area = dbscan(as.matrix(cbind(lon, lat)), eps = 1, minPts = 2)$cluster) %>%
+  mutate(area = dbscan(as.matrix(cbind(longitude, latitude)), eps = 1, minPts = 2)$cluster) %>%
   ungroup() %>%
   # Reorder columns and convert to dataframe.
   relocate(area, .after = abi) %>%
@@ -493,11 +478,9 @@ step_4 <- step_4 %>%
 #       meet one of the criteria above.
 # 
 # NOTE: The geocoordinates of the selected address were retained without
-#       aggregation; verified geocoordinates were not used even if present.
-#       This assumed that a) moves were small enough to ignore address
-#       variations, and b) verified and given geocoordinates did not differ
-#       significantly. Both assumptions were later found to be incorrect and
-#       were revised for the 2026 Formatted pipeline.
+#       aggregation, assuming moves were small enough to ignore address
+#       variations. This assumption was later found to be incorrect and was
+#       revised in the 2026 Formatted pipeline.
 
 
 build <- list()   # Initialize the empty lists
@@ -621,12 +604,8 @@ for (i in seq_along(fill_compiled)) {
 #'                         `lonLat_test`, and `verifiedGeo`) relate to the
 #'                         selected address associated with this cluster area.
 #'
-#' @field latitude/longitude The longitude/latitude of the selected address.
-#'                           The assumption was that verified geographies
-#'                           closely corresponded with these coordinates. This
-#'                           was later found to be incorrect, and the verified
-#'                           geocoordinates were instead used in later
-#'                           iterations of this pipeline.
+#' @field latitude/longitude The verified longitude/latitude of the selected 
+#'                           address.
 #'
 #' @field `2001:2021` Column-wise sum of all entries associated with the given
 #'                    business ID and clustered area.
@@ -638,7 +617,7 @@ for (i in seq_along(fill_compiled)) {
 # write_csv(step_3, "./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 04_Cluster Addresses and Collapse By Area_06.17.2025.csv.gz")
 
 # Load in the pre-produced test results for evaluation.
-step_4 <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 03_Church Wide_Verified Geolocation_06.16.2025.csv.gz",
+step_4 <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 04_Cluster Addresses and Collapse By Area_06.17.2025.csv.gz",
                    col_types = cols(...1 = col_skip())) %>% as.data.frame()
 
 
