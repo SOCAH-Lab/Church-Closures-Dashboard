@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>preparation_2023-format – Church Closures Dashboard</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<link href="../../Images/DSDE-Social-Media-Profile.png" rel="icon" type="image/png">
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-a746a7f871c9c5b8317af508eabc8d2a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-9358216d1a5d89b4c2a5333b88854ddb.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<!--
+ * This script integrates Google Analytics with your webpage, enabling you to 
+ * track and analyze visitor traffic.
+ * 
+ * It includes the following features:
+ *    1. Asynchronously loading the Google Analytics tracking library.
+ *    2. Setting up the global `dataLayer` array used by Google Analytics.
+ *    3. Defining the `gtag` function for configuring and sending data to Google Analytics.
+ *    4. Initializing Google Analytics with your tracking ID.
+ *
+ * Author: Shelby Golden, M.S.
+ *   Date: May 2026
+-->
+
+<!-- Google tag (gtag.js) -->
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-WK21WW2E0W"></script>
+<script>
+  // Initialize the dataLayer array if it doesn't already exist
+  window.dataLayer = window.dataLayer || [];
+  
+  // Define the gtag function to push arguments onto the dataLayer
+  function gtag(){dataLayer.push(arguments);}
+  
+  // Record a pageview with the current timestamp
+  gtag('js', new Date());
+
+  // Configure Google Analytics with your tracking ID
+  gtag('config', 'G-WK21WW2E0W');
+</script>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../_styles/styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Church Closures Dashboard</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="https://www.socahlab.org/church-closures"> 
+<span class="menu-text">Dashboard</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../Pages/Pipeline.html"> 
+<span class="menu-text">Pipeline</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../Pages/Development.html"> 
+<span class="menu-text">Development</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-temp" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">TEMP</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-temp">    
+        <li>
+    <a class="dropdown-item" href="../../Pages/Review_2026 Format.html">
+ <span class="dropdown-text">2026 Format Review</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../Pages/Cleaning and Harmonization_2023 Format.html">
+ <span class="dropdown-text">2023 Format Cleaning</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../Pages/Cleaning and Harmonization_2026 Format.html">
+ <span class="dropdown-text">2026 Format Cleaning</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../Pages/Metric Calculation.html">
+ <span class="dropdown-text">Metrics</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#preparation-of-the-2023-format-raw-data" id="toc-preparation-of-the-2023-format-raw-data" class="nav-link active" data-scroll-target="#preparation-of-the-2023-format-raw-data">Preparation of the 2023 Format Raw Data</a></li>
+  <li><a href="#overview" id="toc-overview" class="nav-link" data-scroll-target="#overview">Overview</a></li>
+  <li><a href="#important-considerations" id="toc-important-considerations" class="nav-link" data-scroll-target="#important-considerations">Important Considerations</a>
+  <ul>
+  <li><a href="#archival-of-original-scripts" id="toc-archival-of-original-scripts" class="nav-link" data-scroll-target="#archival-of-original-scripts">Archival of Original Scripts</a></li>
+  <li><a href="#ignored-files" id="toc-ignored-files" class="nav-link" data-scroll-target="#ignored-files">Ignored Files</a></li>
+  <li><a href="#environment-reproducibility" id="toc-environment-reproducibility" class="nav-link" data-scroll-target="#environment-reproducibility">Environment Reproducibility</a></li>
+  </ul></li>
+  <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
+  <ul>
+  <li><a href="#approach-and-methodological-objectives" id="toc-approach-and-methodological-objectives" class="nav-link" data-scroll-target="#approach-and-methodological-objectives">Approach and Methodological Objectives</a></li>
+  <li><a href="#special-considerations-for-po-boxes" id="toc-special-considerations-for-po-boxes" class="nav-link" data-scroll-target="#special-considerations-for-po-boxes">Special Considerations for PO Boxes</a></li>
+  <li><a href="#a-step-wise-framework" id="toc-a-step-wise-framework" class="nav-link" data-scroll-target="#a-step-wise-framework">A Step-Wise Framework</a>
+  <ul class="collapse">
+  <li><a href="#step-1-address-deduplication-via-string-similarity-matching" id="toc-step-1-address-deduplication-via-string-similarity-matching" class="nav-link" data-scroll-target="#step-1-address-deduplication-via-string-similarity-matching">Step 1: Address Deduplication via String Similarity Matching</a></li>
+  <li><a href="#step-2-usps-api-address-validation" id="toc-step-2-usps-api-address-validation" class="nav-link" data-scroll-target="#step-2-usps-api-address-validation">Step 2: USPS API Address Validation</a></li>
+  <li><a href="#step-3-address-geocoding" id="toc-step-3-address-geocoding" class="nav-link" data-scroll-target="#step-3-address-geocoding">Step 3: Address Geocoding</a></li>
+  <li><a href="#step-4-linking-po-boxes-to-physical-addresses" id="toc-step-4-linking-po-boxes-to-physical-addresses" class="nav-link" data-scroll-target="#step-4-linking-po-boxes-to-physical-addresses">Step 4: Linking PO Boxes to Physical Addresses</a></li>
+  <li><a href="#step-5-point-in-polygon-spatial-assignment" id="toc-step-5-point-in-polygon-spatial-assignment" class="nav-link" data-scroll-target="#step-5-point-in-polygon-spatial-assignment">Step 5: Point-in-Polygon Spatial Assignment</a></li>
+  </ul></li>
+  <li><a href="#algorithm-performance-optimization" id="toc-algorithm-performance-optimization" class="nav-link" data-scroll-target="#algorithm-performance-optimization">Algorithm Performance Optimization</a></li>
+  </ul></li>
+  <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results">Results</a>
+  <ul>
+  <li><a href="#results-1" id="toc-results-1" class="nav-link" data-scroll-target="#results-1">Step 1: Address Deduplication via String Similarity Matching</a>
+  <ul class="collapse">
+  <li><a href="#explore-the-nature-of-duplications-added" id="toc-explore-the-nature-of-duplications-added" class="nav-link" data-scroll-target="#explore-the-nature-of-duplications-added">Explore the Nature of Duplications Added</a></li>
+  <li><a href="#similar-addresses-geolocation-discrepancies" id="toc-similar-addresses-geolocation-discrepancies" class="nav-link" data-scroll-target="#similar-addresses-geolocation-discrepancies">Similar Addresses: Geolocation Discrepancies</a></li>
+  <li><a href="#concluding-thoughts" id="toc-concluding-thoughts" class="nav-link" data-scroll-target="#concluding-thoughts">Concluding Thoughts</a></li>
+  </ul></li>
+  <li><a href="#results-2" id="toc-results-2" class="nav-link" data-scroll-target="#results-2">Step 2: USPS API Address Validation</a></li>
+  <li><a href="#results-3" id="toc-results-3" class="nav-link" data-scroll-target="#results-3">Step 3: Address Geocoding</a></li>
+  <li><a href="#results-4" id="toc-results-4" class="nav-link" data-scroll-target="#results-4">Step 4: Linking PO Boxes to Physical Addresses</a></li>
+  <li><a href="#results-5" id="toc-results-5" class="nav-link" data-scroll-target="#results-5">Step 5: Point-in-Polygon Spatial Assignment</a></li>
+  </ul></li>
+  <li><a href="#appendix" id="toc-appendix" class="nav-link" data-scroll-target="#appendix">Appendix</a>
+  <ul>
+  <li><a href="#code-results-source-1" id="toc-code-results-source-1" class="nav-link" data-scroll-target="#code-results-source-1">Optimizing Data Subsetting</a></li>
+  <li><a href="#code-results-source-2" id="toc-code-results-source-2" class="nav-link" data-scroll-target="#code-results-source-2">Optimizing Data Combination</a></li>
+  <li><a href="#code-results-source-3" id="toc-code-results-source-3" class="nav-link" data-scroll-target="#code-results-source-3">Step 1: Address Deduplication</a></li>
+  <li><a href="#code-results-source-4" id="toc-code-results-source-4" class="nav-link" data-scroll-target="#code-results-source-4">Step 1: Verify No Duplicates Got Added</a></li>
+  <li><a href="#code-results-source-5" id="toc-code-results-source-5" class="nav-link" data-scroll-target="#code-results-source-5">Step 1: Override for Addresses With Same Physical Address Line 1</a></li>
+  <li><a href="#code-results-source-6" id="toc-code-results-source-6" class="nav-link" data-scroll-target="#code-results-source-6">Step 1: Resolving Failed Geolocation Tests</a></li>
+  <li><a href="#code-results-source-7" id="toc-code-results-source-7" class="nav-link" data-scroll-target="#code-results-source-7">Step 1: Final Result</a></li>
+  </ul></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Reports/Preparation_2023 Format.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="Preparation_2023-Format.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+
+
+
+
+<section id="preparation-of-the-2023-format-raw-data" class="level1">
+<h1>Preparation of the 2023 Format Raw Data</h1>
+<p><strong>Prepared By:</strong> <a href="https://www.linkedin.com/in/shelby-golden">Shelby Golden, M.S.</a> from the Yale School of Public Health <a href="https://ysph.yale.edu/research/research-centers-and-initiatives/public-health-data-science-and-data-equity/">Data Science and Data Equity</a> team</p>
+<p><strong>Date Created:</strong> October 2025</p>
+<p><strong>Date Updated:</strong> July 16<sup>th</sup>, 2026</p>
+</section>
+<section id="overview" class="level1">
+<h1>Overview</h1>
+<p>The project objectives were as follows:</p>
+<ol type="1">
+<li><p><strong>REVIEW:</strong> Evaluate the raw data and previously outlined cleaning, validation, and harmonization methods employed by <a href="https://sigmafelix.wixsite.com/mysite">Dr.&nbsp;Insang Song</a> for accuracy and identify opportunities for improvement.</p></li>
+<li><p><strong>PREPARATION:</strong> Implement identified improvements to prepare the dataset for analysis and distribution to qualifying collaborators.</p></li>
+<li><p><strong>METRICS:</strong> Calculate the metrics necessary for dynamic visualization.</p></li>
+</ol>
+<p>Additionally, the project Principal Investigator (PI), <a href="https://ysph.yale.edu/profile/yusuf-ransome/">Professor Yusuf Ransome</a>, requested the pipeline be reproducible for future collaborators and readily adaptable to potential changes in project scope.</p>
+<p>Following receipt of the raw data in Summer 2025, a review was conducted and findings were compared against the original methodology provided by Dr.&nbsp;Song. When an updated dataset was subsequently delivered in May 2026, the pipeline was expanded to accommodate two designated variations: the <strong>2023 Format</strong> and the <strong>2026 Format</strong>.</p>
+<p>This document provides an overview of the methodological changes implemented in response to the 2023 Format “Review” report findings. The first drafts of these algorithms are described alongside an assessment of their performance and areas for improvement. General lessons learned throughout this process, such as strategies for optimizing algorithm speed and accuracy, are also discussed.</p>
+<p>Results generated from this pipeline were used for the Summer 2025 dashboard <a href="https://church-closing-dashboard.vercel.app/">prototype</a> developed by <a href="https://gordontu.com/">Gordon Tu</a>.</p>
+</section>
+<section id="important-considerations" class="level1">
+<h1>Important Considerations</h1>
+<p>Selected code excerpts are referenced below. All snippets are drawn from scripts saved to the <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Code">“Code/”</a> directory, each prefixed by a descriptor indicating the step to which they apply:</p>
+<p><strong>Clean Raw Data_Step *:</strong> A discrete step in the methods pipeline outlined below. Additional classifiers may indicate whether the script was designed for use on the High Performance Computer (HPC) and/or whether it applies to the 2023 or 2026 version of the raw data.</p>
+<section id="archival-of-original-scripts" class="level2">
+<h2 class="anchored" data-anchor-id="archival-of-original-scripts">Archival of Original Scripts</h2>
+<p>Given the time constraints of the Summer 2025 prototype launch, algorithm performance and accuracy were not improved in this iteration, and not all 2023 Formatted data could be processed — either due to algorithm limitations or time constraints.</p>
+<p>Following the prototype release, select original scripts reflecting the step-wise methods were formalized and published on GitHub in preparation for processing the remaining 2023 Formatted data. However, upon receipt of the 2026 Format in Spring 2026, much of the pipeline was overhauled directly, and cleaning the original scripts for certain steps was not prioritized.</p>
+<p>Any scripts from this pipeline that have been made available are retained for posterity only. Users should refer to the 2026 versions as the most accurate and reproducible implementation of this process.</p>
+<p>Those seeking to understand the improvements made to these methods for the 2026 Format should refer to the corresponding “Preparation” report.</p>
+</section>
+<section id="ignored-files" class="level2">
+<h2 class="anchored" data-anchor-id="ignored-files">Ignored Files</h2>
+<p>Individual-level files are withheld from GitHub and Git tracking in accordance with the Data Use Agreement (DUA) with the data provider. Many of these are stored in <code>**/KEEP LOCAL/</code> directories or are explicitly listed under the “Project-Specific Exclusions” section of the <code>.gitignore</code> file.</p>
+<p>Most files are available on the SOCAH Lab OneDrive for the project, while others are user-specific and do not need to be shared. If there are local-only files for this project, they will be added to the “Church-Closures-Dashboard GitHub LOCAL ONLY Files” directory. This directory will contain <code>README.md</code> files specifying the intended use and filepath for each file.</p>
+<p>If you do not have access to the SOCAH Lab OneDrive, carefully follow the codebase instructions to establish the repository and replicate results on your own device. Raw data access instructions may vary depending on your institution.</p>
+</section>
+<section id="environment-reproducibility" class="level2">
+<h2 class="anchored" data-anchor-id="environment-reproducibility">Environment Reproducibility</h2>
+<p>Results were produced using R (v4.5.2), RStudio (v2026.01.1+403), and Quarto (v1.8.27). The <code>renv</code> package (v1.1.4) is included to reproduce the coding environment, capturing all relevant packages and their versions. If issues arise when running the scripts, verify that the environment is initialized and that the correct versions of R, RStudio, and Quarto are being used.</p>
+<p>First-time users should initialize the environment to install all required packages and ensure a reproducible coding environment. To do so:</p>
+<ol type="1">
+<li>In the command-line application (i.e., Terminal for Macs or Git Bash for Windows) navigate to the codebase file location.</li>
+</ol>
+<ol start="2" type="1">
+<li><p>Launch the project by opening the <code>*.Rproj</code> file in RStudio.</p></li>
+<li><p>In the R console, activate the environment by running the following lines of code:</p></li>
+</ol>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>If you are asked to update packages, say no.<code>renv</code> is intended to recreate the same environment under which the project was created, making it reproducible. You are ready to proceed when running <code>renv::restore()</code> gives the output:</p>
+<p>If you experience any trouble with this step, you might want to confirm that you are using R (v4.5.2) in the RStudio (v2026.01.1+403) and Quarto (v1.8.27). You can also read more about <code>renv</code> in their <a href="https://rstudio.github.io/renv/articles/renv.html">vignette</a>&nbsp;<span class="citation" data-cites="renv_intro"><sup><a href="#ref-renv_intro" role="doc-biblioref">1</a></sup></span>.</p>
+</div>
+</div>
+<div style="page-break-after: always;"></div>
+</section>
+</section>
+<section id="methods" class="level1">
+<h1>Methods</h1>
+<section id="approach-and-methodological-objectives" class="level2">
+<h2 class="anchored" data-anchor-id="approach-and-methodological-objectives">Approach and Methodological Objectives</h2>
+<p>The following pipeline was designed to address two primary goals:</p>
+<ol type="1">
+<li><p>Produce a cleaned and validated form of the raw data suitable for dynamic visualization at the finest regional resolution: block groups.</p></li>
+<li><p>Associate each address with census boundaries defined during the 2000, 2010, and 2020 decennial years, including block group, tract, county, state, and ZIP Code Tabulation Areas (ZCTAs).</p></li>
+</ol>
+<p>Documentation on the expected accuracy of geocoordinates provided in the raw data was not made available by the data distributor. It was therefore considered important to compare the raw geolocations against a trusted database in order to associate verified geolocations and assess the scope of error in the raw form. While not the most accurate approach, address-based database matching is a generally accepted method for confirming approximate geocoordinates&nbsp;<span class="citation" data-cites="validate_lon_lat_methods"><sup><a href="#ref-validate_lon_lat_methods" role="doc-biblioref">2</a></sup></span>.</p>
+<p>Each address’s geolocation coordiantes can be used to annotate each entry with the respective decennial years census boundary via point-in-polygon geocoding. The U.S. Census Bureau TIGER/Line shapefiles containing the required census boundary information provide corresponding files for decennial years requested: 2000, 2010, and 2020. However, this technique can be computationally costly; resulting in maxing in memory limits or causing preclusively slow loading if not handled strategically.</p>
+<p>During the raw data review, it was noted that typographical errors resulted in duplicate address entries, where the associated open/closure years remained unique. Ideally, these errors would be cleanly reconciled to produce a concise dataset free of unnecessary redundancies. However, the presence of address variants is not precluding to the overall goals of this project. Mitigating these variations is nonetheless worthwhile to minimize unnecessary computational costs during geocoding and subsequent metric summarization across all addresses. Therefore, an attempt will be made to responsibly consolidate addresses using string similarity matching. Additional resolution is expected when address validation is done against a trusted database.</p>
+</section>
+<section id="special-considerations-for-po-boxes" class="level2">
+<h2 class="anchored" data-anchor-id="special-considerations-for-po-boxes">Special Considerations for PO Boxes</h2>
+<p>The raw data review revealed several notable special cases, detailed in subsequent sections. One of particular importance to downstream analysis involves addresses that at some point filed under a PO Box.</p>
+<p>Later in the analysis, religious organizations are classified as closed if they did not file for four consecutive years during the observed period; organizations that subsequently resumed filing are classified as reopened. Closures are further differentiated into two categories: those that stopped operations entirely and closures due to relocation. Relocated organizations remained operational but moved outside the community, thereby resulting in a loss of social benefits to that community.</p>
+<p>During the raw data review, two problems were identified:</p>
+<ol type="a">
+<li><p>The method employed by Dr.&nbsp;Insong removed all PO Box entries without removing the other addresses associated with the same business. Because the reported dates were unique across entries, this was expected to skew results, affecting approximately 12% of businesses.</p></li>
+<li><p>Geocoordinates listed for PO Boxes sometimes corresponded exactly with an associated physical address. Because the validity of this association cannot be confirmed, it introduces a potential source of bias that may result in the misclassification of organizations within the “closure due to relocation” category.</p></li>
+</ol>
+<p>For these reasons, verifying the geolocation of a PO Box is treated as zero-sum, whereas the inability to verify geocoordinates for a physical address is not considered critical. Under the following three conditions, all entries associated with a business are removed:</p>
+<ul>
+<li><p>Geocoordinates are absent and could not be recovered through address-based validation, preventing geocoding.</p></li>
+<li><p><code>address_line_1</code> is missing, preventing verification that the geocoordinates correspond to the institution itself rather than a general location within that ZIP code.</p></li>
+<li><p>PO Box entries could not be assigned valid geocoordinates through address-based geocoding.</p></li>
+</ul>
+<p>As a final step, following cleaning and validation and prior to metric calculation, PO Box entries with verified geocoordinates will be matched to a qualifying physical address. The critical assumption is that if a physical address exists within a nearby radius, the institution can reasonably be assumed to be operating at that location.</p>
+<p>If no qualifying match is found, or the PO Box is too far from any nearby address, all entries associated with that business will be removed. Matching will also account for both spatial and temporal proximity; physical addresses that fall within range but are separated by intervening entries located far from the PO Box may not qualify.</p>
+</section>
+<section id="a-step-wise-framework" class="level2">
+<h2 class="anchored" data-anchor-id="a-step-wise-framework">A Step-Wise Framework</h2>
+<p>To acheive these goals, sequential steps were outlined, each building on the results of the preceding steps.</p>
+<section id="step-1-address-deduplication-via-string-similarity-matching" class="level3">
+<h3 class="anchored" data-anchor-id="step-1-address-deduplication-via-string-similarity-matching">Step 1: Address Deduplication via String Similarity Matching</h3>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Computational Dependencies and Custom Functions
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>All packages required for this step are documented in the <strong>SET UP THE ENVIRONMENT</strong> section of <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R">“Clean Raw Data_Step 1_2023 Format.R”</a>. Custom functions used throughout the script are in <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Support%20Functions/For%20Step%201_2023%20Format.R">“Support Functions/For Step 1_2023 Format.R”</a>.</p>
+</div>
+</div>
+<p>Different uniquely listed address line 1 (<code>address_line_1</code>) strings for a given business (<code>abi</code>) were fuzzy matched using the Jaro-Winkler method available through <code>stringdist(method = "jw")</code> in the custom function <code>find_similar_addresses()</code>&nbsp;<span class="citation" data-cites="stringdist"><sup><a href="#ref-stringdist" role="doc-biblioref">3</a></sup></span>. This edit distance method measures string similarity by accounting for the proportion of characters shared between two strings and the number of transpositions needed to place matching characters in the same order, normalized by string length&nbsp;<span class="citation" data-cites="wikipedia_edit_distance medium_jw wikipedia_jw"><sup><a href="#ref-wikipedia_edit_distance" role="doc-biblioref">4</a>–<a href="#ref-wikipedia_jw" role="doc-biblioref">6</a></sup></span>. Scores range from zero to one, where a score of zero indicates identical strings and smaller values reflect greater similarity.</p>
+<p>Prior to processing, addresses were normalized in the custom function <code>preprocess_address()</code> by converting all characters to lowercase, normalizing spacing and punctuation, removing non-alphanumeric characters (with the exception of commas and spaces), and trimming extraneous whitespace.</p>
+<p><span class="math inline">\(\Comb{n}{2}\)</span> pairwise comparisons between <span class="math inline">\(n\)</span> unique normalized <code>address_line_1</code> strings produce a symmetric <span class="math inline">\(n \times n\)</span> string distance matrix, that is <span class="math inline">\(d(i,j) = d(j,i)\)</span> and the diagonal entries <span class="math inline">\(d(i,i) = 0\)</span> represent the trivial self-similarity solution. To reduce redundancy, the algorithm evaluates only one orientation of each pair and omits self-similarity comparisons, computing only the upper triangle of the matrix. Addresses with a pairwise Jaro-Winkler score below a set threshold, <span class="math inline">\(\delta\)</span>, are saved as a qualifying match. The matching threshold <span class="math inline">\(\delta = 0.15\)</span> was determined empirically through testing on a sample of addresses, confirming sufficiently accurate grouping of similar entries without the erroneous inclusion of dissimilar ones.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Computational Performance
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>The time complexity of this operation is <span class="math inline">\(\mathcal{O}\left(n^2 \times l\right)\)</span>, where <span class="math inline">\(n\)</span> is the number of unique addresses and <span class="math inline">\(l\)</span> denotes the computational cost of the Jaro-Winkler algorithm for a string of length <span class="math inline">\(l\)</span>&nbsp;<span class="citation" data-cites="wikipedia_jw wikipedia_big_o w3schools_big_o"><sup><a href="#ref-wikipedia_jw" role="doc-biblioref">6</a>–<a href="#ref-w3schools_big_o" role="doc-biblioref">8</a></sup></span>.</p>
+<p>Because the algorithm operates solely on <code>address_line_1</code>entries, string lengths remain relatively short, making the contribution of <span class="math inline">\(l\)</span> negligible. Additionally, because the number of unique addresses is expected to be bounded by the number of dates in the observed period, the computational demand of this method is not expected to be a limiting factor in the algorithm.</p>
+</div>
+</div>
+<p>Consider the following example of a business that filed under two distinct addresses, each of which was reported with slight variations, resulting in five unique address strings.</p>
+<p>Using <code>stringdist(method = "jw")</code> the pairwise distances are computed for all <span class="math inline">\(\Comb{5}{2} = 10\)</span> unique address pairs. This yields the following upper-triangular distance matrix:</p>
+<p>Pairs falling below the threshold <span class="math inline">\(d(i,j) &lt; \delta = 0.15\)</span> are considered candidate matches and recorded as edges in an undirected graph, where each node represents a unique address. This graph is stored as an adjacency list, like the one shown below&nbsp;<span class="citation" data-cites="wikipedia_adjacency"><sup><a href="#ref-wikipedia_adjacency" role="doc-biblioref">9</a></sup></span>:</p>
+<p>A Depth-First Search (DFS) algorithm in the custom function <code>find_components()</code> is applied to the adjacency list to identify connected components, where each component forms a cluster of similar addresses.</p>
+<p>One candidate address was randomly selected from each resulting cluster and assigned as the match for all other addresses within that cluster. Because the efficacy of string-based matching is expected to vary with string length, an additional geographic validation step was applied. For each set of matched addresses, the absolute difference between the maximum and minimum reported longitude and latitude values was calculated.</p>
+<p>For reference, one degree of longitude is approximately 69 miles (111 kilometers), while one degree of latitude varies with proximity to the equator, averaging approximately 54 miles (87 kilometers) across the contiguous United States&nbsp;<span class="citation" data-cites="geological_survey_degree noaa_latitudelongitude"><sup><a href="#ref-geological_survey_degree" role="doc-biblioref">10</a>,<a href="#ref-noaa_latitudelongitude" role="doc-biblioref">11</a></sup></span>. The length of a typical U.S. city block similarly varies, with common estimates ranging from 100 to 200 meters&nbsp;<span class="citation" data-cites="wikipedia_city_block wikipedia_city_area"><sup><a href="#ref-wikipedia_city_block" role="doc-biblioref">12</a>,<a href="#ref-wikipedia_city_area" role="doc-biblioref">13</a></sup></span>. Based on these benchmarks, address sets in which both the longitudinal and latitudinal differences exceeded 0.002 degrees (approximately 222 meters or 728 feet) were flagged as invalid matches and retained as distinct addresses in the final dataset.</p>
+<p>This approach assumes that reported geolocations for each address are accurate to within the specified range with sufficient consistency to be reliable. As the primary objective of this method is to reduce address reduplication and improve downstream algorithmic performance, variations that may undermine this validation step are not considered to meaningfully impact the final results. When uncertain, the method is designed to err on the side of caution by retaining addresses as distinct rather than risk consolidating genuinely separate addresses that share strong surface-level similarities.</p>
+<p>Following the algorithm outlined in <strong>PART B: Standardize and Merge Similar Addresses</strong> of <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R">“Clean Raw Data_Step 1_2023 Format.R”</a>, the processed ABI records identified as containing possible address reduplications were reduced to one-third of their original count. To confirm the consistency of these results, the custom function <code>check_all_counts_0_or_1()</code> was run to assess whether duplications had been introduced in the year-opened and year-closed columns, which had been confirmed as unique in the raw data. Unfortunately, 2.6% of ABI records were flagged as having newly introduced duplications.</p>
+<p>As the algorithm was developed under time constraints, its deduplication strategy could not be optimized. Priority was instead placed on progressing through subsequent steps. Consequently, records with induced duplications were excluded from the prototype pipeline, while the nature of the duplications was later carefully assessed to inform a strategy for their reintegration and to guide improvements to the overall approach. These insights informed the design of the 2026 Format comparative version.</p>
+<p>Additional details regarding the algorithm’s performance outcomes can be found in <a href="#results-1">Results - Step 1: Address Deduplication via String Similarity Matching</a>.</p>
+</section>
+<section id="step-2-usps-api-address-validation" class="level3">
+<h3 class="anchored" data-anchor-id="step-2-usps-api-address-validation">Step 2: USPS API Address Validation</h3>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Computational Dependencies and Custom Functions
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>All packages required for this step are documented in the <strong>SET UP THE ENVIRONMENT</strong> section of <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2023%20Format.R">“Clean Raw Data_Step 2_2023 Format.R”</a>. Custom functions used throughout the script are in <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Support%20Functions/For%20Step%202_2023%20Format.R">“Support Functions/For Step 2_2023 Format.R”</a>.</p>
+<p>The algorithm implementing the described methods has been separated into a dedicated HPC script, contained in <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202%20HPC_2023%20Format.R">“Clean Raw Data_Step 2 HPC_2023 Format.R”</a>, which includes its own <strong>SET UP THE ENVIRONMENT</strong> section. <strong>SUBSECTION A1: Utilizing the HPC</strong> further describes how to reproducibly run the script within the HPC environment as both a live session or batch array. The preconfigured shell script used for deploying batch arrays is <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/USPS%20SLURM_2023%20Format.sh">“USPS SLURM_2023 Format.sh”</a>.</p>
+</div>
+</div>
+<p>As described in the <a href="#results-1">Results - Step 1: Address Deduplication via String Similarity Matching</a> section, the deduplication step reduced the number of entries associated with ABIs with multiple listed addresses to approximately 36.4% of the original count. However, the step had the unintended effect of inducing duplications in the columns containing the years-open and years-closed binary indicators for 2.6% of ABIs.</p>
+<p>This substantial reduction indicates a significant degree of address variation within the dataset. However, excessive deviation from standard address formatting has the potential to contribute to failed matches with the <a href="https://geocoding.geo.census.gov/geocoder/">U.S. Census Bureau’s Geocoder API</a>, used in <strong>Step 3</strong> to validate the geocoordinates associated with each address&nbsp;<span class="citation" data-cites="us_census_bureau_geocoder"><sup><a href="#ref-us_census_bureau_geocoder" role="doc-biblioref">14</a></sup></span>. To mitigate this risk, addresses were first validated against the <a href="https://developers.usps.com/addressesv3">USPS Address API</a> to retrieve the preferred, standardized form of each address prior to geocoding&nbsp;<span class="citation" data-cites="usps_3_api"><sup><a href="#ref-usps_3_api" role="doc-biblioref">15</a></sup></span>.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Alternative Validation Resources
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>These APIs were chosen primarily for their relative simplicity of setup and use, their suitability for automation and parallelization within the HPC environment, and their lack of associated cost. However, as described in their respective results sections, these processes were unable to validate as many records as anticipated. Furthermore, as they are separate systems, they required sequential processing, whereas alternative resources can offer both address and geolocation validation within a single query. The following alternative databases were considered for validating the listed physical addresses and associated geolocations:</p>
+<ul>
+<li><p>Environmental Systems Research Institute, Inc.&nbsp;(Esri) StreetMap Premium, including the locally hosted version available to Yale affiliates</p></li>
+<li><p>Google Maps API</p></li>
+</ul>
+<p>These sources were ultimately not used due to a combination of limiting factors. Under the applicable Data Use Agreements (DUAs), it was necessary to confirm that no API usage would violate the terms of those agreements. The USPS and U.S. Census Bureau APIs were approved following coordination with the relevant security review processes; however, accessing the Esri online database or Google Maps API required additional review.</p>
+<p>The review process was initiated for the Google Maps API given its anticipated capacity to efficiently validate addresses and geolocation. However, the review extended beyond the project timeline, rendering those resources inaccessible. Additionally, Esri requires manual adjudication of alternative address suggestions, which would have been prohibitively time-intensive. Researchers from the <a href="https://geospatial.yale.edu/">Yale Center for Geospatial Solutions (YCGS)</a> further noted that the online Esri resource is more current and robust than its locally hosted counterpart, suggesting that the local version would offer little advantage over the USPS Address database in terms of address validation quality.</p>
+</div>
+</div>
+<p>The algorithm queries the USPS Address API using the API specifications, methods, and sample processes outlined in the official <a href="https://developers.usps.com/addressesv3">developer documentation</a> and the <a href="https://github.com/USPS/api-examples">USPS API Examples GitHub</a> repository&nbsp;<span class="citation" data-cites="usps_3_api usps_api_examples"><sup><a href="#ref-usps_3_api" role="doc-biblioref">15</a>,<a href="#ref-usps_api_examples" role="doc-biblioref">16</a></sup></span>. Pre-configured customer key and secret credentials are used to generate an API token for each address query via the custom function <code>generate_usps_token()</code>. The raw address fields, address lines 1 and 2, city, state, and five-digit ZIP code, are submitted to the database, and the response JSON is parsed to extract validated address components into discrete columns via the custom function <code>validate_usps_address()</code>. Both functions utilize the <code>httr</code> and <code>jsonlite</code> packages for API interaction&nbsp;<span class="citation" data-cites="httr jasonlite"><sup><a href="#ref-httr" role="doc-biblioref">17</a>,<a href="#ref-jasonlite" role="doc-biblioref">18</a></sup></span>.</p>
+<p>If the initial USPS validation failed to return a match, the script employed two fallback strategies: city and ZIP code correction, and using address lines 1 as 2 instead. If neither strategy produced a match, the query returned “No address match found”.</p>
+<p>The first alternative strategy was of particular importance for this dataset. During the initial raw data assessment, it was revealed that the ZIP code columns had at some point been converted to numerical values, causing leading and trailing zeros to be stripped. Prior to querying, these ZIP codes were normalized to the expected five-digit length; however, padding zeros were added arbitrarily.</p>
+<p>To mitigate potential match failures against the API database, candidate ZIP code variations were generated using the custom function <code>make_zip5_candidates()</code>. For example, <code>make_zip5_candidates("01230")</code> would generate “01230”, “00123”, and “12300”. The custom function <code>get_city_info()</code> then retrieved the recommended city associated with each candidate ZIP code. Valid ZIP code and city pairings were subsequently used in place of the raw values to resubmit the query, though the algorithm only attempted the first valid pairing returned by <code>get_city_info()</code>. The look-up table was prepared from the SimpleMaps Basic <a href="https://simplemaps.com/data/us-cities">United States Cities Database</a> (version 1.90) using the custom function <code>build_zip_city_lookup()</code>&nbsp;<span class="citation" data-cites="simplemaps"><sup><a href="#ref-simplemaps" role="doc-biblioref">19</a></sup></span>.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>API Credentials and Configuration
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Users who wish to utilize this resource for their own work will need to register for a USPS Developer account, sign the license agreement, and configure their own individual API client key and secret.</p>
+<p>The client key and secret must be kept private and must not be shared. Instructions for configuring these credentials are provided in the header of <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202%20HPC_2023%20Format.R">“Code/Clean Raw Data_Step 2_2023 Format.R”</a>.</p>
+</div>
+</div>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>USPS API Version 3.3.1 Update: Compatibility and Pricing
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>As of August 1, 2026, the USPS upgraded the API from version 3.2.3 to 3.3.1 and updated their terms of use to include tiered pricing for API access.</p>
+<p>Users should be aware that the algorithm reported here was designed for version 3.2.3 and may not be fully compatible with the updated API without modification. Additionally, the 2023 Format implementation assumes unrestricted access to the API, whereas the 2026 Format implementation was updated with a version 2 allowing users to specify the number of addresses queried against the USPS API, thereby enabling cost management.</p>
+</div>
+</div>
+<p>This process was designed to be run both locally and within Yale’s HPC environment. Within the HPC, users additionally have the option to process results either in a live session or through a batch array.</p>
+<p>After preparing the required subset in <strong>SUBSECTION A1: Prepare Subset for HPC</strong> of “Clean Raw <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2023%20Format.R">Data_Step 2_2023 Format.R”</a>, users run the algorithm outlined in <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202%20HPC_2023%20Format.R">“Clean Raw Data_Step 2 HPC_2023 Format.R”</a>. <strong>PART A: UTILIZING THE HPC</strong> details the required environment configuration, necessary file uploads, and instructions for running the script within the HPC via either a live session or batch array. The file <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/USPS%20SLURM_2023%20Format.sh">“USPS SLURM_2023 Format.sh”</a> is the preconfigured shell script used to execute the batch array.</p>
+<p>Following this run, the output was validated using the custom function <code>qc_validation_results()</code> to ensure consistency with expectations across the result chunks prior to merging. The function performs six diagnostic checks: verifying the dimensions of each chunk, assessing total row coverage, validating that each row and file falls within its expected row range, and summarizing the distribution of address verification outcomes per file.</p>
+<p>To address duplications introduced during <strong>Step 1</strong>, additional collapsing was applied to the 10% of results that underwent address verification. Exact duplicates where year-opened and year-closed values are identical were resolved by retaining a single record at random with <code>distinct()</code>. Entries not resolved by this approach were repaired by restoring raw data values.</p>
+<p>Repaired entries were quality-checked for dataset mismatches and missing year-opened or year-closed values. The case was rare, likely reflecting cases where verified addresses or cluster assignments no longer corresponded to raw data entries, and were excluded. Together, these steps resolve all residual duplications in the dataset.</p>
+<p>Additional details regarding the algorithm’s performance outcomes can be found in <a href="#results-2">Results - Step 2: USPS API Address Validation</a>.</p>
+</section>
+<section id="step-3-address-geocoding" class="level3">
+<h3 class="anchored" data-anchor-id="step-3-address-geocoding">Step 3: Address Geocoding</h3>
+</section>
+<section id="step-4-linking-po-boxes-to-physical-addresses" class="level3">
+<h3 class="anchored" data-anchor-id="step-4-linking-po-boxes-to-physical-addresses">Step 4: Linking PO Boxes to Physical Addresses</h3>
+</section>
+<section id="step-5-point-in-polygon-spatial-assignment" class="level3">
+<h3 class="anchored" data-anchor-id="step-5-point-in-polygon-spatial-assignment">Step 5: Point-in-Polygon Spatial Assignment</h3>
+</section>
+</section>
+<section id="algorithm-performance-optimization" class="level2">
+<h2 class="anchored" data-anchor-id="algorithm-performance-optimization">Algorithm Performance Optimization</h2>
+<p>During the initial development phase, from late July through the first prototype unveiling on June 18, 2025, priority was placed on rapidly establishing a functional data processing workflow rather than on computational optimization or algorithmic robustness. As a result, many processing steps were slow to execute, and only a portion of the full dataset could be processed in time for the prototype presentation. Many previously undetected edge cases also failed to process correctly, requiring extensive post-processing intervention to reintegrate affected records into the final dataset.</p>
+<p>Following the symposium, it was decided that running the pipeline on <a href="https://research.computing.yale.edu/">Yale Center for Research Computing (YCRC)</a> infrastructure could substantially reduce processing time. Consultation with researchers at the YCRC identified two critical considerations prior to deployment:</p>
+<ol type="1">
+<li><p><strong>Script Efficiency:</strong> Processing scripts must be optimized prior to HPC deployment, both to ensure the responsible use of shared computational resources and because HPC environments will not always be able to compensate for inefficient code.</p></li>
+<li><p><strong>API Constraints:</strong> Steps dependent on external API calls are bounded by those services’ rate limits and response latencies. These bottlenecks are external to the pipeline and might not be resolved by parallelization.</p></li>
+</ol>
+<p>This section reports how the processing scripts were assessed for computational efficiency. Specific optimization opportunities identified during full-dataset processing are addressed in the results section corresponding to each respective method step.</p>
+<p>Functions with long local runtimes despite parallelization via the <code>future.apply</code> package were profiled using <code>profvis()</code>, an R tool for identifying where R spends the most time during execution. This analysis identified two operations as primary contributors to overall processing time: data subsetting and row-wise data combination (row-binding).</p>
+<p>To address these bottlenecks, three common R approaches were benchmarked: base R, the <code>tidyverse</code>, and <code>data.table</code>. Within each approach, specific strategies were also compared. For example, <code>dplyr::filter()</code> versus <code>dplyr::semi_join()</code> for subsetting, and <code>data.table::rbindlist()</code> applied within a loop versus after loop completion for row-binding.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-optimization" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-optimization-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="Preparation_2023-Format_files/figure-html/fig-optimization-1.png" class="img-fluid figure-img" width="1344">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-optimization-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Microbenchmark Timings: Approaches to Subsetting and Row-Binding
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Overall, processing a large data frame using the <code>data.table</code> class proved to be the most computationally efficient approach. Additionally, applying <code>data.table::rbindlist()</code> after a loop was found to be more efficient than base R’s <code>do.call()</code>, while sequentially applying <code>data.table::rbindlist()</code> within a loop yielded comparable results to the latter.</p>
+<p>Refer to <a href="#code-results-source-1">Appendix - Optimizing Data Subsetting</a> and <a href="#code-results-source-1">Appendix - Optimizing Data Combination</a> for information on where to find the code that generates these results, as well as the results codebook.</p>
+</section>
+</section>
+<section id="results" class="level1">
+<h1>Results</h1>
+<section id="results-1" class="level3">
+<h3 class="anchored" data-anchor-id="results-1">Step 1: Address Deduplication via String Similarity Matching</h3>
+<section id="explore-the-nature-of-duplications-added" class="level4">
+<h4 class="anchored" data-anchor-id="explore-the-nature-of-duplications-added">Explore the Nature of Duplications Added</h4>
+<p>The deduplication algorithm in <strong>PART B: Standardize and Merge Similar Addresses</strong> reduced the number of entries associated with ABIs with multiple listed addresses to 36.4% of the original count. A column-wise sum over each date of entry was conducted using the custom function <code>check_all_counts_0_or_1()</code> to confirm if all years-open and years-closed binary indicators remained unique. However, the step had the unintended effect of inducing duplications for 2.6% of ABIs.</p>
+<p>It is possible that these duplications arose either from the same address falling into multiple clusters, or from addresses sharing an identical <code>address_line_1</code> but differing in metadata, causing artificial expansion of the table when a randomly chosen match had multiple rows with distinct metadata. To begin investigating this, we first assess whether the induced duplicates provide identical records for the years-open and years-closed binary columns. Such cases can be trivially reconciled by randomly removing all but one instance.</p>
+<p>The <code>duplicated()</code> function marks the first occurrence of a record as <code>duplicated = FALSE</code> and all subsequent occurrences as <code>duplicated = TRUE</code>. As <code>FALSE</code> is the default value, any set of detected duplications will always contain at least one <code>FALSE</code> entry, corresponding to the first occurrence of the record. In this assessment, the data was restricted to ABI records containing at least one duplicated years-open or years-closed entry. Duplications were assessed using the custom <code>check_duplicates_unique_info()</code> function across all years-open and years-closed columns, grouped by unique <code>abi</code> and <code>address_line_1</code>.</p>
+<p>Most entries indicate that the duplicated information is identical, suggesting that duplicates can be trivially resolved by randomly selecting one record from each set. This applies to entries with equal numbers of <code>FALSE</code> and <code>TRUE</code> results (n = 14,631) and entries with one <code>FALSE</code> and a <code>TRUE</code>-majority outcome, the latter indicating multiple duplicates associated with a single address (n = 44). These likely resulted from the matched address containing multiple metadata variations.</p>
+<p>Among the 44 entries exhibiting more than one <code>TRUE</code> value, variation was observed in both city and zip code: three distinct cities were recorded per entry, and 97.7% of entries listed a differing zip code, while the state remained consistent across all records. Most of these entries shared an identical <code>address_line_1</code>, while a small number had no value recorded for that column.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Interpreting Records with Identical <code>address_line_1</code> Values
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>It is a plausible assumption that entries sharing an identical <code>address_line_1</code> but differing in other metadata represent the same physical address, given the low probability that a business would register an identical <code>address_line_1</code> across distinct locations. Valid city variation may also arise for addresses situated near administrative boundaries or spanning decennial census years.</p>
+</div>
+</div>
+<p>As expected, table <span class="math inline">\(\ref{tbl-lonlat_failed_summary}\)</span> shows that all entries lacking an <code>address_line_1</code> value failed the geolocation similarity test, with the minimum difference for both longitude and latitude exceeding 0.002 degrees. Notably, entries sharing an identical <code>address_line_1</code> also failed at an average rate of approximately 85%, suggesting that variation in city and zip code may produce differing reported geolocations even when the physical address is reasonably expected to be the same. Consequently, the geolocation test results for these entries will be overridden to indicate a passing match.</p>
+
+<p>4% of ABI records assessed contain information that differs between the years-open and years-closed duplications, meaning these cases cannot be trivially resolved. This applies to entries containing only <code>FALSE</code> values, which exhibited differing patterns across the years-open and years-closed binary columns (n = 612). These likely resulted from inconsistent clustering, which allowed column-wise sums to differ across duplicated entries. Entries with a <code>FALSE</code>-majority outcome contain either records unaffected by the duplication error, or records in which one address has binary column values distinct from those of the remaining duplicated entries (n = 13).</p>
+<p>A small number of representative examples from this <code>FALSE</code> only category were closely examined alongside the corresponding <code>find_similar_addresses()</code> results. These cases suggest that addresses where duplicated entries exhibit conflicting years-open and years-closed binaries likely reflect errors in associating a candidate match within its cluster. This behavior mimics the results expected from overlapping clusters generated by <code>find_similar_addresses()</code>, suggesting instead that the algorithm occasionally selected an incorrect matching address outside of the expected cluster.</p>
+<p>Addresses that were not clustered together, or are assumed to share a physical location despite differing metadata, may resolve to the same suggested address following validation with the USPS API. Accordingly, these entries will be expanded and annotated to differentiate their respective detected error patterns, then aggregated again following validation where applicable. The same consolidation rules will apply, with the exception of entries sharing an identical <code>address_line_1</code> value where the geolocation test will be overridden.</p>
+</section>
+<section id="similar-addresses-geolocation-discrepancies" class="level4">
+<h4 class="anchored" data-anchor-id="similar-addresses-geolocation-discrepancies">Similar Addresses: Geolocation Discrepancies</h4>
+<p>Approximately 15% of entries failed the geolocation similarity test, and fewer than 1% failed to complete it.</p>
+<p>All entries that failed to complete the test have <code>NA</code> values in both the longitude and latitude fields. These entries will be retained for the time being, and any that do not match the geolocation referential database will be removed. After inspecting a small number of examples, it is evident that some may represent correctly identified similar addresses but the provided longitude and latitude values fall outside the 0.002 degree error threshold. In some cases, these entries share not only the same <code>address_line_1</code> value, but the same address metadata as well.</p>
+<p>To assess the prevalence of entries sharing an identical address, the number of clusters generated under two conditions will be compared: one using relaxed string similarity settings at the same threshold as above, <span class="math inline">\(\delta = 0.15\)</span>, and one requiring an exact match, <span class="math inline">\(\delta = 0\)</span>. The custom function <code>process_abi_group()</code> generates these two outcomes as a list.</p>
+<p>Almost two-thirds (<span class="math inline">\(\approx\)</span> 63%) involve addresses that are exact duplicates. For these, the geolocation test result will be overridden and marked as passed. The remaining records will be split back into separate entries and re-evaluated following address validation. Once address validation is complete, the following handling steps will be applied:</p>
+<ul>
+<li><p><strong>All records validate to distinct addresses:</strong> retain as separate entries.</p></li>
+<li><p><strong>Multiple records validate to the same address:</strong> override the geolocation test result and merge into a single record using the validated address and the average of their longitude and latitude values.</p></li>
+</ul>
+</section>
+<section id="concluding-thoughts" class="level4">
+<h4 class="anchored" data-anchor-id="concluding-thoughts">Concluding Thoughts</h4>
+<p>Trivial duplications were handled prior to expanding entries for subsequent address validation. This process reduced detected duplications by approximately 60%, and the total combined dataset was reduced by approximately 53% relative to its raw form. Examination of entries with a failed geolocation test additionally revealed that the exact same address had varied geolocation points of up to 3 degrees, underscoring the importance of verifying the geolocation of all entries.</p>
+<p>Refer to Appendix - <a href="#code-results-source-3">Step 1: Address Deduplication</a>, <a href="#code-results-source-4">Step 1: Verify No Duplicates Got Added</a>, <a href="#code-results-source-5">Step 1: Override for Addresses With Same Physical Address Line 1</a>, <a href="#code-results-source-6">Step 1: Resolving Failed Geolocation Tests</a>, and <a href="#code-results-source-7">Step 1: Final Result</a> for information on where to find the code that generates these results, as well as the results codebook.</p>
+</section>
+</section>
+<section id="results-2" class="level3">
+<h3 class="anchored" data-anchor-id="results-2">Step 2: USPS API Address Validation</h3>
+<p>All compiled data passed the quality checks defined in <code>qc_validation_results()</code>. Notably, address verification rates varied substantially across arrays: approximately 30% of arrays validated fewer than 10 out of 42,000 addresses, the highest verification rate observed was 30%, and the average was approximately 6%. Most addresses that were verified either passed or did not require a geolocation test. Only 5% of PO Box entries were verified against the API, but most that were consolidated passed the geolocation test.</p>
+<p>As described in the <strong>Step 2</strong> methods, duplicates in the year-opened and year-closed columns were intentionally retained through address verification to support directed secondary handling. Duplicates were then reconciled in two stages: trivial cases were resolved via <code>distinct()</code>, and remaining entries were repaired by patching in raw year-opened or year-closed values. Of all induced duplicates, 20% were resolved via <code>distinct()</code>, with the majority requiring raw data repair. Approximately 5% remained unresolved by either method, affecting approximately 0.09% of businesses in the dataset. Given the negligible impact, these entries were marked for removal rather than processed further.</p>
+<p>Entries flagged with <code>override_duplicate == TRUE</code> following <strong>Step 1</strong>, those with an identical <code>address_line_1</code>, were matched to a verified address, prioritizing earlier-listed candidates over later ones. Approximately 0.02% of ABI records were processed in this step, of which 35% were successfully matched to a verified address. Reconciling duplicates resulted in a slight increase in entries (2.5%) from the previous step.</p>
+</section>
+<section id="results-3" class="level3">
+<h3 class="anchored" data-anchor-id="results-3">Step 3: Address Geocoding</h3>
+</section>
+<section id="results-4" class="level3">
+<h3 class="anchored" data-anchor-id="results-4">Step 4: Linking PO Boxes to Physical Addresses</h3>
+</section>
+<section id="results-5" class="level3">
+<h3 class="anchored" data-anchor-id="results-5">Step 5: Point-in-Polygon Spatial Assignment</h3>
+<div style="page-break-after: always;"></div>
+</section>
+</section>
+<section id="appendix" class="level1">
+<h1>Appendix</h1>
+<section id="code-results-source-1" class="level2">
+<h2 class="anchored" data-anchor-id="code-results-source-1">Optimizing Data Subsetting</h2>
+<p>For the implementation, refer to <strong>SUBSECTION A1: Optimizing Data Subsetting</strong> in <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R">“Code/Clean Raw Data_Step 1_2023 Format.R”</a>. The data processed in this step focused on entries for ABIs with suspected reduplicated addresses. Results were written to <code>"./Data/Results/From Clean Raw Data/Step 1_2023 Format/Step 1 MB Timings_Subsetting.csv"</code>.</p>
+
+</section>
+<section id="code-results-source-2" class="level2">
+<h2 class="anchored" data-anchor-id="code-results-source-2">Optimizing Data Combination</h2>
+<p>For the implementation, refer to <strong>SUBSECTION A2: Optimizing Data Combination</strong> in <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R">“Code/Clean Raw Data_Step 1_2023 Format.R”</a>. The data processed in this step focused on entries for ABIs with suspected reduplicated addresses. Results were written to <code>"./Data/Results/From Clean Raw Data/Step 1_2023 Format/Step 1 MB Timings_Data Combining.csv"</code>.</p>
+
+</section>
+<section id="code-results-source-3" class="level2">
+<h2 class="anchored" data-anchor-id="code-results-source-3">Step 1: Address Deduplication</h2>
+<p>For the implementation, refer to <strong>PART B: Standardize and Merge Similar Addresses</strong> in <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R">“Code/Clean Raw Data_Step 1_2023 Format.R”</a>. The data processed in this step was the raw wide-format received in Summer 2025. The raw data was stored in <code>"./Data/Raw/KEEP LOCAL/church_wide_form_071723.csv"</code>, and the results were written to <code>"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B_04.22.2026.csv"</code>.</p>
+
+</section>
+<section id="code-results-source-4" class="level2">
+<h2 class="anchored" data-anchor-id="code-results-source-4">Step 1: Verify No Duplicates Got Added</h2>
+<p>For the implementation, refer to <strong>SUBSECTION B1: Verify No Duplicates Got Added</strong> in <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R">“Code/Clean Raw Data_Step 1_2023 Format.R”</a>. The data processed was the deduplicated version of the wide-format received in Summer 2025. The data processed was stored in <code>"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B_04.22.2026.csv"</code>, and the results were written to <code>"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B1_04.22.2026.csv"</code>.</p>
+
+</section>
+<section id="code-results-source-5" class="level2">
+<h2 class="anchored" data-anchor-id="code-results-source-5">Step 1: Override for Addresses With Same Physical Address Line 1</h2>
+<p>For the implementation, refer to <strong>SUBSECTION B2: Explore the Nature of Duplications</strong> in <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R">“Code/Clean Raw Data_Step 1_2023 Format.R”</a>. The data processed was a deduplicated subset of the wide-format data received in Summer 2025, restricted to the ABIs identified as containing erroneous duplicate year-opened and year-closed columns. The data processed was stored in <code>"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B_04.22.2026.csv"</code>, processed through <strong>SUBSECTION B1</strong>, and the results were written to <code>"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B2_04.26.2026.csv"</code>.</p>
+
+</section>
+<section id="code-results-source-6" class="level2">
+<h2 class="anchored" data-anchor-id="code-results-source-6">Step 1: Resolving Failed Geolocation Tests</h2>
+<p>For the implementation, refer to <strong>PART C: Resolving Failed Geolocation Tests via Expansion</strong> in <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R">“Code/Clean Raw Data_Step 1_2023 Format.R”</a>. The data processed were a deduplicated subset of the wide-format data received in Summer 2025, restricted to the ABIs identified as containing erroneous duplicate year-opened and year-closed columns. The data processed was stored in <code>"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B2_04.26.2026.csv"</code>, and the results were written to <code>"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection C1_04.27.2026.csv"</code>.</p>
+<div style="page-break-after: always;"></div>
+
+</section>
+<section id="code-results-source-7" class="level2">
+<h2 class="anchored" data-anchor-id="code-results-source-7">Step 1: Final Result</h2>
+<p>For the implementation, refer to <strong>PART D: Cleaning for Saving the Result</strong> in <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R">“Code/Clean Raw Data_Step 1_2023 Format.R”</a>. The data processed was a deduplicated version of the wide-format received in Summer 2025, annotated with the columns generated in preceding sections. The <code>no_duplicates</code> data was stored in <code>"./Data/Raw/KEEP LOCAL/church_wide_form_071723.csv"</code> and excludes ABI in the <code>df_duplicates</code> dataset processed through <strong>PART B</strong> and <strong>PART C</strong>. The results were written to <code>Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 01_Completed Result_04.29.2026.csv</code>.</p>
+<p>No additional columns were generated after this evaluation.</p>
+</section>
+</section>
+<section id="references" class="level1">
+
+
+
+
+</section>
+
+<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a><div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body" data-entry-spacing="0" data-line-spacing="2" role="list">
+<div id="ref-renv_intro" class="csl-entry" role="listitem">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Ushey, K., Wickham, H. &amp; Posit. <a href="https://rstudio.github.io/renv/articles/renv.html">Introduction to renv</a>.</div>
+</div>
+<div id="ref-validate_lon_lat_methods" class="csl-entry" role="listitem">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Universal Service Administrative Co. (USAC). <a href="https://www.usac.org/wp-content/uploads/high-cost/documents/Tools/HUBBGeolocationMethods.pdf">Geolocation methods</a>.</div>
+</div>
+<div id="ref-stringdist" class="csl-entry" role="listitem">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Mark P.J. van der Loo. The stringdist package for approximate string matching. Rdocumentation. <a href="https://www.rdocumentation.org/packages/stringdist/versions/0.9.15/topics/stringdist">https://www.rdocumentation.org/packages/stringdist/versions/0.9.15/topics/stringdist</a> (2014) doi:<a href="https://doi.org/10.32614/RJ-2014-011">10.32614/RJ-2014-011</a>.</div>
+</div>
+<div id="ref-wikipedia_edit_distance" class="csl-entry" role="listitem">
+<div class="csl-left-margin">4. </div><div class="csl-right-inline"><a href="https://en.wikipedia.org/w/index.php?title=Edit_distance&amp;oldid=1362392185">Edit distance</a>. <em>Wikipedia</em> (2026).</div>
+</div>
+<div id="ref-medium_jw" class="csl-entry" role="listitem">
+<div class="csl-left-margin">5. </div><div class="csl-right-inline">Srinivas Kulkarni. Jaro winkler vs levenshtein distance. Medium. <a href="https://srinivas-kulkarni.medium.com/jaro-winkler-vs-levenshtein-distance-2eab21832fd6">https://srinivas-kulkarni.medium.com/jaro-winkler-vs-levenshtein-distance-2eab21832fd6</a> (2021).</div>
+</div>
+<div id="ref-wikipedia_jw" class="csl-entry" role="listitem">
+<div class="csl-left-margin">6. </div><div class="csl-right-inline"><a href="https://en.wikipedia.org/w/index.php?title=Jaro\%E2\%80\%93Winkler_distance&amp;oldid=1315882808">Jaro–winkler distance</a>. <em>Wikipedia</em> (2025).</div>
+</div>
+<div id="ref-wikipedia_big_o" class="csl-entry" role="listitem">
+<div class="csl-left-margin">7. </div><div class="csl-right-inline"><a href="https://en.wikipedia.org/w/index.php?title=Big_O_notation&amp;oldid=1361522390#Multivariate_examples">Big <em>o</em> notation</a>. <em>Wikipedia</em> (2026).</div>
+</div>
+<div id="ref-w3schools_big_o" class="csl-entry" role="listitem">
+<div class="csl-left-margin">8. </div><div class="csl-right-inline"><span>DSA</span> time complexity. <a href="https://www.w3schools.com/dsa/dsa_timecomplexity_theory.php">https://www.w3schools.com/dsa/dsa_timecomplexity_theory.php</a>.</div>
+</div>
+<div id="ref-wikipedia_adjacency" class="csl-entry" role="listitem">
+<div class="csl-left-margin">9. </div><div class="csl-right-inline"><a href="https://en.wikipedia.org/w/index.php?title=Adjacency_list&amp;oldid=1344700428">Adjacency list</a>. <em>Wikipedia</em> (2026).</div>
+</div>
+<div id="ref-geological_survey_degree" class="csl-entry" role="listitem">
+<div class="csl-left-margin">10. </div><div class="csl-right-inline">U.S. Geological Survey (USGS) &amp; U.S. Department of the Interior. How much distance does a degree, minute, and second cover on your maps? <a href="https://www.usgs.gov/faqs/how-much-distance-does-a-degree-minute-and-second-cover-your-maps">https://www.usgs.gov/faqs/how-much-distance-does-a-degree-minute-and-second-cover-your-maps</a> (2023).</div>
+</div>
+<div id="ref-noaa_latitudelongitude" class="csl-entry" role="listitem">
+<div class="csl-left-margin">11. </div><div class="csl-right-inline">National Oceanic and Atmospheric Administration (NOAA), National Hurricane Center &amp; Central Pacific Hurricane Center. Latitude/longitude distance calculator. <a href="https://www.nhc.noaa.gov/gccalc.shtml">https://www.nhc.noaa.gov/gccalc.shtml</a>.</div>
+</div>
+<div id="ref-wikipedia_city_block" class="csl-entry" role="listitem">
+<div class="csl-left-margin">12. </div><div class="csl-right-inline"><a href="https://en.wikipedia.org/w/index.php?title=City_block&amp;oldid=1361202316">City block</a>. <em>Wikipedia</em>.</div>
+</div>
+<div id="ref-wikipedia_city_area" class="csl-entry" role="listitem">
+<div class="csl-left-margin">13. </div><div class="csl-right-inline"><a href="https://en.wikipedia.org/w/index.php?title=List_of_United_States_cities_by_area&amp;oldid=1353984288">List of united states cities by area</a>. <em>Wikipedia</em>.</div>
+</div>
+<div id="ref-us_census_bureau_geocoder" class="csl-entry" role="listitem">
+<div class="csl-left-margin">14. </div><div class="csl-right-inline">U.S. Census Bureau. Census geocoder. <a href="https://geocoding.geo.census.gov/geocoder/">https://geocoding.geo.census.gov/geocoder/</a>.</div>
+</div>
+<div id="ref-usps_3_api" class="csl-entry" role="listitem">
+<div class="csl-left-margin">15. </div><div class="csl-right-inline">United States Postal Service (USPS). Addresses 3.0 <span>API</span>. Developer portals. <a href="https://developers.usps.com/addressesv3">https://developers.usps.com/addressesv3</a>.</div>
+</div>
+<div id="ref-usps_api_examples" class="csl-entry" role="listitem">
+<div class="csl-left-margin">16. </div><div class="csl-right-inline">harris-n-jalil-usps <em>et al.</em> <a href="https://github.com/USPS/api-examples">Api-examples</a>. United States Postal Service (2026).</div>
+</div>
+<div id="ref-httr" class="csl-entry" role="listitem">
+<div class="csl-left-margin">17. </div><div class="csl-right-inline">Wickham, H. &amp; Posit Software, PBC. <a href="https://cran.r-project.org/web/packages/httr/index.html">Httr: Tools for working with <span>URLs</span> and <span>HTTP</span></a>. (2026).</div>
+</div>
+<div id="ref-jasonlite" class="csl-entry" role="listitem">
+<div class="csl-left-margin">18. </div><div class="csl-right-inline">Jeroen Ooms, Duncan Temple Lang &amp; Lloyd Hilaiel. <a href="https://cran.r-project.org/web/packages/jsonlite/index.html">Jsonlite: A simple and robust <span>JSON</span> parser and generator for r</a>. (2025).</div>
+</div>
+<div id="ref-simplemaps" class="csl-entry" role="listitem">
+<div class="csl-left-margin">19. </div><div class="csl-right-inline">SimpleMaps. United states cities database. <a href="https://simplemaps.com/data/us-cities">https://simplemaps.com/data/us-cities</a>.</div>
+</div>
+</div></section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>This site was built on a ysph-dsde.github.io page. It was rendered using Quarto (v 1.6.39) and theme <a href="https://bootswatch.com/lux/">Lux</a>.</p>
+</div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="https://www.socahlab.org/church-closures">
+<p>Dashboard</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../Pages/Pipeline.html">
+<p>Pipeline</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../../Pages/Development.html">
+<p>Development</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Pages/Reports/Preparation_2023 Format.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://ysph.yale.edu/public-health-research-and-practice/research-centers-and-initiatives/public-health-data-science-and-data-equity/">
+      <i class="bi bi-globe" role="img">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/ysph-dsde">
+      <i class="bi bi-github" role="img">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/showcase/public-health-data-science-and-data-equity-at-yale/">
+      <i class="bi bi-linkedin" role="img">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="mailto:admin.dsdeysph@yale.edu">
+      <i class="bi bi-envelope" role="img">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item">
+ (203) 737-8644
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

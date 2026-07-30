@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>About This Project – Church Closures Dashboard</title>
+<title>code-highlighting-formatting_verbatim – Church Closures Dashboard</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -20,24 +20,59 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
-<script src="site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="site_libs/quarto-nav/headroom.min.js"></script>
-<link href="./Images/DSDE-Social-Media-Profile.png" rel="icon" type="image/png">
-<script src="site_libs/clipboard/clipboard.min.js"></script>
-<script src="site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
-<script src="site_libs/quarto-html/popper.min.js"></script>
-<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="site_libs/quarto-html/anchor.min.js"></script>
-<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-97bfe6499e261bad1e14faa831bf6b4a.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<link href="../../Images/DSDE-Social-Media-Profile.png" rel="icon" type="image/png">
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-a746a7f871c9c5b8317af508eabc8d2a.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-9358216d1a5d89b4c2a5333b88854ddb.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "language": {
     "search-no-results-text": "No results",
@@ -87,17 +122,17 @@ ul.task-list li input[type="checkbox"] {
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
 
 
-<link rel="stylesheet" href="_styles/styles.css">
+<link rel="stylesheet" href="../../_styles/styles.css">
 </head>
 
-<body class="nav-fixed fullcontent quarto-light">
+<body class="nav-fixed quarto-light">
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a class="navbar-brand" href="./index.html">
+    <a class="navbar-brand" href="../../index.html">
     <span class="navbar-title">Church Closures Dashboard</span>
     </a>
   </div>
@@ -111,11 +146,11 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Dashboard</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./Pages/Pipeline.html"> 
+    <a class="nav-link" href="../../Pages/Pipeline.html"> 
 <span class="menu-text">Pipeline</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./Pages/Development.html"> 
+    <a class="nav-link" href="../../Pages/Development.html"> 
 <span class="menu-text">Development</span></a>
   </li>  
   <li class="nav-item dropdown ">
@@ -124,7 +159,19 @@ ul.task-list li input[type="checkbox"] {
     </a>
     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-temp">    
         <li>
-    <a class="dropdown-item" href="./Pages/Metric Calculation.html">
+    <a class="dropdown-item" href="../../Pages/Review_2026 Format.html">
+ <span class="dropdown-text">2026 Format Review</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../Pages/Cleaning and Harmonization_2023 Format.html">
+ <span class="dropdown-text">2023 Format Cleaning</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../Pages/Cleaning and Harmonization_2026 Format.html">
+ <span class="dropdown-text">2026 Format Cleaning</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../Pages/Metric Calculation.html">
  <span class="dropdown-text">Metrics</span></a>
   </li>  
     </ul>
@@ -140,46 +187,31 @@ ul.task-list li input[type="checkbox"] {
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
 <!-- margin-sidebar -->
-    
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        
+    <div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="Code-Highlighting-Formatting_Verbatim.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
-
-<header id="title-block-header" class="quarto-title-block default">
-<div class="quarto-title">
-<h1 class="title">About This Project</h1>
-</div>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
 
 
 
-<div class="quarto-title-meta">
 
-    
-  
-    
-  </div>
-  
-
-
-</header>
-
-
-<p>The Yale School of Public Health <a href="https://www.socahlab.org/">Society Connectedness &amp; Health Lab’s (SOCAH Lab)</a> premier Church Closure Dashboard is designed to dynamically display metrics describing church closures down to the block group level over user-provided date ranges. Users can select regions to explore socioeconomic information alongside church closure metrics, or apply institutional filters to refine their view.</p>
-<p>Shelby Golden, MS from the Yale School of Public Health <a href="https://ysph.yale.edu/research/research-centers-and-initiatives/public-health-data-science-and-data-equity/">Data Science and Data Equity</a> team was contracted to review and update the data cleaning, validation, and harmonization methods previously employed by <a href="https://sigmafelix.wixsite.com/mysite">Dr.&nbsp;Insang Song</a> to generate data compatible with dynamic visualization on the dashboard map.</p>
-<p>This codebase includes a <a href="https://socah-lab.github.io/Church-Closures-Dashboard/">GitHub Pages website</a> outlining the development process and describing the pipeline for researchers interested in replicating results or preparing the raw data for their own work. <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Code">Scripts</a> include detailed annotations explaining the code and provide guidelines to help subsequent analysts reproduce results or adapt the process for improvements or other applications.</p>
-<p><strong>Project Principal Investigator (PI):</strong> <a href="https://ysph.yale.edu/profile/yusuf-ransome/">Yusuf Ransome, MPH, DrPH</a></p>
-<p><strong>Project Manager:</strong> <a href="https://www.linkedin.com/in/katelyn-kostakis/">Katelyn Kostakis, MPH</a></p>
-<p><strong>Developer and Analyst:</strong> <a href="https://www.linkedin.com/in/shelby-golden/">Shelby Golden, MS</a></p>
-<section id="our-collaborators" class="level1">
-<h1>Our Collaborators</h1>
-<p>The Church Closure Dashboard is a collaborative effort led by the Yale School of Public Health Society Connectedness &amp; Health Lab’s (SOCAH Lab).</p>
-</section>
-<section id="access-restrictions-and-requirements" class="level1">
-<h1>Access Restrictions and Requirements</h1>
-<p>Under the Data Use Agreements (DUAs) with Data Axle and the USPS API license, raw data cannot be publicly distributed and is stored locally in <code>~/KEEP LOCAL</code> directories. Some code or results may also be restricted. All publicly distributed results are summarized, and publicly distributed code has been constructed to avoid referencing individual-level data. Executing the code below requires access to the raw data and results.</p>
-<p>API keys are user-specific and, where applicable, instructions have been provided to help users obtain their own and configure them locally or on a High Performance Computer (HPC).</p>
+<p>This document applies code highlighting to Verbatim code environments, which are used to render formatted indentation in code blocks because this is not not natively supported in Quarto LaTeX documents. Below are the two steps to generate a formatted code block.</p>
+<ol type="1">
+<li><p>Paste the code to be highlighted into the bash_snippets list item. This will parse all provided code list items using the defined algorithm and generate a new TeX file named formatted_bash.tex. The resulting output may require manual adjustments, which can be made in the following two code block sections.</p></li>
+<li><p>Adjust the formatting by pasting the output below where Quarto will apply code highlighting, and in the following <code>\\begin{Verbatim}</code> section. The available commands are:</p>
+<ul>
+<li><code>\\kw</code> for Keywords</li>
+<li><code>\\func</code> for Functions</li>
+<li><code>\\str</code> for Strings</li>
+<li><code>\\com</code> for Comments</li>
+<li><code>\\op</code> for Operators</li>
+<li><code>\\atr</code> for Atributes</li>
+</ul></li>
+</ol>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">duplicated</span>(church_wide<span class="sc">$</span>abi) <span class="sc">%&gt;%</span> <span class="fu">table</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
-</section>
 
 <a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
@@ -255,7 +287,7 @@ ul.task-list li input[type="checkbox"] {
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/SOCAH-Lab\.github\.io\/Church-Closures-Dashboard\/");
+        var filterRegex = new RegExp('/' + window.location.host + '/');
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -596,17 +628,17 @@ ul.task-list li input[type="checkbox"] {
 </a>
   </li>  
     <li class="nav-item">
-    <a class="nav-link" href="./Pages/Pipeline.html">
+    <a class="nav-link" href="../../Pages/Pipeline.html">
 <p>Pipeline</p>
 </a>
   </li>  
     <li class="nav-item">
-    <a class="nav-link" href="./Pages/Development.html">
+    <a class="nav-link" href="../../Pages/Development.html">
 <p>Development</p>
 </a>
   </li>  
 </ul>
-    <div class="toc-actions"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/index.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions"><ul><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Scripts/For Analytical Reports/Code Highlighting Formatting_Verbatim.qmd" class="toc-action"><i class="bi bi-github"></i>View source</a></li><li><a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/issues" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
       <ul class="footer-items list-unstyled">
     <li class="nav-item compact">
