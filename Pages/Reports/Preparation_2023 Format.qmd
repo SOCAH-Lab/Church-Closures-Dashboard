@@ -26,6 +26,7 @@ suppressPackageStartupMessages({
   library("dplyr")            # Data manipulation and transformation
   library("stringr")          # String operations
   library("ggplot2")          # Graphics and visualization
+  library("sf")               # Simple Features for spatial data (geometry + CRS operations)
   library("gridExtra")        # Arrange multiple grid-based plots on a page
   library("tibble")           # Manipulate data frames in tidyverse
 })
@@ -50,7 +51,7 @@ suppressPackageStartupMessages({
 
 **Date Created:** October 2025
 
-**Date Updated:** July 16<sup>th</sup>, 2026
+**Date Updated:** July 29<sup>th</sup>, 2026
 
 # Overview
 
@@ -81,11 +82,11 @@ Selected code excerpts are referenced below. All snippets are drawn from scripts
 
 Given the time constraints of the Summer 2025 prototype launch, algorithm performance and accuracy were not improved in this iteration, and not all 2023 Formatted data could be processed — either due to algorithm limitations or time constraints.
 
-Following the prototype release, select original scripts reflecting the step-wise methods were formalized and published on GitHub in preparation for processing the remaining 2023 Formatted data. However, upon receipt of the 2026 Format in Spring 2026, much of the pipeline was overhauled directly, and cleaning the original scripts for certain steps was not prioritized.
+Following the prototype release, the original scripts reflecting the step-wise methods were formalized and published on GitHub in preparation for processing the remaining 2023 Formatted data. However, upon receipt of the 2026 format in Spring 2026, much of the pipeline was overhauled to accommodate this new version, and updating the original scripts was not prioritized.
 
 Any scripts from this pipeline that have been made available are retained for posterity only. Users should refer to the 2026 versions as the most accurate and reproducible implementation of this process.
 
-Those seeking to understand the improvements made to these methods for the 2026 Format should refer to the corresponding "Preparation" report.
+Those seeking to understand the format-specific changes made to these methods for the 2026 Format should refer to the corresponding "Review" and "Preparation" reports.
 
 ## Ignored Files
 
@@ -522,15 +523,185 @@ $\geq$ 100 meters, $\geq$ 500 meters, or $\geq$ 1000 meters. The physical distan
 
 The `dbscan(eps = 1, minPts = 2)` function groups observations into clusters when at least two points fall within a radius of 1 (in the units of the input coordinates)\ [@hahsler_dbscan]. Points that do not meet this density requirement are labeled as noise (0), while all other points are assigned to cluster groups 1, 2, etc. Cluster labels are applied independently within each business ID. As shown in the [Results - Step 4: Linking PO Boxes to Physical Addresses](#results-4), this method inconsistently clustered coordinates that would otherwise be considered a relocation of meaningful distance.
 
-Given time constraints, the prototype was scoped to focus only on addresses not suspected to have relocated. Quantifying relocations was to be revisited after the symposium. Addresses were therefore first filtered to those assumed to have not moved, defined as a maximum longitude and latitude difference of less than 0.5 degrees across all addresses for a given business, then clustered into areas and aggregated prior to assigning census boundaries.
+Given time constraints, the prototype was scoped to focus only on addresses not suspected to have relocated outside their county. Quantifying relocations at a finer scale was to be revisited after the symposium. Addresses were therefore first filtered to those assumed to have not moved, defined as a maximum longitude and latitude difference of less than 0.5 degrees across all addresses for a given business, then clustered into areas and aggregated prior to assigning census boundaries.
 
 Consolidated records were then annotated using address information and validation metrics drawn from one of the aggregated values. Priority was given to entries with both a verified address and verified geocoordinates from **Step 2** and **Step 3**, with additional conditions applied to rank the remaining cases in the following order: verified address > verified geography > first row. Consolidating records into localized clusters greatly expedited the point-in-polygon spatial assignment, enabling results to be presented at the prototype symposium; however, this was not considered a good approach for the final methods where more time was available.
-
-One other notable limitation warrants mention. The similarity between verified and reported geocoordinates was overly relied upon; for some addresses, the two differed enough to warrant using the verified coordinates over the raw, reported values. Both of these fundamental limitations were addressed in the revised 2026 formatted version pipeline.
 
 Additional details regarding the algorithm's performance outcomes can be found in [Results - Step 4: Linking PO Boxes to Physical Addresses](#results-4).
 
 ### Step 5: Point-in-Polygon Spatial Assignment
+
+:::{.callout-tip}
+# Computational Dependencies and Custom Functions
+
+All packages required for this step are documented in the **SET UP THE ENVIRONMENT** section of ["Clean Raw Data_Step 5_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%205_2023%20Format.R). Custom functions used throughout the script are in ["Support Functions/For Step 5_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Support%20Functions/For%20Step%205_2023%20Format.R).
+:::
+
+\vspace{1em}
+
+The data spans three decennial years: 2000, 2010, and 2020. Because users can select varying date ranges and may expect temporally accurate census boundary mappings, each address must be annotated with the census boundaries associated with all three. Once annotated, entries can be aggregated to the census boundary identifier from a given decennial US Census Bureau's [TIGER/Line Shapefile](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) release\ [@census_tigerline]. This enables results to be spatially projected onto maps via the decennially accurate demarcations of census boundaries.
+
+Accurate spatial depiction of these trends across census boundary levels requires consideration of varying degrees of locational error. Counties and states represent larger areas, making them less sensitive to imprecise locational information and less prone to boundary changes between decennial periods. In contrast, smaller boundaries such as block groups and tracts can change substantially between decennial periods and are more sensitive to locational errors. Ensuring accurate fine-level annotations for historical decennial years is therefore an important consideration.
+
+**Steps 2** and **3** seek to validate and improve the geocoordinates associated with a given business through address-based geocoding. When associating census boundary identifiers with these records, there are two fundamental approaches:
+
+1. Referencing a database with decennial boundary information already associated with each address.
+
+2. Assigning decennial boundaries to each address via point-in-polygon spatial joining of verified longitude and latitude coordinates against reliable spatial representations of map boundaries, known as polygons.
+
+The second approach is the standard of practice, ensuring all desired decennial boundary information is correctly assigned to the provided geocoordinates. Its accuracy is limited only by the reliability of the available address coordinates and boundary shapefiles. @fig-demo-polygon demonstrates how geocoordinate points are interpreted by a spatial join to polygon geometries, such as county-level census boundaries, geographically.
+
+\vspace{1em}
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+set.seed(1)
+
+# --- Example polygons in lon/lat (replace polys_ll with your own sf polygons if you have them) ---
+poly1 <- st_polygon(list(rbind(
+  c(-74.01, 40.70), c(-73.97, 40.70), c(-73.98, 40.74), c(-74.02, 40.73), c(-74.01, 40.70)
+)))
+poly2 <- st_polygon(list(rbind(
+  c(-73.99, 40.75), c(-73.94, 40.75), c(-73.95, 40.79), c(-74.00, 40.78), c(-73.99, 40.75)
+)))
+
+polys_ll <- st_sf(
+  poly_id = c("A", "B"),
+  geometry = st_sfc(poly1, poly2),
+  crs = 4326
+) %>% st_make_valid()
+
+# --- Create random points around polygons (some inside, some outside) ---
+bb <- st_bbox(polys_ll)
+pad <- 0.02
+bb_pad <- bb
+bb_pad[c("xmin","ymin")] <- bb[c("xmin","ymin")] - pad
+bb_pad[c("xmax","ymax")] <- bb[c("xmax","ymax")] + pad
+
+n_pts <- 120
+pts <- tibble::tibble(
+  lon = runif(n_pts, bb_pad["xmin"], bb_pad["xmax"]),
+  lat = runif(n_pts, bb_pad["ymin"], bb_pad["ymax"])
+) %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+  mutate(pt_id = row_number())
+
+# --- Point-in-polygon match ---
+idx <- st_within(pts, polys_ll)                 # list of matches per point
+pts$inside <- lengths(idx) > 0
+pts$poly_id <- ifelse(pts$inside, polys_ll$poly_id[sapply(idx, `[`, 1)], "Outside")
+pts$poly_id <- factor(pts$poly_id, levels = c(polys_ll$poly_id, "Outside"))
+
+# --- Plot: polygons filled by polygon id, points colored by polygon matched (or Outside) ---
+demo_point_polygon <- ggplot() +
+  geom_sf(data = polys_ll, aes(fill = poly_id), color = "black", linewidth = 0.8, alpha = 0.35) +
+  geom_sf(data = pts, aes(color = poly_id), size = 1.6, alpha = 0.9) +
+  scale_fill_brewer(palette = "Set2", name = "Census\nBounary") +
+  scale_color_manual(
+    values = c(setNames(RColorBrewer::brewer.pal(n = nrow(polys_ll), "Dark2"), polys_ll$poly_id),
+               Outside = "gray45"),
+    name = "Address\nLon/Lat"
+  ) +
+  coord_sf(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  labs(title = "") +
+  theme(
+    aspect.ratio = 0.55,
+
+    plot.title   = element_text(size = 12),
+    axis.title   = element_text(size = 10),
+    axis.text    = element_text(size = 10),
+
+    legend.title = element_text(size = 11),
+    legend.text  = element_text(size = 11)
+  )
+```
+
+
+```{r}
+#| label: fig-demo-polygon
+#| fig-cap: "Illustration of Point-in-Polygon Spatial Joining"
+#| echo: false
+#| message: false
+#| warning: false
+#| fig.width: 10
+#| fig.height: 4
+
+# Combine the plots side-by-side
+demo_point_polygon
+```
+
+:::{.callout-note}
+## Computational Performance
+
+The time complexity of a naïve spatial join for a single decennial period is $\mathcal{O}\left(N \times M\right)$, where $N$ denotes the number of points and $M$ the number of polygons\ [@forrest_spatial; @wikipedia_big_o].
+
+\vspace{1em}
+
+This can create significant time lags when associating multiple addresses across many boundaries, such as block groups or tracts in a densely populated region. Steps leading up to the point-in-polygon operation reduce the number of comparisons by consolidating addresses and filtering regions down to the state level. The county and other census boundaries were not used for filtering, as they were assumed to vary between decennial periods.
+
+\vspace{1em}
+
+Other strategies exist that can improve the speed of this operation. For example, spatial filtering or indexing can reduce the complexity to $\mathcal{O}\left(N \log(N) \times M \log(M)\right)$\ [@forrest_spatial]. Due to time constraints developing the process, these were not explored, and some entries, particularly those spanning denser census regions with more addresses, took orders of magnitude longer to compute than others.
+:::
+
+\vspace{1em}
+
+Three sources of census boundary information were explored:
+
+a. [US Census Bureau Geocoder](https://geocoding.geo.census.gov/geocoder/): Used in **Step 3** to validate geocoordinates; also provides a database of addresses already annotated with census boundary information\ [@us_census_bureau_geocoder; @us_census_bureau_geocoder_docs].
+
+b. [`tidycensus`](https://walker-data.com/tidycensus/index.html): Interfaces with select data from the US Census Bureau APIs and imports them as `tidyverse`- and `sf`-ready objects. Data accessible includes TIGER/Line Shapefiles\ [@kyle_walker_tidycensus].
+
+c. [`tigris`](https://cran.r-project.org/web/packages/tigris/index.html): Downloads TIGER/Line Shapefiles directly from the US Census Bureau\ [@walker_tigris_package].
+
+All three ultimately draw from the US Census Bureau, but each has its own limitations. For example, the Geocoder was considered because it is already used in **Step 3**, potentially allowing both steps to be combined into a single query. Its pre-annotated addresses would also eliminate the need for point-in-polygon spatial joining, reducing both computational costs and processing time. However, it is restricted to the 2010 and 2020 decennial periods and does not provide all the required boundaries.
+
+`tidycensus` was another viable option but also did not offer all the required census boundaries. Ultimately, `tigris` was selected for its ease of use and straightforward implementation via the custom functions `find_census_geographies_sf()` and `get_tracts_for_year_and_state()`. The `tidycensus` algorithm counterpart was not retained, but the Geocoder algorithm, implemented via `get_census_tract_geocoder()` 
+utilizing the `httr` and `jsonlite` packages for API interaction was kept for reference\ [@httr; @jasonlite].
+
+Spatial joining was conducted using the `sf` package\ [@edzer_sf]. Geocoordinates were converted to the standard World Geodetic System 1984 (WGS84) and projected into the coordinate reference system (CRS) of the census boundary polygons. The algorithm for retrieving census boundary information via `tigris` and joining it to the data is outlined below.
+
+Additional details regarding the algorithm's performance outcomes can be found in [Results - Step 5: Point-in-Polygon Spatial Assignment](#results-5).
+
+\begin{algorithm}[H]
+\caption{Spatial Join to Assign Census Tracts (2000/2010/2020) via \texttt{tigris}}
+\begin{algorithmic}[1]
+\Require Address table $\texttt{address\_data}$ with $\texttt{lon}, \texttt{lat}$ in WGS84; $\texttt{years} \subseteq \{2000,2010,2020\}$
+\Ensure For each address and year: matched $\texttt{STATEFP}$, $\texttt{COUNTYFP}$, $\texttt{GEOID}$, $\texttt{NAMELSAD}$
+
+\State Drop rows with missing $\texttt{lon}$ or $\texttt{lat}$
+
+\For{each $\texttt{year} \in \texttt{years}$}
+    \State Load state polygons (TIGER/Line): $\texttt{states\_sf} \gets \texttt{tigris::states}(\texttt{year}=\texttt{year}, \texttt{class}=\texttt{sf})$
+    \State Convert addresses to sf points: $\texttt{pts} \gets \texttt{as\_sf}(\texttt{address\_data}, (\texttt{lon},\texttt{lat}), \texttt{crs}=4326)$
+    \State Transform standardized $\texttt{pts}$ to the coordinate reference system (CRS) used by the boundary polygons, $\texttt{CRS}(\texttt{states\_sf})$
+    \State Spatially join points $\rightarrow$ states (within): $\texttt{pts\_state} \gets \texttt{join}(\texttt{pts}, \texttt{states\_sf}, \texttt{within})$
+    \State Extract $\texttt{state\_fips} \gets \texttt{pts\_state.STATEFP}$
+
+    \For{each $\texttt{state} \in \texttt{unique}(\texttt{state\_fips})$}
+        \If{$\texttt{state}$ is missing} \State \textbf{continue} \EndIf
+
+        \State \textbf{Fetch decennial-specific tract shapefiles (tigris) and standardize keys:}
+        \Statex \hspace{\algorithmicindent} $\texttt{tracts\_sf} \gets \texttt{get\_tracts\_for\_year\_and\_state}(\texttt{year}, \texttt{state})$
+        \If{$\texttt{tracts\_sf}=\texttt{NULL}$} \State \textbf{continue} \EndIf
+
+        \State Subset points in $\texttt{state}$: $\texttt{pts\_s} \gets \{\text{points in }\texttt{pts\_state}:\texttt{state\_fips}=\texttt{state}\}$
+        \State Transform $\texttt{pts\_s}$ to $\texttt{CRS}(\texttt{tracts\_sf})$
+        \State Spatially join points $\rightarrow$ tracts (within): $\texttt{pts\_tract} \gets \texttt{join}(\texttt{pts\_s}, \texttt{tracts\_sf}, \texttt{within})$
+        \State Keep standardized outputs: $\texttt{STATEFP}, \texttt{COUNTYFP}, \texttt{GEOID}, \texttt{NAMELSAD}$ and set $\texttt{Year}\gets\texttt{year}$
+        \State Append $\texttt{pts\_tract}$ to results
+    \EndFor
+\EndFor
+
+\State \Return combined results across all years/states
+\end{algorithmic}
+\end{algorithm}
+
+\newpage
 
 ## Algorithm Performance Optimization
 
@@ -654,7 +825,7 @@ mb_p2 <- ggplot(mb_result2, aes(x = time_ms, y = expr)) +
 grid.arrange(mb_p1, mb_p2, nrow = 1)
 ```
 
-Overall, processing a large data frame using the `data.table` class proved to be the most computationally efficient approach. Additionally, applying `data.table::rbindlist()` after a loop was found to be more efficient than base R's `do.call()`, while sequentially applying `data.table::rbindlist()` within a loop yielded comparable results to the latter.
+Overall, processing a large data frame using the `data.table` class proved to be the most computationally efficient approach (@fig-optimization). Additionally, applying `data.table::rbindlist()` after a loop was found to be more efficient than base R's `do.call()`, while sequentially applying `data.table::rbindlist()` within a loop yielded comparable results to the latter.
 
 Refer to [Appendix - Optimizing Data Subsetting](#code-results-source-1) and [Appendix - Optimizing Data Combination](#code-results-source-1) for information on where to find the code that generates these results, as well as the results codebook.
 
@@ -882,11 +1053,7 @@ TRUE  & 0.00 & 100.00 & 0.00 \\
 
 Development of this step and processing data through it were impeded by the short timeline leading up to the Summer 2025 symposium. In [Methods - Step 4: Linking PO Boxes to Physical Addresses](#methods-4), many of these design limitations and time-driven choices are described. As a further consequence of the time constraints, only half of the data processed through **Step 3** could be evaluated through this step prior to **Step 5**.
 
-Gross location changes are classified by the maximum difference in longitude and latitude coordinates listed across all addresses for a given business. To get a sense of maximal location change, a threshold of 0.001 degrees is applied uniformly to both coordinate differences, which approximates one city block.
-
-Note that the relationship between degrees and Euclidean distance differs between longitude and latitude and varies by location on the Earth's surface. This check intentionally simplifies those details to provide a quick and broad, high-level sense of address movement for a given business. For reference, 0.002 degrees $\approxeq$ 222 m, given that there are approximately 111,000 m per degree.
-
-#### Clustering Validity Assessment for Detecting Business Address Changes
+Gross location changes are classified by the maximum difference in longitude and latitude coordinates listed across all addresses for a given business. To get a sense of maximal location change, different distance bands are approximated. Note that the relationship between degrees and Euclidean distance differs between longitude and latitude and varies by location on the Earth's surface. This check intentionally simplifies those details to provide a quick, broad, high-level sense of address movement for a given business in the contiguous US. For reference, 0.002 degrees $\approxeq$ 222 m, or approximately two city blocks, translating to approximately 111,000 m per degree.
 
 \begin{tabular}{lrr}
 \toprule
@@ -903,7 +1070,13 @@ $>$ 50 miles   & 245    & 0.08 \\
 
 \vspace{1em}
 
-Nearly 86\% of businesses remained within one block of each other. An additional 12\% had a relocation within five miles, 1.6% between five and ten miles, and less than 1% moved more than ten miles, of which 0.08% moved more than 50 miles. Table \ref{tbl-confirm_dim_clusters_1} parses clustering results by number of unique addresses associated with a business and by maximum longitude/latitude coordinate difference detected.
+Nearly 86\% of businesses remained within one block of each other. An additional 12\% had a relocation within five miles, 1.6% between five and ten miles, and less than 1% moved more than ten miles, of which 0.08% moved more than 50 miles.
+
+\newpage
+
+#### Clustering Validity Assessment for Detecting Business Address Changes
+
+Table \ref{tbl-confirm_dim_clusters_1} parses clustering results by number of unique addresses associated with a business and by maximum longitude/latitude coordinate difference detected.
 
 \noindent\begin{minipage}{\linewidth}
 \small
@@ -1007,6 +1180,7 @@ $>$ 50 miles  & 0 & 0 \\
 
 ### Step 5: Point-in-Polygon Spatial Assignment {#results-5}
 
+Development of this step and processing data through it were impeded by the short timeline leading up to the Summer 2025 symposium. Due to these time constraints, only 1\% of the data could be evaluated. Of these, all were successfully associated with decennial boundaries for tract, county, and state across all three decennial periods, with no missing information.
 
 \newpage
 
@@ -1201,14 +1375,14 @@ For the implementation, refer to **SUBSECTION A2: Save Results** in ["Code/Clean
 
 ## Step 4: Final Result {#code-results-source-11}
 
-For the implementation, refer to **SUBSECTION B3: Save Results** in ["Code/Clean Raw Data_Step 4_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%204_2023%20Format.R). Results from **Step 2** were subset to those with validated geolocations ($\approx$ 80% of ABI entries). Due to processing limitations from time constraints ahead of the Summer 2025 symposium, approximately half of this subset was run through the algorithm. Data was imported from `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 03_Church Wide_Verified Geolocation_06.16.2025.csv.gz"`. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 03_Church Wide_Verified Geolocation_06.16.2025.csv.gz"`.
+For the implementation, refer to **SUBSECTION B3: Save Results** in ["Code/Clean Raw Data_Step 4_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%204_2023%20Format.R). Results from **Step 3** were subset to those with validated geolocations ($\approx$ 80% of ABI entries). Due to processing limitations from time constraints ahead of the Summer 2025 symposium, approximately half of this subset was run through the algorithm. Data was imported from `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 03_Church Wide_Verified Geolocation_06.16.2025.csv.gz"`. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 04_Cluster Addresses and Collapse By Area_06.17.2025.csv.gz"`.
 
 \newpage
 
 \begingroup
 \captionof{table}{Codebook for new output fields produced during the data cleaning and validation step.\\ All other fields were present in the \textbf{Step 3} form of the data.}
 \label{tab:codebook-9}
-\begin{tabular}{l p{0.68\linewidth}}
+\begin{tabular}{l p{0.70\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
 \addlinespace[10pt]
@@ -1218,11 +1392,36 @@ For the implementation, refer to **SUBSECTION B3: Save Results** in ["Code/Clean
 \addlinespace[10pt]
 \texttt{other metadata} & All other metadata fields (\texttt{address\_verified}, \texttt{lonLat\_test}, and \texttt{verifiedGeo}) relate to the selected address associated with this cluster area. \\
 \addlinespace[10pt]
-\texttt{latitude/longitude} & The longitude/latitude of the selected address. The assumption was that verified geographies closely corresponded with these coordinates. This was later found to be incorrect, and the verified geocoordinates were instead used in later iterations of this pipeline. \\
+\texttt{latitude/longitude} & The verified longitude/latitude of the selected address. \\
 \addlinespace[10pt]
 \texttt{2001:2021} & Column-wise sum of all entries associated with the given business ID and clustered area. \\
 \addlinespace[10pt]
 \texttt{all\_counts\_0\_or\_1} & Boolean. TRUE if all date entry sums for the given business ID are equal to 0 or 1. \\
+\end{tabular}
+\endgroup
+
+## Step 5: Final Result {#code-results-source-12}
+
+For the implementation, refer to **SUBSECTION A1: tigris Algorithm** in ["Code/Clean Raw Data_Step 5_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%205_2023%20Format.R). All results generated in **Step 4** were passed through the algorithm; however, due to significant processing limitations imposed by time constraints ahead of the Summer 2025 symposium, only 1\% of the data was successfully processed. Data was imported from `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 04_Cluster Addresses and Collapse By Area_06.17.2025.csv.gz"`. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/Step 05_Append Decennial Info Associated with an Area_05.27.2025.csv"`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for new output fields produced during the data cleaning and validation step.\\ All other fields were present in the \textbf{Step 4} form of the data.}
+\label{tab:codebook-10}
+\begin{tabular}{l p{0.72\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\addlinespace[10pt]
+\texttt{decennial\_census} & The census year the information represents: 2000, 2010, and 2020. \\
+\addlinespace[10pt]
+\texttt{tract} & The full tract-level GEOID, including the state and county Federal Information Processing Standards (FIPS) codes. \\
+\addlinespace[10pt]
+\texttt{tract\_name} & The tract-specific information and name for that decennial year and geocoordinates. \\
+\addlinespace[10pt]
+\texttt{state\_fips} & The state FIPS code for that decennial year and geocoordinates. \\
+\addlinespace[10pt]
+\texttt{county\_fips} & The county FIPS code for that decennial year and geocoordinates. \\
 \end{tabular}
 \endgroup
 

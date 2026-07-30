@@ -1,30 +1,36 @@
 ## ----------------------------------------------------------------
-## 
+## Assess Differences Between the Wide (2023) and Long (2026) Data Format
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 11th, 2026
 ## Date Modified: May 15th, 2026
+##
+## Description: In May 2026, an updated version of the raw data was provided in
+##              a different format than the version exported in July 2023 and
+##              provided in the summer of 2025. As a result, data processing was
+##              split into two paths: one for the 2023 Format and one for the
+##              2026 Format.
+##
+##              Upon receipt of the updated version of the data, an additional
+##              raw data review was conducted to assess the differences between
+##              these two versions and suggest refactorings to the pipeline.
+##              Raw data insights found in the 2023 Format comparative document,
+##              "Explore the Raw Data.R", are assumed to be relevant here as well.
+##              Additional insights gained from developing the pipeline for the
+##              2023 Format will also be implemented in the 2026 version, unless
+##              changed to specifically handle differences between the two formats.
 ## 
-## Description: This script validates addresses using the USPS API. It is designed
-##              to run both locally and on Yale's High Performance Computing (HPC)
-##              cluster, leveraging the parsed indices defined below.
+## NOTE: Under the Data Use Agreements (DUAs) with Data Axle and the USPS API 
+##       license, raw data cannot be publicly distributed and is stored locally 
+##       in "~/KEEP LOCAL" directories. Some code or results may also be 
+##       restricted. All publicly distributed results are summarized, and 
+##       publicly distributed code has been constructed to avoid referencing 
+##       individual-level data. Executing the code below requires access to the 
+##       raw data and results.
 ## 
-## Description: This script validates addresses using the USPS API. It is designed
-##              to run both locally and on Yale's High Performance Computing (HPC)
-##              cluster, leveraging the parsed indices defined below.
-##
-##              When running on the HPC, this script supports two execution modes:
-##              a single index at a time via a live session, or as a job array
-##              using the provided batch script (see SUBSECTION A1: Utilizing the
-##              HPC for details).
-##
-##              When running locally, ensure that all code sections marked
-##              "... on the HPC" are commented out and their corresponding
-##              alternatives marked "... locally" are active. The HPC version
-##              is given first, followed by the local version.
-##
-##              Results are processed in sequential sections and compiled in
-##              the Step 2 main script.
+##       API keys are user-specific and, where applicable, instructions have 
+##       been provided to help users obtain their own and configure them locally 
+##       or on a High Performance Computer (HPC).
 ## 
 ## Sections:
 ##    - SET UP THE ENVIRONMENT
@@ -650,7 +656,7 @@ loc_condensed <- summarize_many_code_ranges_dt(subset, vars_for_loc) %>%
 area_code_qc <- check_ranges_same_outcome(loc_condensed)
 
 # # Save the result.
-# write.csv(area_code_qc, file = "Data/Results/KEEP LOCAL/From Process Data Update/Area Code QC_Collapsed Data_05.18.2026.csv")
+# write.csv(area_code_qc, file = "./Data/Results/KEEP LOCAL/From Process Data Update/Area Code QC_Collapsed Data_05.18.2026.csv")
 
 
 ## --------------------
@@ -679,7 +685,7 @@ subset_condensed <- summarize_many_code_ranges_dt(subset, vars_to_sum) %>%
   arrange(abi)
 
 # # Save the result.
-# write.csv(subset_condensed, file = "Data/Results/KEEP LOCAL/From Process Data Update/Summarize Metadata Method_Collapsed Data_05.15.2026.csv")
+# write.csv(subset_condensed, file = "./Data/Results/KEEP LOCAL/From Process Data Update/Summarize Metadata Method_Collapsed Data_05.15.2026.csv")
 
 
 

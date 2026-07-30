@@ -1,0 +1,1156 @@
+---
+format:
+  pdf:
+    include-in-header: 
+      - text: |
+          \input{../../Scripts/For Analytical Reports/LaTeX Formatting/PDF Formatting Script.tex}
+highlight-style: ../../_styles/idle-fingers-light.theme
+bibliography: ../references.bib
+csl: ../../Scripts/nature.csl
+---
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| include: false
+
+## ----------------------------------------------------------------
+## SET UP THE ENVIRONMENT
+
+# Initiate the package environment.
+renv::restore()
+
+suppressPackageStartupMessages({
+  library("readr")            # Reads in CSV and other delimited files
+  library("dplyr")            # Data manipulation and transformation
+  library("stringr")          # String operations
+  library("ggplot2")          # Graphics and visualization
+  library("gridExtra")        # Arrange multiple grid-based plots on a page
+  library("tibble")           # Manipulate data frames in tidyverse
+  library("knitr")            # Formatting tables
+})
+
+# Define the "not in" operation
+"%!in%" <- function(x,y)!("%in%"(x,y))
+```
+
+\clearpage
+\null
+\thispagestyle{empty}
+\newpage
+\setcounter{page}{1}
+
+
+\tableofcontents
+\newpage
+
+# Review of the 2023 Format Raw Data
+
+**Prepared By:** [Shelby Golden, M.S.](https://www.linkedin.com/in/shelby-golden) from the Yale School of Public Health [Data Science and Data Equity](https://ysph.yale.edu/research/research-centers-and-initiatives/public-health-data-science-and-data-equity/) team
+
+**Date Created:** May 19<sup>th</sup>, 2026
+
+**Date Updated:** July 30<sup>th</sup>, 2026
+
+# Overview
+
+The project objectives were as follows:
+
+1. **REVIEW:** Evaluate the raw data and previously outlined cleaning, validation, and harmonization methods employed by [Dr. Insang Song](https://sigmafelix.wixsite.com/mysite) for accuracy and identify opportunities for improvement.
+
+2. **PREPARATION:** Implement identified improvements to prepare the dataset for analysis and distribution to qualifying collaborators.
+
+3. **METRICS:** Calculate the metrics necessary for dynamic visualization.
+
+
+Additionally, the project Principal Investigator (PI), [Professor Yusuf Ransome](https://ysph.yale.edu/profile/yusuf-ransome/), requested the pipeline be reproducible for future collaborators and readily adaptable to potential changes in project scope.
+
+Following receipt of the raw data in Summer 2025, a review was conducted and findings were compared against the original methodology provided by Dr. Song. When an updated dataset was subsequently delivered in May 2026, the pipeline was expanded to accommodate two designated variations: the **2023 Format** and the **2026 Format**.
+
+This document provides an overview of the challenges associated with the 2026 Format data and identifies opportunities for validation and cleaning. Unless otherwise noted, findings outlined for the 2023 Format apply here as well; additional details are provided in the comparative review report. This report does not aim to examine every case exhaustively or fully quantify the extent of any issues — rather, it serves to characterize the data at a high level.
+
+# Important Considerations
+
+Selected code excerpts are referenced below. The complete code used to generate this report can be found in ["Code/Process Data Update.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Process%20Data%20Update.R).
+
+## Ignored Files
+
+Individual-level files are withheld from GitHub and Git tracking in accordance with the Data Use Agreement (DUA) with the data provider. Many of these are stored in `**/KEEP LOCAL/` directories or are explicitly listed under the "Project-Specific Exclusions" section of the `.gitignore` file.
+
+Most files are available on the SOCAH Lab OneDrive for the project, while others are user-specific and do not need to be shared. If there are local-only files for this project, they will be added to the "Church-Closures-Dashboard GitHub LOCAL ONLY Files" directory. This directory will contain `README.md` files specifying the intended use and filepath for each file.
+
+If you do not have access to the SOCAH Lab OneDrive, carefully follow the codebase instructions to establish the repository and replicate results on your own device. Raw data access instructions may vary depending on your institution.
+
+## Environment Reproducibility
+
+Results were produced using R (v4.5.2), RStudio (v2026.01.1+403), and Quarto (v1.8.27). The `renv` package (v1.1.4) is included to reproduce the coding environment, capturing all relevant packages and their versions. If issues arise when running the scripts, verify that the environment is initialized and that the correct versions of R, RStudio, and Quarto are being used.
+
+\vspace{1ex}
+
+\begin{callout-warning}[Compatibility]
+\small Updating packages, R, or Quarto may introduce compatibility issues with legacy code that will need to be resolved on a case-by-case basis.
+\end{callout-warning}
+
+\vspace{1ex}
+
+First-time users should initialize the environment to install all required packages and ensure a reproducible coding environment. To do so:
+
+1. In the command-line application (i.e., Terminal for Macs or Git Bash for Windows) navigate to the codebase file location.
+
+\begin{list}{}{\setlength\leftmargin{2.5em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{Command-Line Interface} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+  \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\func{cd} \str{"FILE-PATH/Church-Closures-Dashboard/"}
+  \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}
+\end{list}
+
+2. Launch the project by opening the `*.Rproj` file in RStudio.
+
+3. In the R console, activate the environment by running the following lines of code:
+
+\begin{list}{}{\setlength\leftmargin{2.5em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{Command-Line Interface} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\func{renv::restore()}   \com{# Download packages and their version saved in the lockfile.}
+  \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}
+\end{list}
+
+\vspace{1em}
+
+:::{.callout-note}
+\small If you are asked to update packages, say no.`renv` is intended to recreate the same environment under which the project was created, making it reproducible. You are ready to proceed when running `renv::restore()` gives the output:
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+- The library is already synchronized with the lockfile.
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-3.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+If you experience any trouble with this step, you might want to confirm that you are using R (v4.5.2) in the RStudio (v2026.01.1+403) and Quarto (v1.8.27). You can also read more about `renv` in their [vignette](https://rstudio.github.io/renv/articles/renv.html)\ [@renv_intro].
+:::
+
+\newpage
+
+# Data Dictionary
+
+**File name:** `church_long_form_050926.csv`\
+**Number of rows:** 10,201,197\
+**Number of columns:** 54
+
+Some details were sourced from the Environmental Systems Research Institute (ESRI) documentation on the Data Axle dataset utilized in this study, while others were estimated based on variable naming\ [@data_axle_data_dictionary]. Some variables were neither definable from their name alone nor findable in source provider documentation.
+
+- `company:` The business name.
+
+- `archive_version_year:` The year the information was added, spanning 2000 to 2025.
+
+- `abi:` American Business Identifier (ABI): The unique identifier for each business, used to associate addresses with a specific organization.
+
+- `year_established:` Indicates the year the business was first established.
+
+- `primary_naics8_code:` This dataset combines the six-digit 2022 vintage [North American Industry Classification System (NAICS)](https://www.census.gov/naics/?input=813110&year=2022&details=813110) code and a two-digit proprietary code from Data Axle. The two-digit Data Axle code provides additional classification details not reflected here.
+
+- `naics8_descriptions:` All entries have NAICS = 813110, indicating they are classified as "Religious Organizations", which includes churches, shrines, monasteries (except schools), synagogues, mosques, and temples.
+
+- `subsidiary_number:` A unique identifier assigned to a subsidiary of the parent company, used to link the business location back to its specific subsidiary entity within the broader corporate hierarchy.
+
+- `company_holding_status:` Indicates the holding or ownership status of the company, distinguishing between classifications such as headquarters, branch, subsidiary, or standalone entity within a corporate structure.
+
+- `address_line_1:` The primary address line associated with the ABI entry.
+
+- `city:` The city associated with the address.
+
+- `state:` The state associated with the address.
+
+- `zipcode:` The five-digit ZIP code associated with the address.
+
+- `zip4:` The four-digit ZIP code extension associated with the address.
+
+- `primary_sic_code:` The primary Standard Industrial Classification (SIC) code assigned to the business, representing its main industry or business activity.
+
+- `sic6_descriptions:` Description of the SIC code.
+
+- `sic_code_[1-4]:` Up to four additional SIC codes assigned to the business, capturing additional or secondary industries and activities beyond the primary classification.
+
+- `sic6_descriptions_sic[1-4]:` Description of the addditional SIC codes.
+
+- `longitude and latitude:` Given as two columns. Provides the geolocation associated with the address listed in that row.
+
+- `census_block:` The smallest geographic unit defined by the U.S. Census Bureau. Provides a precise sub-tract level location identifier associated with the address listed in that row.
+
+- `census_tract:` A small, relatively permanent geographic subdivision of a county defined by the U.S. Census Bureau, used for statistical and demographic analysis.
+
+- `county_code:` A numeric code identifying the county associated with the address listed in that row.
+
+- `fips_code:` The Federal Information Processing Standards (FIPS) code assigned to the geographic area, providing a standardized identifier for states, counties, and other administrative regions.
+
+- `cbsa_level:` Indicates the level of the Core-Based Statistical Area (CBSA), distinguishing between Metropolitan Statistical Areas (MSAs) and Micropolitan Statistical Areas.
+
+- `cbsa_code:` A numeric code identifying the Core-Based Statistical Area (CBSA) associated with the address, as defined by the U.S. Office of Management and Budget (OMB).
+
+- `csa_code:` A numeric code identifying the Combined Statistical Area (CSA) associated with the address, representing a grouping of adjacent CBSAs with strong economic and social ties.
+
+- `area_code:` The telephone area code associated with the business location.
+
+- `site_number:` A unique identifier assigned to a specific physical location or site of a business, used to distinguish individual locations within the same organization.
+
+- `yellow_page_code:` A code indicating the Yellow Pages heading(s) under which the business is listed, reflecting how the business advertises or categorizes itself in directory listings.
+
+- `office_size_code:` A coded value representing the size of the office or physical location.
+
+- `employee_size_location and location_employee_size_code:` Given as two columns. Provides the actual employee count at the specific location and a corresponding code representing that count within a size classification range.
+
+- `sales_volume_location and location_sales_volume_code:` Given as two columns. Provides the actual sales attributed to the specific location and a corresponding code representing that number within a size classification range.
+
+- `parent_number:` A unique identifier assigned to the parent company of the business, used to link individual locations or subsidiaries back to their controlling organization.
+
+- `parent_actual_employee_size and parent_employee_size_code:` Given as two columns. Provides the total employee count for the parent company and a corresponding code representing that count within a size classification range.
+
+- `parent_actual_sales_volume and parent_sales_volume_code:` Given as two columns. Provides the total sales for the parent company and a corresponding code representing that number within a size classification range.
+
+- \textbf{Unknown variables or code translations:} \texttt{address\_\allowbreak type\_\allowbreak indicator},
+\texttt{industry\_\allowbreak specific\_\allowbreak first\_\allowbreak byte},
+\texttt{business\_\allowbreak status\_\allowbreak code},
+\texttt{population\_\allowbreak code},
+\texttt{match\_\allowbreak code},
+\texttt{ticker}, and \texttt{idcode}.
+
+\newpage
+
+# Correspondence to the 2023 Format
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Results from "PART A: ASSESS METADATA CONTENT DIFFERENCES" found in}
+\com{# `Process Data Update.R`}
+
+handling\_var \op{<-} \func{read.csv}(\str{"../../Data/Results/From Process Data Update/Handling Raw Variables\_05.12.2026.csv"}) \op{\%>\%} 
+                \func{as.data.frame}()
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+Core fields (`abi`, `address_line_1`, `city`, and `state`) are consistent between the old and new data formats. Not shown here, the 2026 Format introduces the variable `archive_version_year`, which appends new years of information as rows, whereas the 2023 Format extended this information column-wise as binary encodings. Notably, the new data stores the zip code as a five-digit character field, preserving leading zeros, and includes a four-digit zip code extension.
+
+\begin{longtable}{r l l l l}
+\caption{Variable classes and metadata flag for 2026 vs.\ 2023.}\\
+\toprule
+\textbf{\#} & \textbf{Variable} & \textbf{Metadata Var} & \textbf{Class\_2026} & \textbf{Class\_2023} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{\#} & \textbf{Variable} & \textbf{Metadata Var} & \textbf{Class\_2026} & \textbf{Class\_2023} \\
+\midrule
+\endhead
+
+\bottomrule
+\endfoot
+
+1  & company & TRUE  & character & \texttt{\textless NA\textgreater} \\
+2  & abi & FALSE & numeric & numeric \\
+3  & year\_established & TRUE  & numeric & numeric \\
+4  & primary\_naics6\_code & TRUE  & numeric & numeric \\
+5  & naics6\_descriptions & TRUE  & character & character \\
+6  & subsidiary\_number & TRUE  & character & \texttt{\textless NA\textgreater} \\
+7  & company\_holding\_status & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+8  & address\_line\_1 & FALSE & character & character \\
+9  & city & FALSE & character & character \\
+10 & state & FALSE & character & character \\
+11 & zipcode & FALSE & character & numeric \\
+12 & zip4 & FALSE & character & \texttt{\textless NA\textgreater} \\
+13 & primary\_sic\_code & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+14 & sic6\_descriptions & TRUE  & character & \texttt{\textless NA\textgreater} \\
+15 & sic\_code & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+16 & sic6\_descriptions\_sic & TRUE  & character & \texttt{\textless NA\textgreater} \\
+17 & sic\_code\_1 & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+18 & sic6\_descriptions\_sic1 & TRUE  & character & \texttt{\textless NA\textgreater} \\
+19 & sic\_code\_2 & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+20 & sic6\_descriptions\_sic2 & TRUE  & character & \texttt{\textless NA\textgreater} \\
+21 & sic\_code\_3 & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+22 & sic6\_descriptions\_sic3 & TRUE  & character & \texttt{\textless NA\textgreater} \\
+23 & sic\_code\_4 & TRUE  & logical & \texttt{\textless NA\textgreater} \\
+24 & sic6\_descriptions\_sic4 & TRUE  & logical & \texttt{\textless NA\textgreater} \\
+25 & latitude & FALSE & numeric & numeric \\
+26 & longitude & FALSE & numeric & numeric \\
+27 & census\_block & FALSE & numeric & \texttt{\textless NA\textgreater} \\
+28 & census\_tract & FALSE & character & \texttt{\textless NA\textgreater} \\
+29 & county\_code & FALSE & character & \texttt{\textless NA\textgreater} \\
+30 & fips\_code & FALSE & character & \texttt{\textless NA\textgreater} \\
+31 & cbsa\_level & FALSE & numeric & \texttt{\textless NA\textgreater} \\
+32 & cbsa\_code & FALSE & character & \texttt{\textless NA\textgreater} \\
+33 & csa\_code & FALSE & character & \texttt{\textless NA\textgreater} \\
+34 & area\_code & FALSE & numeric & \texttt{\textless NA\textgreater} \\
+35 & site\_number & TRUE  & character & \texttt{\textless NA\textgreater} \\
+36 & yellow\_page\_code & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+37 & office\_size\_code & TRUE  & logical & \texttt{\textless NA\textgreater} \\
+38 & employee\_size\_location & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+39 & location\_employee\_size\_code & TRUE  & character & \texttt{\textless NA\textgreater} \\
+40 & sales\_volume\_location & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+41 & location\_sales\_volume\_code & TRUE  & character & \texttt{\textless NA\textgreater} \\
+42 & parent\_number & TRUE  & character & \texttt{\textless NA\textgreater} \\
+43 & parent\_actual\_employee\_size & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+44 & parent\_employee\_size\_code & TRUE  & character & \texttt{\textless NA\textgreater} \\
+45 & parent\_actual\_sales\_volume & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+46 & parent\_sales\_volume\_code & TRUE  & character & \texttt{\textless NA\textgreater} \\
+47 & primary\_naics2\_code & TRUE  & numeric & numeric \\
+48 & address\_type\_indicator & TRUE  & character & \texttt{\textless NA\textgreater} \\
+49 & industry\_specific\_first\_byte & TRUE  & character & \texttt{\textless NA\textgreater} \\
+50 & business\_status\_code & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+51 & population\_code & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+52 & match\_code & TRUE  & character & \texttt{\textless NA\textgreater} \\
+53 & ticker & TRUE  & logical & \texttt{\textless NA\textgreater} \\
+54 & idcode & TRUE  & numeric & \texttt{\textless NA\textgreater} \\
+\end{longtable}
+
+The new dataset also introduces additional columns covering census and location attributes, as well as business-level details including size, status, and SIC encoding. Because the data structure appends new information row-wise, care must be taken to ensure these metadata fields are correctly collapsed when the data is transformed into single rows per ABI and address. Ideally, the structural transformation should occur after addresses have been grouped and matched to similar ones, to reduce redundancies introduced by typographical errors.
+
+Variables can be categorized as follows:
+
+\begin{longtable}{r l l}
+\caption{Variable grouping classifications.}\\
+\toprule
+\textbf{\#} & \textbf{Variable} & \textbf{Group} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{\#} & \textbf{Variable} & \textbf{Group} \\
+\midrule
+\endhead
+
+\bottomrule
+\endfoot
+
+1  & company & Core business details \\
+2  & abi & Core business details \\
+3  & year\_established & Core business details \\
+4  & primary\_naics6\_code & Core business details \\
+5  & naics6\_descriptions & Core business details \\
+6  & subsidiary\_number & Core business details \\
+7  & company\_holding\_status & Core business details \\
+8  & address\_line\_1 & Core business details by location \\
+9  & city & Core business details by location \\
+10 & state & Core business details by location \\
+11 & zipcode & Core business details by location \\
+12 & zip4 & Core business details by location \\
+13 & primary\_sic\_code & Core business details by location \\
+14 & sic6\_descriptions & Core business details by location \\
+15 & sic\_code & Core business details by location \\
+16 & sic6\_descriptions\_sic & Core business details by location \\
+17 & sic\_code\_1 & Core business details by location \\
+18 & sic6\_descriptions\_sic1 & Core business details by location \\
+19 & sic\_code\_2 & Core business details by location \\
+20 & sic6\_descriptions\_sic2 & Core business details by location \\
+21 & sic\_code\_3 & Core business details by location \\
+22 & sic6\_descriptions\_sic3 & Core business details by location \\
+23 & sic\_code\_4 & Core business details by location \\
+24 & sic6\_descriptions\_sic4 & Core business details by location \\
+25 & latitude & Core location details \\
+26 & longitude & Core location details \\
+27 & census\_block & Core location details \\
+28 & census\_tract & Core location details \\
+29 & county\_code & Core location details \\
+30 & fips\_code & Core location details \\
+31 & cbsa\_level & Core location details \\
+32 & cbsa\_code & Core location details \\
+33 & csa\_code & Core location details \\
+34 & area\_code & Core location details \\
+35 & site\_number & Core business details by location \\
+36 & yellow\_page\_code & Core business details by location \\
+37 & office\_size\_code & Core business details by location \\
+38 & employee\_size\_location & Core business details by location \\
+39 & location\_employee\_size\_code & Core business details by location \\
+40 & sales\_volume\_location & Core business details by location \\
+41 & location\_sales\_volume\_code & Core business details by location \\
+42 & parent\_number & Parent company details \\
+43 & parent\_actual\_employee\_size & Parent company details \\
+44 & parent\_employee\_size\_code & Parent company details \\
+45 & parent\_actual\_sales\_volume & Parent company details \\
+46 & parent\_sales\_volume\_code & Parent company details \\
+47 & primary\_naics2\_code & Unknown variables or code translations \\
+48 & address\_type\_indicator & Unknown variables or code translations \\
+49 & industry\_\allowbreak specific\_\allowbreak first\_\allowbreak byte & Unknown variables or code translations \\
+50 & business\_status\_code & Unknown variables or code translations \\
+51 & population\_code & Unknown variables or code translations \\
+52 & match\_code & Unknown variables or code translations \\
+53 & ticker & Unknown variables or code translations \\
+54 & idcode & Unknown variables or code translations \\
+
+\end{longtable}
+
+By this classification, there are are two types of metadata:
+
+a) Metadata relevant to a given business or location that does not change across years (e.g. `year_established`, `fips_code`)
+
+b) Metadata that may change across years (e.g. `census_block`, `employee_size_location`)
+
+This analysis requires only most of the core business and location details. The remaining metadata will be processed simultaneously to produce a final, cleaned dataset, though not with any specific follow-up analysis in mind. As a result, the metadata may not be in a format suitable for all analyses, as the data are primarily prepared for the dashboard.
+
+Metadata are processed by considering change across location (distinguishing between values consistent for a given business and those that vary by location) and year. For both types of location variation, value changes by year are captured to maintain granularity. While these are not expected to indicate anything actionable, they may reveal opportunities for standardization or data cleaning and validation. Some of these opportunities will be taken here, while the remainder will be left for follow-up analyses.
+
+To capture year-level granularity in value changes, a date range will be added to each unique value when collapsed by `abi` and `combined_address` (a formatted combination of all address components). For fields that are relevant to this project, unique values that do not span the expected years — the years in which that abi and address were recorded — will be cleaned to report only the distinct value.
+
+In the following sections, specific metadata fields are assessed for quality and to develop this condensing approach.
+
+# NAICS and SIC Encodings
+
+NAICS and SIC encodings provide additional context about the type of business, religious affiliation, and function. The 2023 Form of the data only included the NAICS encoding, while the 2026 Form includes both.
+
+## Primary NAICS and SIC Encodings
+
+When processing the 2023 Formatted data, it was identified that the NAICS code is eight digits long, with the trailing two digits representing an unknown proprietary code from Data Axle. These will be separated into a six-digit (`naics6`) code with description and a two-digit (`naics2`) code with no associated description.
+
+Both versions of the data share the same unique NAICS eight-digit encodings. The 2023 Formatted data processing protocol retained only the unique six-digit NAICS codes and their descriptions, which are consistent across all entries; the trailing two digits were stored as a string. The method devised to retain applicable years will also be applied to this field.
+
+SIC refines the classification of religious organizations by capturing attributes such as affiliation, denomination, and operational function (e.g., school, retreat center). This information was not provided in the previous version. It is provided as both a primary classification column accompanied by up to four additional overflow columns. All are examined together in the following section.
+
+### Primary and Additional SIC Encodings
+
+The following assumptions about the SIC encodings require review and confirmation:
+
+a. Overflow columns are filled progressively with no other discernible pattern.
+
+b. The same categories appear across all columns, with the possible exception of the primary SIC column, which may differ or be restricted.
+
+c. Each code maps to a unique description and vice versa.
+
+d. Nomenclature is consistent throughout.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Custom SIC column auditing function devised to quickly assess the above}
+\com{# assumptions for recently exported data in the 2026 Format.}
+\com{# ~ line 415}
+
+sic\_results \op{<-} \func{sic\_overflow\_audit}(church\_long\_form_050926)
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+:::{.callout-important}
+The following results apply to the most recent data export in the 2026 Format at the time of this writing. To ensure subsequently exported data in this format are appropriately processed, they will need to be reaudited to confirm the validity of these assumptions or flag any corrections that are required.
+:::
+
+\vspace{1em}
+
+**ASSUMPTION A:** Each additional SIC encoding is assumed to represent supplementary classification information attributed to that address. The code columns follow the expected pattern; however, the description columns do not. This is likely due to missing descriptions for certain codes. The `sic_results$missing_desc_codes_are_subset_of_no_desc = TRUE` result confirms that description fields deviating from this pattern do so because of missing descriptions for a given code.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Select custom SIC column auditing function results.}
+\com{# ~ line 418-436}
+
+sic\_results\op{$}overflow\_summary\_code
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+\begin{tabular}{rrr}
+\toprule
+\textbf{Total Rows} & \textbf{Rows Passed} & \textbf{Rows Failed} \\
+\midrule
+10{,}201{,}197 & 10{,}201{,}197 & 0 \\
+\bottomrule
+\end{tabular}
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Select custom SIC column auditing function results.}
+\com{# ~ line 418}
+
+sic\_results\op{$}missing\_desc\_codes\_are\_subset\_of\_no\_desc   \com{# TRUE}
+sic\_results\op{$}overflow\_summary\_desc
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+\begin{tabular}{rrr}
+\toprule
+\textbf{Total Rows} & \textbf{Rows Passed} & \textbf{Rows Failed} \\
+\midrule
+10{,}201{,}197 & 10{,}201{,}098 & 99 \\
+\bottomrule
+\end{tabular}
+
+\newpage
+
+**ASSUMPTION B:** If each column represents an overflow of the same underlying information, a significant degree of overlap in the values present across columns would be expected.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Select custom SIC column auditing function results.}
+\com{# ~ line 437-445}
+
+sic\_results\op{$}presence\_wide      \com{# All SIC codes/descriptions}
+sic\_results\op{$}presence\_tabs      \com{# Tabulated outcomes}
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+\begin{tabular}{lrr}
+\toprule
+\textbf{Row} & \textbf{FALSE} & \textbf{TRUE} \\
+\midrule
+\texttt{primary\_sic\_code} + \texttt{sic6\_descriptions}          & 2{,}563 & 43 \\
+\texttt{sic\_code} + \texttt{sic6\_descriptions\_sic}              & 353     & 2{,}253 \\
+\texttt{sic\_code\_1} + \texttt{sic6\_descriptions\_sic1}          & 1{,}149 & 1{,}457 \\
+\texttt{sic\_code\_2} + \texttt{sic6\_descriptions\_sic2}          & 1{,}652 & 954 \\
+\texttt{sic\_code\_3} + \texttt{sic6\_descriptions\_sic3}          & 1{,}984 & 622 \\
+\bottomrule
+\end{tabular}
+
+\vspace{1ex}
+
+There is a high degree of overlap across the overflow SIC encodings, which decreases as the overflow index increases. This is expected, as fewer entries carry more than one or two additional SIC classifications. 
+
+Only a small subset of possible SIC codes is utilized in the primary column, suggesting that the available selection may be more restricted at the point of data collection. All 43 outcomes in the primary SIC are also used in overflow SIC columns.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Select custom SIC column auditing function results.}
+\com{# ~ line 456-466}
+
+\com{# Pull columns that are logical TRUE/FALSE “sic presence” columns}
+sic\_cols \op{<-} sic\_results\op{$}presence\_wide \op{\%>\%}
+  \func{select}(\func{where}(is.logical)) \op{\%>\%}
+  \func{names}()
+
+other\_cols \op{<-} \func{setdiff}(sic\_cols, \str{"primary\_sic\_code + sic6\_descriptions"})
+
+\com{# All Primary SIC outcomes are present in the overflow categories}
+sic\_results\op{$}presence\_wide \op{\%>\%}
+  \func{filter}(.data[[\str{"primary\_sic\_code + sic6\_descriptions"}]] \& \kw{if}\_any(all\_of(other\_cols), \op{~} .x)) \op{\%>\%}
+  \func{nrow}()     \com{# 43}
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-2ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+**ASSUMPTION C:** It is assumed that each code maps uniquely to a single description and vice versa. To verify this assumption, a mapping table is constructed from all non-null (code, description) pairs across all column pairs. Consistency checks:
+
+a) Each SIC code maps to exactly one description.
+
+b) Each SIC description maps to exactly one code.
+
+c) SIC codes associated with an `NA` description are identified and accounted for elsewhere.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Select custom SIC column auditing function results.}
+\com{# ~ line 473-487}
+
+sic\_results\op{$}map\_tbl
+
+other\_cols \op{<-} \func{setdiff}(sic\_cols, \str{"primary\_sic\_code + sic6\_descriptions"})
+
+\func{list}(
+  \atr{n\_unique\_pairs =} sic\_results\op{$}n\_unique\_pairs,
+  \atr{code\_to\_desc\_consistent =} sic\_results\op{$}code\_to\_desc\_consistent,
+  \atr{desc\_to\_code\_consistent =} sic\_results\op{$}desc\_to\_code\_consistent,
+  \atr{codes\_with\_multiple\_desc =} sic\_results\op{$}codes\_with\_multiple\_desc,
+  \atr{desc\_with\_multiple\_codes =} sic\_results\op{$}desc\_with\_multiple\_codes,
+  \atr{desc\_that\_is\_sometimes\_na =} sic\_results\op{$}desc\_that\_is\_sometimes\_na
+)
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+\begin{tabular}{ll}
+\toprule
+\multicolumn{2}{l}{\textbf{Summary}} \\
+\midrule
+Unique pairs       & 2{,}583 \\
+Code-to-desc consistent & FALSE \\
+Desc-to-code consistent & FALSE \\
+\bottomrule
+\end{tabular}
+
+\vspace{1em}
+
+\begin{tabular}{rr}
+\toprule
+\multicolumn{2}{l}{\textbf{Codes with Multiple Descriptions}} \\
+\midrule
+\textbf{SIC Code} & \textbf{N Descriptions} \\
+\midrule
+279610 & 2 \\
+513705 & 2 \\
+549903 & 2 \\
+561101 & 2 \\
+562101 & 2 \\
+596316 & 2 \\
+799922 & 2 \\
+799927 & 2 \\
+804908 & 2 \\
+822298 & 2 \\
+824401 & 2 \\
+824903 & 2 \\
+835102 & 2 \\
+864102 & 2 \\
+869904 & 2 \\
+874881 & 2 \\
+912101 & 2 \\
+912104 & 2 \\
+\bottomrule
+\end{tabular}
+
+\vspace{1em}
+
+\begin{tabular}{lr}
+\toprule
+\multicolumn{2}{l}{\textbf{Descriptions with Multiple Codes}} \\
+\midrule
+\textbf{SIC Description} & \textbf{N Codes} \\
+\midrule
+Computer Software              & 2 \\
+Schools---Business \& Secretarial & 2 \\
+\bottomrule
+\end{tabular}
+
+\vspace{1em}
+
+\begin{tabular}{ll}
+\toprule
+\multicolumn{2}{l}{\textbf{Descriptions That Are Sometimes NA}} \\
+\midrule
+\textbf{SIC Code} & \textbf{SIC Description} \\
+\midrule
+866124 & Monasteries \\
+821120 & School Districts \\
+737206 & Computer Software \\
+\bottomrule
+\end{tabular}
+
+\vspace{1ex}
+
+Some codes are associated with multiple descriptions and vice versa. Additionally, some codes are sometimes associated with an `NA` description despite having a valid description in other instances. Each case will be addressed individually.
+
+**ASSUMPTION D:** Many of these inconsistencies are attributable to variations in nomenclature and will be corrected on an individual basis.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Entries to correct description}
+\com{# ~ line 498}
+
+fix\_desc \op{<-} sic\_results\op{$}presence\_wide \op{\%>\%}
+  \func{filter}(sic\_code \op{\%in\%} sic\_results\op{\$}codes\_with\_multiple\_desc\op{\$}sic\_code) \op{\%>\%}
+  \func{select}(sic\_code, sic\_desc) \op{\%>\%}
+  \func{arrange}(sic\_code) \op{\%>\%}
+  \func{group\_by}(sic\_code) \op{\%>\%}
+  \func{mutate}(\atr{dup\_id =} \func{row\_number}()) \op{\%>\%}
+  \func{ungroup}() \op{\%>\%}
+  \func{pivot\_wider}(
+    \atr{id\_cols =} sic\_code,
+    \atr{names\_from =} dup\_id,
+    \atr{values\_from =} sic\_desc,
+    \atr{names\_prefix =} \str{"sic\_desc\_"}
+  ) \op{\%>\%}
+  \func{as.data.frame}()
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+\begingroup
+\captionof{table}{Reduplicated SIC code descriptions.}
+\label{tab:sic-code-desc}
+\begin{tabular}{l p{0.68\linewidth}}
+\textbf{\texttt{sic\_code}} & \textbf{\texttt{sic\_desc}} \\
+\midrule
+\addlinespace[6pt]
+\texttt{279610} & \texttt{PRINTERS SERVICES (MFRS)} \\
+\texttt{279610} & \texttt{PRINTERS' SERVICES (MFRS)} \\
+\texttt{513705} & \texttt{WOMEN'S APPAREL-WHOLESALE} \\
+\texttt{513705} & \texttt{WOMENS APPAREL-WHOLESALE} \\
+\texttt{549903} & \texttt{WATER COMPANIES-BOTTLED, BULK, ETC} \\
+\texttt{549903} & \texttt{WATER COMPANIES-BOTTLED/BULK \& ETC} \\
+\texttt{561101} & \texttt{MEN'S CLOTHING \& FURNISHINGS-RETAIL} \\
+\texttt{561101} & \texttt{MENS CLOTHING \& FURNISHINGS-RETAIL} \\
+\texttt{562101} & \texttt{WOMEN'S APPAREL-RETAIL} \\
+\texttt{562101} & \texttt{WOMENS APPAREL-RETAIL} \\
+\texttt{596316} & \texttt{COFFEE \& FOOD SVC-MOBILE} \\
+\texttt{596316} & \texttt{MOBILE CONCESSIONS} \\
+\texttt{799922} & \texttt{NATIONAL LANDMARK} \\
+\texttt{799922} & \texttt{NATIONAL LANDMARK/HISTORIC SITE/MEMORIAL} \\
+\texttt{799927} & \texttt{CHILDREN'S SVCS \& ACTIVITIES INFORMATION} \\
+\texttt{799927} & \texttt{CHILDRENS SVCS \& ACTIVITIES INFORMATION} \\
+\texttt{804908} & \texttt{NURSES \& NURSES REGISTRIES} \\
+\texttt{804908} & \texttt{NURSES \& NURSES' REGISTRIES} \\
+\texttt{822298} & \texttt{JUNIOR COLLEGES \& TECHNICAL INSTITUTES} \\
+\texttt{822298} & \texttt{JUNIOR-COMMUNITY COLLEGE-TECH INSTITUTES} \\
+\texttt{824401} & \texttt{SCHOOLS-BUSINESS \& SECRETARIAL} \\
+\texttt{824401} & \texttt{SCHOOLS-BUSINESS \& VOCATIONAL} \\
+\texttt{824903} & \texttt{SCHOOLS-INDUSTRIAL TECHNICAL \& TRADE} \\
+\texttt{824903} & \texttt{SCHOOLS-TRADE \& VOCATIONAL} \\
+\texttt{835102} & \texttt{SCHOOLS-NURSERY \& KINDERGARTEN ACADEMIC} \\
+\texttt{835102} & \texttt{SCHOOLS-PRE-SCHOOL/KINDERGARTEN-ACADEMIC} \\
+\texttt{864102} & \texttt{VETERANS \& MILITARY ORGANIZATIONS} \\
+\texttt{864102} & \texttt{VETERANS' \& MILITARY ORGANIZATIONS} \\
+\texttt{869904} & \texttt{WOMEN'S ORGANIZATIONS \& SERVICES} \\
+\texttt{869904} & \texttt{WOMENS ORGANIZATIONS \& SERVICES} \\
+\texttt{874881} & \texttt{EDUCATIONAL ASSESSEMENT} \\
+\texttt{874881} & \texttt{EDUCATIONAL ASSESSMENT} \\
+\texttt{912101} & \texttt{GOVERNMENT OFFICES-FEDERAL} \\
+\texttt{912101} & \texttt{GOVERNMENT OFFICES-US} \\
+\texttt{912104} & \texttt{GOVERNMENT OFFICES-CITY, VILLAGE \& TWP} \\
+\texttt{912104} & \texttt{GOVERNMENT OFFICES-CITY/VILLAGE \& TWP} \\
+\end{tabular}
+\endgroup
+
+\newpage
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Entries to correct code}
+\com{# ~ line 514}
+
+fix\_code \op{<-} sic\_results\op{$}presence\_wide \op{\%>\%}
+  \func{semi\_join}(
+    sic\_results\op{$}presence\_wide \op{\%>\%}
+      \func{filter}(sic\_desc \op{\%in\%} sic\_results\op{\$}desc\_with\_multiple\_codes\op{\$}sic\_desc) \op{\%>\%}
+      \func{distinct}(sic\_code),
+    \atr{by =} \str{"sic\_code"}
+  )
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+\begingroup
+\captionof{table}{SIC descriptions with different codes (subset; additional columns omitted).}
+\label{tab:sic-desc-flags}
+\begin{tabular}{l p{0.36\linewidth} p{0.22\linewidth} p{0.22\linewidth}}
+\textbf{\texttt{sic\_code}} &
+\textbf{\texttt{sic\_desc}} &
+\textbf{\texttt{primary\_sic\_code + sic6\_desc...}} &
+\textbf{\texttt{sic\_code + sic6\_desc...}} \\
+\midrule
+\addlinespace[6pt]
+\texttt{573401} & \texttt{COMPUTER SOFTWARE} & \texttt{FALSE} & \texttt{TRUE} \\
+\texttt{737206} & \texttt{NA} & \texttt{FALSE} & \texttt{TRUE} \\
+\texttt{737206} & \texttt{COMPUTER SOFTWARE} & \texttt{FALSE} & \texttt{TRUE} \\
+\texttt{824401} & \texttt{SCHOOLS-BUSINESS \& SEC...} & \texttt{FALSE} & \texttt{TRUE} \\
+\texttt{824401} & \texttt{SCHOOLS-BUSINESS \& VOC...} & \texttt{FALSE} & \texttt{TRUE} \\
+\texttt{824402} & \texttt{SCHOOLS-BUSINESS \& SEC...} & \texttt{FALSE} & \texttt{TRUE} \\
+\end{tabular}
+\endgroup
+
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Entries to correct NA}
+\com{# ~ line 522}
+
+fix\_na \op{<-} sic\_results\op{$}presence\_wide \op{\%>\%}
+  \func{semi\_join}(
+    sic\_results\op{$}presence\_wide \op{\%>\%}
+      \func{filter}(sic\_desc \op{\%in\%} sic\_results\op{\$}desc\_that\_is\_sometimes\_na\op{\$}sic\_desc) \op{\%>\%}
+      distinct(sic\_code),
+    \atr{by =} \str{"sic\_code"}
+  )
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+\begingroup
+\captionof{table}{SIC codes associated with a non-\texttt{NA} description that is sometimes \texttt{NA} (subset; additional columns omitted).}
+\label{tab:sic-codes-same-or-na}
+\begin{tabular}{l p{0.40\linewidth} p{0.22\linewidth} p{0.22\linewidth}}
+\textbf{\texttt{sic\_code}} &
+\textbf{\texttt{sic\_desc}} &
+\textbf{\texttt{primary\_sic\_code + sic6\_de...}} &
+\textbf{\texttt{sic\_code + sic6\_desc...}} \\
+\midrule
+\addlinespace[6pt]
+\texttt{573401} & \texttt{COMPUTER SOFTWARE} & \texttt{FALSE} & \texttt{TRUE} \\
+\texttt{737206} & \texttt{NA} & \texttt{FALSE} & \texttt{TRUE} \\
+\texttt{737206} & \texttt{COMPUTER SOFTWARE} & \texttt{FALSE} & \texttt{TRUE} \\
+\texttt{821120} & \texttt{NA} & \texttt{FALSE} & \texttt{TRUE} \\
+\texttt{821120} & \texttt{SCHOOL DISTRICTS} & \texttt{FALSE} & \texttt{TRUE} \\
+\texttt{866124} & \texttt{NA} & \texttt{TRUE} & \texttt{TRUE} \\
+\texttt{866124} & \texttt{MONASTERIES} & \texttt{TRUE} & \texttt{TRUE} \\
+\end{tabular}
+\endgroup
+
+\vspace{1ex}
+
+These SIC code characteristics are expected to vary with additional years of data or subsequent exports of previous reports, as Data Axle may update their database over time. It will therefore be important to process these columns from a raw data export prior to beginning any analysis or data validation.
+
+After reconciling nomenclature variations, unique SIC values for a given ABI and address will be retained and expanded into overflow columns. The primary SIC encoding will be constrained to align with qualifying classifiers, while any additional SIC columns will capture all other unique SIC values present.
+
+# Handling Additional Metadata
+
+In the previous section, two encodings were examined: NAICS and SIC. NAICS remained uninformative, while SIC provided additional important functional and affiliation details (described above). The remaining metadata fall into two handling categories:
+
+a) Metadata not directly relevant to the current project. These fields will be retained with no effort made to clean or validate the values.
+
+b) Metadata supplying additional location details, such as county code, census block, and FIPS codes. These fields will be assessed for validation in subsequent steps while being handled similarly to category (a). Note that attributed census block and related fields may not translate directly to specific decennial maps, potentially necessitating reference to an external database.
+
+As described above, metadata can vary by location and across the years a business was recorded. As no cleaning or validation effort is being applied to category (a), both location and year-level variation will be retained. The same approach will apply to category (b), with the addition of Boolean validation checks to capture:
+
+- Whether the same location outcome spans the complete expected date range.
+
+- Whether multiple location outcomes are associated with the same address.
+
+- Whether multiple identified location outcomes vary by decennial period or follow alternative patterns\ [@boundary_changes].
+
+Refer to [Appendix - `summarize_many_code_ranges_dt()` Output](#code-results-source-1) for information on where to find the code that generates these results, as well as the results codebook.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Custom metadata column collapsing function that retains observed date}
+\com{# ranges for a given ABI and address combination.}
+\com{# ~ line 583-659}
+\func{summarize\_many\_code\_ranges\_dt}(df, vars)
+
+\com{# Generate a subset to test the algorithms on}
+subset \op{<-} church\_long\_form\_050926 \op{\%>\%}
+  \func{filter}(abi \op{\%in\%} \func{unique}(church\_long\_form\_050926\op{$}abi)[\op{6}:\op{10}]) \op{\%>\%}
+  \func{mutate}(
+    \func{across}(\func{c}(census\_block, cbsa\_level, area\_code), \func{as.character}),
+    \atr{combined\_address =} \func{paste}(
+      address\_line\_1, city, state,
+      \kw{if}\_else(!\func{is.na}(zip4) \& zip4 != \str{""},
+              \func{paste0}(zipcode, \str{"-"}, zip4),
+              \func{as.character}(zipcode)
+      ),
+      \atr{sep =} \str{", "}
+    )
+  ) \op{\%>\%}
+  \func{relocate}(combined\_address, .\atr{after =} zip4)
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+:::{.callout-important}
+Results shown are simulated to reflect characteristics observed in the data.
+:::
+
+## Supplementary Location Metadata
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# SUBSECTION C1: Supplementary Location Metadata}
+\com{# ~ line 611-618}
+
+vars\_for\_loc \op{<-} \func{c}(
+  \com{# Core business location details (8)}
+  \str{"census\_block"}, \str{"census\_tract"}, \str{"county\_code"},  \str{"fips\_code"}, \str{"cbsa\_level"}, 
+  \str{"cbsa\_code"}, \str{"csa\_code"}, \str{"area\_code"}
+)
+
+loc\_condensed \op{<-} \func{summarize\_many\_code\_ranges\_dt}(subset, vars\_for\_loc) \op{\%>\%}
+  \func{arrange}(abi)
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+\vspace{1em}
+
+\begingroup
+\captionof{table}{Census tract range checks (split to fit within margins; subset shown).}
+\label{tab:census-tract-ranges-split}
+
+\noindent\resizebox{\linewidth}{!}{%
+\begin{tabular}{r p{0.28\linewidth} p{0.69\linewidth}}
+\textbf{\#} &
+\textbf{\shortstack[l]{\texttt{available\_year\_ranges}}} &
+\textbf{\shortstack[l]{\texttt{census\_tract\_ranges}}} \\
+\midrule
+1 & \texttt{1998-2001} & \texttt{101020 (1998-2001)} \\
+2 & \texttt{2009-2010} & \texttt{204999 (2009-2010)} \\
+3 & \texttt{2014-2017} & \texttt{330120 (2014-2017)} \\
+4 & \texttt{1999-2006, 2011-2013, 2018-2025} &
+\texttt{900001 (1999-2002), 900010 (2003-2007), 900010 (2010-2013), 900015 (2018-2025)} \\
+5 & \texttt{2001-2025} & \texttt{777701 (2001-2012), 777709 (2011-2025)} \\
+6 & \texttt{1997-2019} & \texttt{000000 (1999), 045600 (2000-2009), 045601 (2010-2019)} \\
+7 & \texttt{2006-2012, 2016-2025} &
+\texttt{512340 (2006-2009), 512341 (2010-2012), 512341 (2016-2025)} \\
+\end{tabular}%
+}
+
+\vspace{10pt}
+
+\noindent\resizebox{\linewidth}{!}{%
+\begin{tabular}{r p{0.15\linewidth} p{0.22\linewidth} p{0.22\linewidth} p{0.20\linewidth} p{0.20\linewidth}}
+\textbf{\#} &
+\textbf{\shortstack[l]{\texttt{census\_tract}\\\texttt{\_ranges\_ok}}} &
+\textbf{\shortstack[l]{\texttt{census\_tract}\\\texttt{\_ranges\_decade\_ok}}} &
+\textbf{\shortstack[l]{\texttt{census\_tract}\\\texttt{\_values\_seen}}} &
+\textbf{\shortstack[l]{\texttt{census\_tract}\\\texttt{\_missing\_years}}} &
+\textbf{\shortstack[l]{\texttt{census\_tract}\\\texttt{\_conflict\_years}}} \\
+\midrule
+1 & \texttt{TRUE} & \texttt{NA} & \texttt{101020} & \texttt{NA} & \texttt{NA} \\
+2 & \texttt{TRUE} & \texttt{NA} & \texttt{204999} & \texttt{NA} & \texttt{NA} \\
+3 & \texttt{TRUE} & \texttt{NA} & \texttt{330120} & \texttt{NA} & \texttt{NA} \\
+4 & \texttt{FALSE} & \texttt{FALSE} & \texttt{900001, 900010, 900015} & \texttt{2008-2009} & \texttt{NA} \\
+5 & \texttt{FALSE} & \texttt{FALSE} & \texttt{777701, 777709} & \texttt{NA} & \texttt{2011-2012} \\
+6 & \texttt{FALSE} & \texttt{TRUE} & \texttt{000000, 045600, 045601} & \texttt{NA} & \texttt{NA} \\
+7 & \texttt{FALSE} & \texttt{TRUE} & \texttt{512340, 512341} & \texttt{NA} & \texttt{NA} \\
+\end{tabular}%
+}
+
+\endgroup
+
+\vspace{1em}
+
+Looking at the results for the `census_tract` variable, nearly half of the entries failed the consistency check and did not pass the check confirming that updates were made over decennial periods, as would be expected. This may be correct or could indicate broader data accuracy problems; either way, it points to notable inconsistencies that would be challenging to reconcile given the available results.
+
+This assessment will be incorporated when condensing the full dataset. However, these findings suggest that the additional location values will need to be freshly associated using a trusted database rather than relying on the provided information.
+
+
+## Metadata Not Contributive to Project Goals
+
+The following illustrates the process of condensing additional other metadata into one line per unique ABI and address combination. Note that `primary_naics2_code` is not represented here, as it will be derived from `primary_naics8_code` in the main dataset. This field falls under the "Unknown Variables or Code Translations" category.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# SUBSECTION C2: Metadata Not Contributive to Project Goals}
+\com{# ~ line 669-685}
+
+vars\_to\_sum \op{<-} \func{c}(
+  \com{# Core business details by business ID (4):}
+  \str{"company"}, \str{"year\_established"}, \str{"subsidiary\_number"}, \str{"company\_holding\_status"},
+  \com{# Core business details by location and might change by year (7):}
+  \str{"site\_number"}, \str{"yellow\_page\_code"}, \str{"office\_size\_code"}, \str{"employee\_size\_location"},
+  \str{"location\_employee\_size\_code"}, \str{"sales\_volume\_location"}, \str{"location\_sales\_volume\_code"},
+  \com{# Parent company details, where some might change by year (5):}
+  \str{"parent\_number"}, \str{"parent\_actual\_employee\_size"}, \str{"parent\_employee\_size\_code"},
+  \str{"parent\_actual\_sales\_volume"}, \str{"parent\_sales\_volume\_code"},
+  \com{# Unknown variables or code translations (8):}
+  \com{#primary\_naics2\_code}
+  \str{"address\_type\_indicator"}, \str{"industry\_specific\_first\_byte"}, 
+  \str{"business\_status\_code"}, \str{"population\_code"}, \str{"match\_code"}, \str{"ticker"}, \str{"idcode"}
+)
+
+subset\_condensed \op{<-} summarize\_many\_code\_ranges\_dt(subset, vars\_to\_sum) \op{\%>\%}
+  \func{arrange}(abi)
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-2ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+\vspace{1em}
+
+\begingroup
+\captionof{table}{Range-collapsed metadata fields (split to fit within margins; subset shown).}
+\label{tab:metadata-ranges-split}
+
+\noindent\resizebox{\linewidth}{!}{%
+\begin{tabular}{r p{0.26\linewidth} p{0.70\linewidth}}
+\textbf{\#} &
+\textbf{\shortstack[l]{\texttt{available\_year}\\\texttt{\_ranges}}} &
+\textbf{\shortstack[l]{\texttt{employee\_size\_location}\\\texttt{\_ranges}}} \\
+\midrule
+1 & \texttt{1999-2001} & \texttt{1 (1999-2001)} \\
+2 & \texttt{2002-2004} & \texttt{2 (2002-2004)} \\
+3 & \texttt{2008-2010} & \texttt{7 (2008-2010)} \\
+4 & \texttt{2011-2014} & \texttt{6 (2011-2012), 4 (2013-2014)} \\
+5 & \texttt{2006-2012, 2016-2018, 2022-2025} & \texttt{3 (2006-2012), 5 (2016-2018), 9 (2022-2025)} \\
+6 & \texttt{2000-2025} & \texttt{8 (2000-2009), 9 (2010-2025)} \\
+\end{tabular}%
+}
+
+\vspace{10pt}
+
+\noindent\resizebox{\linewidth}{!}{%
+\begin{tabular}{r p{0.33\linewidth} p{0.31\linewidth} p{0.32\linewidth}}
+\textbf{\#} &
+\textbf{\shortstack[l]{\texttt{location\_employee\_size\_code}\\\texttt{\_ranges}}} &
+\textbf{\shortstack[l]{\texttt{business\_status\_code}\\\texttt{\_ranges}}} &
+\textbf{\shortstack[l]{\texttt{population\_code}\\\texttt{\_ranges}}} \\
+\midrule
+1 & \texttt{A (1999-2001)} & \texttt{1 (1999-2001)} & \texttt{2 (1999-2001)} \\
+2 & \texttt{A (2002-2004)} & \texttt{2 (2002-2004)} & \texttt{8 (2002-2004)} \\
+3 & \texttt{C (2008-2010)} & \texttt{4 (2008-2010)} & \texttt{3 (2008-2010)} \\
+4 & \texttt{C (2011-2012), B (2013-2014)} & \texttt{4 (2011-2014)} & \texttt{6 (2011-2014)} \\
+5 & \texttt{B (2006-2012), C (2016-2018), D (2022-2025)} & \texttt{7 (2006-2012), 7 (2016-2018), 3 (2022-2025)} &
+\texttt{1 (2006-2008), 4 (2009-2012), 6 (2016-2018), 5 (2022-2025)} \\
+6 & \texttt{D (2000-2025)} & \texttt{9 (2000-2025)} &
+\texttt{7 (2000-2007), 6 (2008-2015), 5 (2016-2025)} \\
+\end{tabular}%
+}
+
+\endgroup
+
+# Concluding Thoughts
+
+This document outlined additional insights and data processing requirements identified in the 2026 Format. A condensing framework is provided to collapse metadata fields that are not relevant to the project or are of questionable quality. This method retains unique values along with the years in which they were recorded, allowing analysts to preserve this information for follow-up data quality checks, validation, and cleaning.
+
+## Metadata Handling Summary
+
+Rows will be condensed by unique `abi` and `combined_address`. NAICS codes will be split into the six leading digits and a trailing two-digit proprietary code, with the latter lacking a description. The six-digit section is consistent across all entries, while the trailing two digits will be condensed by unique value and observed date range.
+
+SIC codes will be cleaned to ensure consistency and reconcile unexpected missing values or duplications. After condensing, the primary SIC codes will be organized first, followed by any additional overflow values detected across the years the ABI and address are recorded.
+
+Business location will continue to be primarily attributed to the given address and longitude/latitude values. The assessment of the additional provided location fields presented here reveals unexpected inconsistencies that would be difficult or impractical to reconcile. For this reason, it is recommended that decennial location information be associated to each entry by geolocation, as outlined in the 2023 Form processing methods.
+
+In addition to the above, data cleaning insights gleaned from the 2023 Format are assumed to apply to this version as well.
+
+## **Step 1** Algorithm Updates
+
+The 2026 Format begins in a different structure (long vs. wide), necessitating some changes to the initial data cleaning and validation steps while also providing new opportunities that impact the step-wise framework devised for the 2023 Format.
+
+Prior to transforming the data from long form (years as rows) to wide form (years as columns), addresses will be validated against the USPS database and assessed for similarity — first matching to a validated address, then only to reduce unnecessary variations due to typographical errors. Following the prototype implementation of **Step 1** outlined for the 2023 Format, two issues were identified: years-open and years-closed values were mistakenly duplicated, and some condensed addresses failed the geolocation similarity check.
+
+To avoid inducing these errors, string-matched addresses will be triaged based on qualifying criteria, with one top candidate selected. These will then be joined to the whole table by ABI and compiled address, rather than `address_line_1` alone, to ensure one-to-one table joining. As done before, prospective similar addresses will undergo a longitude/latitude similarity test. Those that fail will be condensed by unique value rather than by the similar, matched address.
+
+While evaluating the outcomes of **Step 1** applied to the prototype, it was identified that some addresses sharing the same `address_line_1` but differing in other metadata, such as city or five-digit zip code, were flagged for separation due to a failed geolocation test. It is assumed that the likelihood of a business filing under the exact same `address_line_1` in completely different locations is low enough to treat these as the same location. Therefore, such addresses will be marked for geolocation test override, and candidate matches will be determined by unique `address_line_1` and `city` combinations.
+
+\newpage
+
+# Appendix
+
+## `summarize_many_code_ranges_dt()` Output {#code-results-source-1}
+
+For the implementation, refer to **SUBSECTION C1: Supplementary Location Metadata** and **SUBSECTION C2: Metadata Not Contributive to Project Goals** in ["Code/Process Data Update.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Process%20Data%20Update.R). The data processed in this step focused on a random subset of ABIs, and is only intended to illustrate metadata characteristics that require special attention.
+
+Results over `vars_for_loc` were written to `"./Data/Results/KEEP LOCAL/From Process Data Update/Area Code QC_Collapsed Data_05.18.2026.csv"`. Results over `vars_to_sum` were written to `"./Data/Results/KEEP LOCAL/From Process Data Update/Summarize Metadata Method_Collapsed Data_05.15.2026.csv"`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for Evaluation Output Fields}
+\label{tab:codebook-1}
+\begin{tabular}{l p{0.72\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{\_ranges\_OK} & Logical. \texttt{TRUE} when the \texttt{*\_ranges} field (e.g., \texttt{census\_tract\_ranges}) assigns a value for every year listed in \texttt{available\_year\_ranges}, has no overlapping year conflicts (a year mapped to more than one distinct value), and all available years map to exactly one unique value overall. \texttt{NA} when \texttt{available\_year\_ranges} is missing or cannot be parsed. \\
+\addlinespace[10pt]
+\texttt{\_ranges\_decade\_ok} & Logical or \texttt{NA}. Only evaluated when \texttt{*\_ranges\_ok} is \texttt{FALSE}. \texttt{TRUE} when, within each decade that has any mapped available years, all mapped years in that decade share the same value (i.e., $\le 1$ distinct value per decade). This check ignores gaps (missing years) within decades. \texttt{NA} when \texttt{*\_ranges\_ok} is \texttt{TRUE} or when \texttt{available\_year\_ranges} is missing/unparseable. \\
+\addlinespace[10pt]
+\texttt{\_values\_seen} & Character. Comma-separated list of distinct values observed for available years in the \texttt{*\_ranges} mapping (restricted to years in \texttt{available\_year\_ranges}). Empty string if none are observed. \\
+\addlinespace[10pt]
+\texttt{\_missing\_years} & Character. Years present in \texttt{available\_year\_ranges} that are not covered by the \texttt{*\_ranges} mapping. Empty string if none are missing. \texttt{NA} when \texttt{available\_year\_ranges} is missing/unparseable. \\
+\addlinespace[10pt]
+\texttt{\_conflict\_years} & Character. Years that are assigned more than one distinct value due to overlapping segments in the \texttt{*\_ranges} mapping, compressed as runs in the form \texttt{"YYYY:YYYY"} and separated by \texttt{", "}. Empty string if no conflicts. \\
+\end{tabular}
+\endgroup
+
+# References

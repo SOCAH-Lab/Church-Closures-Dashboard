@@ -4,8 +4,8 @@ project:
   render:
     - "*.qmd"
     - "!KEEP LOCAL/"
-    - "!Pages/Reports/"    # Comment out when writing the report
-    - "!Scripts/For Analytical Reports/"    # Comment out when writing the report
+    #- "!Pages/Reports/"    # Comment out when writing the report
+    #- "!Scripts/For Analytical Reports/"    # Comment out when writing the report
 
 website:
   title: "Church Closures Dashboard"
@@ -27,12 +27,6 @@ website:
         href: Pages/Development.qmd
       - text: "TEMP"
         menu:
-          - text: "2026 Format Review"
-            href: Pages/Review_2026 Format.qmd
-          - text: "2023 Format Cleaning"
-            href: Pages/Cleaning and Harmonization_2023 Format.qmd
-          - text: "2026 Format Cleaning"
-            href: Pages/Cleaning and Harmonization_2026 Format.qmd
           - text: "Metrics"
             href: Pages/Metric Calculation.qmd
   page-footer:

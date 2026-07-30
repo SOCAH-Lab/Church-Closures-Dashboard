@@ -47,6 +47,7 @@
 % ------------------------------
 \usepackage{fontspec}       % Modern font selection (XeLaTeX/LuaLaTeX)
 \usepackage[utf8]{inputenc} % UTF-8 input (primarily for pdfLaTeX; redundant with fontspec)
+\usepackage[T1]{fontenc}    % Better PDF font encoding
 
 % ------------------------------
 % Color
@@ -88,6 +89,7 @@
 \usepackage{rotating}  % Rotate floats and text (sidewaystable, sidewaysfigure)
 \usepackage{pdflscape} % Rotate entire pages to landscape orientation (\begin{landscape})
 \usepackage{tabularx}  % Table environment with auto-expanding columns (X column type)
+\usepackage{longtable} % Tables that extend multiple pages
 
 % ------------------------------
 % Links & PDF metadata
@@ -142,9 +144,9 @@
 % ------------------------------
 % Boxes, frames, and shaded environments
 % ------------------------------
-\usepackage[most]{tcolorbox}          % Highly customizable colored boxes (breakable, skins, etc.)
+\usepackage[most]{tcolorbox}            % Highly customizable colored boxes (breakable, skins, etc.)
 \usepackage[framemethod=tikz]{mdframed} % Framed environments (TikZ-based framing)
-\usepackage{framed}                  % Simple framed/shaded environments (lightweight)
+\usepackage{framed}                     % Simple framed/shaded environments (lightweight)
 
 % ------------------------------
 % Verbatim, code listings, and code styling
@@ -162,6 +164,8 @@
 % Text stacking / layout tricks
 % ------------------------------
 \usepackage{stackengine} % Stack/overlay text and objects (custom constructions)
+\usepackage{accents}     % Accent-placement utilities; provides \accentset (primarily for math-mode accents)
+\usepackage[utf8]{inputenc} % Allow direct UTF-8 characters in source when using pdfLaTeX (not needed for XeLaTeX/LuaLaTeX)
 
 
 % =========================================================
