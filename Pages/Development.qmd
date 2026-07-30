@@ -4,7 +4,7 @@ bibliography: references.bib
 csl: ../Scripts/nature.csl
 ---
 
-<small>Last Updated: July 22<sup>nd</sup>, 2026</small>
+<small>Last Updated: July 30<sup>th</sup>, 2026</small>
 
 # Overview
 
@@ -41,3 +41,6 @@ Current Project GitHub Repo: [SOCAH-Lab/Church-Closures-Dashboard](https://githu
 {{< downloadthis "Reports/Review_2023 Format.pdf" dname="Review_2023 Format" label="Raw Data Review" type=light >}} {{< downloadthis "Reports/Preparation_2023 Format.pdf" dname="Preparation_2023 Format" label="Data Preparation" type=light >}}
 
 ## 2026 Format
+
+{{< downloadthis "Reports/Review_2026 Format.pdf" dname="Review_2026 Format" label="Raw Data Review" type=light >}}
+
