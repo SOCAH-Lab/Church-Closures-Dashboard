@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This array job is for Step 2 of the 2026 Format. It processes a maximum of
-# 100 chunks at once, assuming a partition of all entries associated with 5,000
+# 75 chunks at once, assuming a partition of all entries associated with 5,000
 # unique ABIs per array (number of indices will vary).
 #
 # Adjust "X" in `#SBATCH --array=1-X%75` as needed based on the length of

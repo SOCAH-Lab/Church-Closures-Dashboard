@@ -159,7 +159,8 @@ plan(multisession, workers = 4)
 # outdir <- "Results"
 
 # Set output directory locally
-outdir <- "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format"
+outdir <- file.path("Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format", 
+                    paste("batch_local", "01", sep = "_"))
 
 # The code provided below creates the results directories for a live or local
 # session. Note that the shell script for the batch array creates a separate
@@ -287,7 +288,7 @@ core_areas <- setNames(
 # 
 #   6. Reset the renv project environment by removing the local library,
 #      staging directory, and lockfile:
-# 
+#  
 #         rm -rf renv/library
 #         rm -rf renv/staging
 # 
@@ -487,11 +488,12 @@ core_areas <- setNames(
 
 # The algorithm was timed locally, where approximately 14 entries were
 # processed per 5 minutes (~1,000 abi in six hours). Based on this, the data
-# was partitioned into 1,000-entry indices (listed below) to fit within
-# the HPC's 6-hour session limit.
+# will need to be partitioned into 1,000-entry indices (listed below) to fit 
+# within the HPC's 6-hour session limit.
 # 
 # Each index was processed in a separate session and compiled in
-# "Clean Raw Data_Step 2_2023 Format.R".
+# "PART C: Recompile Results from the HPC" of "Clean Raw Data_Step 2_2026 
+# Format.R".
 
 # Prepare the dataframes used in the script
 church_2026_form_dt <- as.data.table(church_2026_form)  # Convert for efficient data manipulation
@@ -501,17 +503,53 @@ setorder(church_2026_form_dt, state, abi)  # Organize the table by state to incr
 # processed_indices <- make_ranges(church_2026_form_dt, abi_col = "abi", chunk_size = 5000L) %>%
 #  .$label
 
+# Initial indices for batch array
 processed_indices <- sprintf(
   "%d to %d",
   seq(1, 1080001, by = 5000),
   c(seq(5000, 1080000, by = 5000), 1080764)
 )
 
+# Prior batches may not have completed the full set; adjust the indices to run 
+# only those missed previously.
+# 
+# Save the array indices as numeric values for reference in "SUBSECTION B1: 
+# Index Queue" of "Clean Raw Data_Step 2 HPC v2_2026 Format.R".
+array_num <- c(
+  1:19, 21:24, 29:38, 40:45, 48:55, 57, 59:91, 93:105, 107:121, 123:168, 
+  171:182, 186, 189:190, 193, 195, 199:201, 203, 205:206, 208:217
+)
+
+# Isolate the indices that were not successfully run and extract the
+# dimensions of their corresponding arrays.
+miss_chr <- processed_indices[-array_num]
+
+mat <- stringr::str_match(miss_chr, "^\\s*(\\d+)\\s*to\\s*(\\d+)\\s*$")
+miss_df <- data.frame(
+  from = as.integer(mat[,2]),
+  to   = as.integer(mat[,3])
+)
+
+# Define the new span of indices to be run. Reducing the index range aims to
+# help the arrays that exceeded the time limit complete within the allotted
+# time period.
+by <- 1000
+
+missing_subranges_1000 <- unlist(Map(function(a, b) {
+  starts <- seq(a, b, by = by)
+  ends   <- pmin(starts + by - 1L, b)
+  sprintf("%d to %d", starts, ends)
+}, miss_df$from, miss_df$to))
+
+# Update the primary indices to include only the missing indices.
+processed_indices <- missing_subranges_1000
+
+
 # # Set index using an HPC array job
 # current_array_index <- processed_indices[idx]
 
 # Set index locally or in an HPC live session
-idx <- 2
+idx <- 56
 current_array_index <- processed_indices[idx]
 
 nums <- as.integer(unlist(regmatches(current_array_index, gregexpr("\\d+", current_array_index))))
@@ -519,9 +557,23 @@ nums <- as.integer(unlist(regmatches(current_array_index, gregexpr("\\d+", curre
 # Parse index over UNIQUE-ABI POSITIONS
 index <- seq.int(nums[1], nums[2])
 
-# Define the search space as the ABI values for this chunk (mutually exclusive)
-#search_space <- c(175639996, 175675578, 175677657, 175699420, 140702374, 140702952, 140702978, 478545, 626978, 637223)
+
+# Define the search space as the ABI values for this chunk (mutually exclusive).
+# Exclude any ABI that appears in any non‑U.S. state/territory (keep only the 
+# 50 states + DC).
+us_states <- c(state.abb, "DC")
+
+# 1) ABI subset first
 search_space <- unique(church_2026_form_dt[, abi])[index]
+
+# 2) Keep only ABIs whose rows are ALL in allowed states
+abi_ok <- church_2026_form_dt[
+  abi %in% search_space,
+  .(ok = all(state %in% us_states)),
+  by = abi
+][ok == TRUE, abi]
+
+search_space <- abi_ok
 
 
 ## --------------------
@@ -570,7 +622,7 @@ geocoder_census_tries <- census_geo_make_tries(spec)
 
 
 # Toggle on or off the address verification workflow using the USPS API.
-verify_addresses <- TRUE
+verify_addresses <- FALSE
 
 # USPS API costs are incurred per verified address. Users can control the
 # number of addresses submitted for verification using the quota setting below.
@@ -588,7 +640,7 @@ verify_addresses <- TRUE
 # 
 # NOTE: The USPS API may itself set quota limits that will impact how many
 #       addresses are able to be verified.
-set_quota = 5
+set_quota = 0
 
 # If the quota is less than the number of available ABIs in the subset, the
 # selection is randomized. Users can set a seed to make this reproducible or
@@ -1023,28 +1075,41 @@ for (i in 1:length(search_space)) {
       # LOOP PART B.i.: Validate Addresses with USPS Database
       
       usps_status_group <- function(status) {
-        # Translate the status code to a short description.
         s_raw <- as.character(status)
         
-        # Extract a 3-digit HTTP code from strings like "http_429", "HTTP 429", "429", etc.
-        code_chr <- stringr::str_extract(s_raw, "(?<!\\d)\\d{3}(?!\\d)")
-        s <- suppressWarnings(as.integer(code_chr))
+        if (is.na(s_raw)) {
+          return(list(usps_status = NA_integer_, usps_status_detail = "Other unanticipated errors"))
+        }
+        
+        if (s_raw == "ok") {
+          return(list(usps_status = 200L, usps_status_detail = "Verified"))
+        }
         
         detail <- dplyr::case_when(
-          is.na(s)  ~ "Other unanticipated errors",
-          s == 200  ~ "200 Successful operation",
-          s == 400  ~ "400 Bad request",
-          s == 401  ~ "401 Unauthorized",
-          s == 403  ~ "403 Forbidden",
-          s == 429  ~ "429 Rate limit reached",
-          s == 503  ~ "503 Service unavailable",
-          TRUE      ~ "Other unanticipated errors"
+          s_raw == "token_error" ~ "Token error",
+          s_raw == "parse_error" ~ "Response parse error",
+          s_raw == "no_address_in_response" ~ "No address found in USPS response",
+          s_raw == "invalid_zip4_format" ~ "Invalid ZIP+4 format (programmer/config error)",
+          TRUE ~ NA_character_
         )
         
-        list(
-          usps_status        = s,
-          usps_status_detail = detail
-        )
+        code_chr <- stringr::str_extract(s_raw, "(?<!\\d)\\d{3}(?!\\d)")
+        code_int <- suppressWarnings(as.integer(code_chr))
+        
+        if (is.na(detail)) {
+          detail <- dplyr::case_when(
+            is.na(code_int) ~ "Other unanticipated errors",
+            code_int == 200 ~ "200 Successful operation",
+            code_int == 400 ~ "400 Bad request",
+            code_int == 401 ~ "401 Unauthorized",
+            code_int == 403 ~ "403 Access denied",
+            code_int == 429 ~ "429 Rate limit reached",
+            code_int == 503 ~ "503 Service unavailable",
+            TRUE ~ paste0(code_int, " HTTP error")
+          )
+        }
+        
+        list(usps_status = code_int, usps_status_detail = detail)
       }
       
       for (addr_idx in seq_len(nrow(candidate_addresses))) {
@@ -1094,7 +1159,7 @@ for (i in 1:length(search_space)) {
         # Handles the case where ZIP codes were imported as numeric, stripping leading
         # and trailing zeros. Only try if the rate limit has not been reached.
         
-        if (!usps_validated$ok & grp$usps_status != "429") {
+        if (!usps_validated$ok && (is.na(grp$usps_status) || grp$usps_status != 429L)) {
           
           if (zip_codes_character) {
             
@@ -2647,7 +2712,7 @@ for (i in 1:length(search_space)) {
   
   
   # --------------------
-  # LOOP PART D: Add Census Information by GEO Coordinates
+  # LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information
   
   # After handling entries with non-NA address_line_1, we can recombine
   # both components for geolocation annotation.
@@ -3306,6 +3371,7 @@ for (i in 1:length(search_space)) {
       relocate(archive_versions_present, .after = address) %>%
       relocate(all_200, .after = query_statuses) %>%
       relocate(matched_address_same, .after = geo_matched_address) %>%
+      relocate(matched_address_similar, .after = matched_address_same) %>%
       # Convert tibble -> data.table (without breaking the pipe)
       (\(x) { setDT(x) })()
     
@@ -3907,8 +3973,8 @@ for (i in 1:length(search_space)) {
       -any_of(c(
         # ---- Address: drop raw inputs and verification columns ----
         "address_line_1","city","state","zipcode","zip4","combined_address", "do_api",
-        "attempt_succeeded","verified_address", "ver_geolocation_test", 
-        "matched_address","match_geolocation_test",
+        "attempt_succeeded","usps_status","usps_status_detail","verified_address", 
+        "ver_geolocation_test","matched_address","match_geolocation_test",
         
         # ---- Geolocation: drop raw geocoding and verification columns ----
         "latitude_avg","longitude_avg","latitude_ver","longitude_ver",
