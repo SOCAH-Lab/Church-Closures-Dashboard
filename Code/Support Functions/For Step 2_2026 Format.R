@@ -3,7 +3,7 @@
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025
-## Date Modified: July 2nd, 2026
+## Date Modified: July 30th, 2026
 ## 
 ## Description: This script defines functions specific to Step 2 of the data
 ##              cleaning and validation process. These supplement the
@@ -327,7 +327,84 @@
 ##                - Keys present in new_tab but not in old_tab
 ##                - Keys present in old_tab but not in new_tab
 ##          5) Return counts + a few example rows from each difference set.
-
+## 
+##   37. compile_parquet_folder: Compile a folder of Parquet result files and 
+##       generate QC summaries. Opens a directory of Parquet files as a single 
+##       Arrow Dataset (lazy “compiled” handle) and computes several QC tables 
+##       by iterating file-by-file with a progress bar. QC is computed on an 
+##       in-memory tibble per file to preserve base-R semantics for $$nrow()$$, 
+##       $$is.na()$$, and $$table()$$.
+## 
+##   38. extract_range: Extract a numeric range (from/to) from a string like 
+##       "234001 to 235000". Parses a character string containing a range 
+##       expressed as $$\text{<from> to <to>}$$ (allowing arbitrary whitespace 
+##       around "to"), and returns the endpoints as integers named `from` and 
+##       `to`.
+## 
+##   39. compile_duckdb_folder: Compile DuckDB QC outputs from a folder 
+##       (with progress, header cleanup, and ABI QC). Reads all DuckDB 
+##       \code{.db} files in a directory (optionally recursively), loads each
+##       file via \code{read_list_from_duckdb()}, normalizes column names 
+##       (including dotted headers), optionally performs an ABI integrity QC 
+##       check, and then binds like-named tables across files.
+## 
+##       Column-name normalization:
+##          - Renames \code{"Allow.USPS.API."} to \code{"Allow USPS API"}.
+##          - Replaces one-or-more periods with spaces (e.g., 
+##            \code{"Any.Addresses.Line.1.NA"} becomes 
+##            \code{"Any Addresses Line 1 NA"}).
+##          - Collapses repeated whitespace and trims.
+## 
+##       ABI QC (optional): When \code{abi_ref} is provided, the function checks 
+##       every list element (table/data.frame) that contains an ABI column 
+##       (case-insensitive match to \code{"abi"}). For each file and each 
+##       ABI-bearing table, it compares the unique ABIs present to the expected 
+##       ABIs from \code{abi_ref[from:to]}, where \code{from/to} are parsed from 
+##       the filename pattern \code{"QC_<from> to <to>"}. Unexpected ABIs cause 
+##       an error; missing ABIs are summarized in \code{out$qc_import}.
+## 
+##   40. write_qc_groups: Writes multiple *groups* of QC tables into an open 
+##       DuckDB connection using a consistent naming convention: 
+##       $$\texttt{<prefix>__<qc\_name>}$$
+## 
+##       This is useful when each batch (or cohort) has a list of QC tables, 
+##       but some QC tables may be missing (`NULL`) in some groups. To avoid 
+##       schema drift and keep downstream reads predictable, the function can 
+##       create 0-row placeholder tables using a schema "template" learned from 
+##       the first non-`NULL` instance of each QC table name across all groups.
+## 
+##   41. import_church_db: Import church-closures DuckDB tables (data + QC) with 
+##       minimal dependencies. Reads tables from a DuckDB database file located 
+##       at `db_path`. Designed to avoid `dplyr`/`dbplyr` and return a simple R 
+##       list:
+##          - optionally the main compiled `data` table
+##          - QC tables grouped by prefix (e.g., `import_qc_18`, `import_qc_20`)
+## 
+##       QC tables are expected to follow the naming pattern: <prefix>__<qc_name>
+##       For example: `import_qc_20__abi_check` becomes accessible as
+##       `res$import_qc_20$abi_check`.
+## 
+##   42. rbind_qc: Row-bind two QC tables with column alignment (NULL-safe).
+##       Takes two tabular objects (typically data.frames) and returns a single
+##       data.frame created by row-binding them. If the two inputs have 
+##       different columns, missing columns are added and filled with `NA` so 
+##       that `rbind()` succeeds. `NULL` inputs are treated as “missing tables”.
+## 
+##   43. flag_boxplot: Boxplot + jitter for QC flag distributions across 
+##       arrays/files. Creates a compact visualization for QC flag summaries 
+##       (e.g., `address_verified`, `geoid_match`) where each row represents a 
+##       batch/array and `pct` is the percent of unique addresses in a given 
+##       flag category. The plot shows:
+##          - A boxplot summarizing the distribution of `pct` by flag value, and
+##          - Jittered points showing each batch/array observation.
+## 
+##   44. join_places_with_zip_fix: Join city/state records to a places table, 
+##       with ZIP-based fallback for missing coordinates. Performs a two-step 
+##       enrichment of a city-level dataset with longitude/latitude:
+##          1) primary join on (state, city) to `places_dt`;
+##          2) for rows still missing lon/lat, uses `zipcode` to look up 
+##             standardized city/state from `zip_city_lookup`, then re-joins to 
+##             `places_dt` to recover coordinates.
 
 ## ----------------------------------------------------------------
 ## FUNCTIONS
@@ -3329,6 +3406,1054 @@ compare_tabs <- function(new_tab, old_tab,
     example_old_not_new = head(in_old_not_new, 10)
   )
 }
+
+
+
+
+extract_range <- function(x) {
+  #' Extract a numeric range (from/to) from a string like "234001 to 235000".
+  #' Parses a character string containing a range expressed as
+  #' $$\text{<from> to <to>}$$ (allowing arbitrary whitespace around "to"),
+  #' and returns the endpoints as integers named `from` and `to`.
+  #'
+  #' @param x A character vector. Each element should contain two integers
+  #'   separated by the word "to" (e.g., `"234001 to 235000"`).
+  #'
+  #' @return An integer vector of length 2 with names `from` and `to`.
+  #'   If the pattern is not found, the returned values will be `NA_integer_`.
+  
+  m <- stringr::str_match(x, "(\\d+)\\s*to\\s*(\\d+)")
+  c(from = as.integer(m[, 2]), to = as.integer(m[, 3]))
+}
+
+
+
+
+compile_parquet_folder <- function(subset_dir,
+                                   pattern = "\\.parquet$",
+                                   recursive = TRUE,
+                                   read_one = function(f) {
+                                     arrow::read_parquet(
+                                       f,
+                                       col_types = arrow::schema(...1 = arrow::null())
+                                     )
+                                   },
+                                   abi_ref = NULL,
+                                   church_dt = NULL,
+                                   filter_states = FALSE,
+                                   us_states = c(state.abb, "DC")) {
+  #' Compile a folder of Parquet result files and generate QC summaries.
+  #' Opens a directory of Parquet files as a single Arrow Dataset (lazy “compiled”
+  #' handle) and computes several QC tables by iterating file-by-file with a
+  #' progress bar. QC is computed on an in-memory tibble per file to preserve
+  #' base-R semantics for $$nrow()$$, $$is.na()$$, and $$table()$$.
+  #'
+  #' ## ABI QC with optional state filtering
+  #' If ABI QC is enabled (via `abi_ref` or `church_dt`), each file is assumed to
+  #' correspond to a slice $$[from:to]$$ parsed from the filename (see `extract_range()`).
+  #' The expected ABI set is $$\text{unique(abi_ref[from:to])}$$.
+  #'
+  #' If `filter_states = TRUE`, ABI QC restricts *both* expected and actual ABIs to
+  #' an "allowed ABI universe" defined by:
+  #' $$\text{abi is OK if all its rows satisfy state %in% us_states}.$$
+  #'
+  #' This makes the QC comparison reflect your external filtering logic (i.e., it
+  #' does not penalize missing ABIs that are intentionally excluded by the state
+  #' rule).
+  #'
+  #' @param subset_dir Character. Directory containing Parquet files.
+  #' @param pattern Character. Regex used by `list.files()` to match Parquet files.
+  #' @param recursive Logical. Whether to search `subset_dir` recursively.
+  #' @param read_one Function. Given a file path, returns an Arrow table-like object
+  #'   (default reads Parquet and skips column `...1`).
+  #' @param abi_ref Optional vector. If supplied, performs an ABI range check against
+  #'   slices of this reference vector based on filename ranges. If `NULL` and
+  #'   `church_dt` is provided, `abi_ref` is derived internally as
+  #'   $$\text{unique(church_dt$abi)}$$.
+  #' @param church_dt Optional data.frame/tibble/data.table containing at least
+  #'   columns `abi` and (if `filter_states=TRUE`) `state`. Used to (a) derive
+  #'   `abi_ref` when missing, and (b) compute the allowed ABI universe.
+  #' @param filter_states Logical. If TRUE, restrict ABI QC to ABIs whose rows in
+  #'   `church_dt` satisfy $$\text{all(state %in% us_states)}$$.
+  #' @param us_states Character vector of allowed US postal abbreviations. Defaults
+  #'   to `c(state.abb, "DC")`.
+  #'
+  #' @return A list with two elements:
+  #' \describe{
+  #'   \item{data}{An `arrow::Dataset` for all Parquet files in `subset_dir`
+  #'     (lazy; does not load all rows into memory).}
+  #'   \item{qc}{A list of QC tibbles (some may be `NULL` if not applicable).}
+  #' }
+  
+  # ---- 0) Validate inputs ---------------------------------------------------
+  # If the user wants state filtering, we must have a reference table with abi/state.
+  if (isTRUE(filter_states)) {
+    if (is.null(church_dt)) {
+      stop("filter_states=TRUE requires `church_dt` (e.g., church_2026_form_dt).")
+    }
+    if (!all(c("abi", "state") %in% names(church_dt))) {
+      stop("`church_dt` must contain columns: abi, state when filter_states=TRUE.")
+    }
+  }
+  
+  # ---- 1) Discover candidate parquet files ---------------------------------
+  files <- list.files(
+    subset_dir,
+    pattern = pattern,
+    full.names = TRUE,
+    recursive = recursive
+  )
+  if (length(files) == 0) stop("No parquet files found in: ", subset_dir)
+  
+  # ---- 2) Parse [from,to] ranges from filenames -----------------------------
+  # We assume each file basename contains a substring like: "<from> to <to>"
+  # which `extract_range()` parses into c(from=..., to=...).
+  file_index <- tibble::tibble(file = files) %>%
+    dplyr::mutate(
+      base   = basename(file),
+      rng    = purrr::map(base, extract_range),
+      from   = purrr::map_int(rng, 1),
+      to     = purrr::map_int(rng, 2),
+      # Optional: extracted for labeling/diagnostics; not required for logic.
+      arr_id = suppressWarnings(as.integer(stringr::str_match(base, "_slurmArray_(\\d+)")[, 2]))
+    ) %>%
+    dplyr::select(-rng) %>%
+    dplyr::arrange(from, to, arr_id)
+  
+  if (any(is.na(file_index$from))) {
+    bad <- file_index$file[is.na(file_index$from)]
+    stop("Could not parse '<from> to <to>' range from:\n", paste(bad, collapse = "\n"))
+  }
+  
+  # ---- 3) QC 1: ABI integrity check ----------------------------------------
+  # Goal: ensure each file/chunk contains only ABIs expected for its [from,to] slice.
+  qc_abi_results <- list()
+  
+  #' ABI QC for one file chunk, with optional "allowed states" filtering
+  #'
+  #' @param chunk A tibble/data.frame for one file, with column `abi`.
+  #' @param from Integer. Start index parsed from filename.
+  #' @param to Integer. End index parsed from filename.
+  #' @param arr_id Integer-ish. Array identifier (used for labeling).
+  #' @param file Character. File path (used for labeling/errors).
+  #' @param abi_ref Optional vector defining the master ABI ordering; expected ABIs
+  #'   are $$\text{unique(abi_ref[from:to])}$$. If `NULL` and `church_dt` is provided,
+  #'   `abi_ref` is derived as $$\text{unique(church_dt$abi)}$$.
+  #' @param church_dt Optional data.frame/tibble/data.table with columns `abi` and
+  #'   `state`, used to compute the allowed ABI set when `filter_states=TRUE`.
+  #' @param filter_states Logical. Toggle state-based filtering of ABIs.
+  #' @param us_states Character vector of allowed state abbreviations.
+  #' @param debug Logical. If TRUE, prints diagnostics about filtering and set sizes.
+  #'
+  #' @return A 1-row tibble summarizing ABI QC, or `NULL` if ABI QC is disabled.
+  qc_abi <- function(chunk, from, to, arr_id, file,
+                     abi_ref = NULL,
+                     church_dt = NULL,
+                     filter_states = FALSE,
+                     us_states = c(state.abb, "DC"),
+                     debug = FALSE) {
+    
+    # ABI QC disabled if we cannot construct a reference ABI vector.
+    if (is.null(abi_ref)) {
+      if (!is.null(church_dt)) {
+        if (!("abi" %in% names(church_dt))) stop("`church_dt` must have an `abi` column.")
+        abi_ref <- unique(church_dt$abi)
+      } else {
+        return(NULL)
+      }
+    }
+    
+    if (!"abi" %in% names(chunk)) stop("File has no 'abi' column:\n  ", file)
+    
+    # Expected ABIs are determined by the filename range slice of abi_ref.
+    expected_abis <- unique(abi_ref[from:to])
+    # Actual ABIs are what appear in the parquet chunk.
+    actual_abis   <- unique(chunk$abi)
+    
+    # Optional: restrict both expected and actual ABIs to the ABI universe
+    # that is "OK" under the allowed-states rule.
+    #
+    # This is the key fix that makes the comparison reflect your external filtering:
+    # you should not count "missing" ABIs that are excluded by the state rule.
+    abi_ok <- NULL
+    if (isTRUE(filter_states)) {
+      if (is.null(church_dt)) stop("qc_abi: filter_states=TRUE requires `church_dt`.")
+      if (!all(c("abi", "state") %in% names(church_dt))) {
+        stop("qc_abi: `church_dt` must contain columns: abi, state")
+      }
+      
+      # Only compute ok-ness for ABIs relevant to this chunk.
+      universe <- unique(c(expected_abis, actual_abis))
+      
+      if (inherits(church_dt, "data.table")) {
+        abi_ok <- church_dt[
+          abi %in% universe,
+          .(ok = all(state %in% us_states)),
+          by = abi
+        ][ok == TRUE, abi]
+      } else {
+        abi_ok <- church_dt |>
+          dplyr::filter(.data$abi %in% universe) |>
+          dplyr::group_by(.data$abi) |>
+          dplyr::summarise(ok = all(.data$state %in% us_states), .groups = "drop") |>
+          dplyr::filter(.data$ok) |>
+          dplyr::pull(.data$abi)
+      }
+      
+      expected_abis <- intersect(expected_abis, abi_ok)
+      actual_abis   <- intersect(actual_abis, abi_ok)
+    }
+    
+    # ABIs present in the file but not expected for its slice is a hard error.
+    unexpected <- setdiff(actual_abis, expected_abis)
+    # ABIs expected for the slice but absent from the file are summarized.
+    missing    <- setdiff(expected_abis, actual_abis)
+    
+    if (isTRUE(debug)) {
+      message(
+        "DEBUG qc_abi: file=", basename(file),
+        " filter_states=", filter_states,
+        " expected=", length(expected_abis),
+        " actual=", length(actual_abis),
+        " abi_ok=", if (is.null(abi_ok)) NA_integer_ else length(abi_ok),
+        " missing=", length(missing),
+        " unexpected=", length(unexpected)
+      )
+    }
+    
+    if (length(unexpected) > 0) {
+      stop(
+        sprintf(
+          "ABI QC FAILED [%d to %d] — %d ABI(s) in chunk not found in abi_ref slice.\n",
+          from, to, length(unexpected)
+        ),
+        sprintf("File: %s\n", file),
+        "Unexpected ABIs: ", paste(head(unexpected, 10), collapse = ", "),
+        if (length(unexpected) > 10) {
+          sprintf(" ... and %d more.", length(unexpected) - 10)
+        } else ""
+      )
+    }
+    
+    tibble::tibble(
+      array             = sprintf("%03d", arr_id),
+      file              = basename(file),
+      from              = from,
+      to                = to,
+      n_expected_unique = length(expected_abis),
+      n_actual_unique   = length(actual_abis),
+      n_missing         = length(missing),
+      qc_pass           = length(missing) == 0
+    )
+  }
+  
+  # ---- 4) QC 2: NA audit for census boundary/address fields -----------------
+  qc_na_results <- list()
+  
+  qc_na_census_boundaries <- function(chunk, arr_id, file) {
+    
+    fixed_cols    <- c("address", "geoid_2000", "geoid_2010", "geoid_2020")
+    wildcard_cols <- grep("^(cbsa_code_|cbsa_level_|csa_code_|zcta_)", names(chunk), value = TRUE)
+    target_cols   <- intersect(c(fixed_cols, wildcard_cols), names(chunk))
+    
+    if (length(target_cols) == 0) return(NULL)
+    
+    if (!"address" %in% names(chunk)) {
+      stop("File has no 'address' column (needed for unique-address QC):\n  ", file)
+    }
+    
+    # Deduplicate to one record per address (keeps first occurrence)
+    chunk_u <- dplyr::distinct(chunk, address, .keep_all = TRUE)
+    na_counts <- purrr::map_int(target_cols, ~ sum(is.na(chunk_u[[.x]])))
+    
+    tibble::tibble(
+      array   = sprintf("%03d", arr_id),
+      column  = target_cols,
+      n_addr  = nrow(chunk_u),
+      n_na    = na_counts,
+      pct_na  = round(100 * na_counts / nrow(chunk_u), 2)
+    )
+  }
+  
+  # ---- 5) QC 3: Frequency tables for verification/match flags ---------------
+  flag_cols <- c("address_verified", "address_matched", "geolocation_verified", "geoid_match")
+  
+  qc_flag_results <- stats::setNames(vector("list", length(flag_cols)), flag_cols)
+  for (nm in flag_cols) qc_flag_results[[nm]] <- NULL
+  
+  qc_flag_tables <- function(chunk, arr_id, file) {
+    
+    present <- intersect(flag_cols, names(chunk))
+    if (length(present) == 0) return(NULL)
+    
+    if (!"address" %in% names(chunk)) {
+      stop("File has no 'address' column (needed for unique-address QC):\n  ", file)
+    }
+    
+    # Deduplicate to one record per address (keeps first occurrence)
+    chunk_u <- dplyr::distinct(chunk, address, .keep_all = TRUE)
+    
+    purrr::map(present, function(col) {
+      tbl        <- as.data.frame(table(chunk_u[[col]], useNA = "ifany"), stringsAsFactors = FALSE)
+      names(tbl) <- c("value", "n")
+      tbl$array  <- sprintf("%03d", arr_id)
+      tbl$n_addr <- nrow(chunk_u)
+      tbl$pct    <- round(100 * tbl$n / nrow(chunk_u), 2)
+      tbl[, c("array", "value", "n", "n_addr", "pct")]
+    }) |>
+      rlang::set_names(present)
+  }
+  
+  # ---- 6) Progress bar ------------------------------------------------------
+  pb <- utils::txtProgressBar(min = 0, max = nrow(file_index), style = 3)
+  on.exit(close(pb), add = TRUE)
+  
+  # ---- 7) Iterate files: read -> convert -> QC ------------------------------
+  for (i in seq_len(nrow(file_index))) {
+    f      <- file_index$file[[i]]
+    from   <- file_index$from[[i]]
+    to     <- file_index$to[[i]]
+    arr_id <- file_index$arr_id[[i]]
+    
+    # Read parquet -> Arrow -> tibble so QC behaves like base R.
+    chunk_arrow <- read_one(f)
+    chunk <- tibble::as_tibble(chunk_arrow)
+    
+    # ABI QC (optional)
+    r1 <- qc_abi(
+      chunk, from, to, arr_id, f,
+      abi_ref = abi_ref,
+      church_dt = church_dt,
+      filter_states = filter_states,
+      us_states = us_states
+      # debug = TRUE  # uncomment temporarily if you want diagnostics
+    )
+    if (!is.null(r1)) qc_abi_results[[length(qc_abi_results) + 1]] <- r1
+    
+    # NA QC (optional depending on columns)
+    r2 <- qc_na_census_boundaries(chunk, arr_id, f)
+    if (!is.null(r2)) qc_na_results[[length(qc_na_results) + 1]] <- r2
+    
+    # Flag QC
+    r3 <- qc_flag_tables(chunk, arr_id, f)
+    if (!is.null(r3)) {
+      for (col in names(r3)) {
+        qc_flag_results[[col]] <- dplyr::bind_rows(qc_flag_results[[col]], r3[[col]])
+      }
+    }
+    
+    utils::setTxtProgressBar(pb, i)
+    
+    rm(chunk_arrow, chunk)
+    gc(FALSE)
+  }
+  
+  # ---- 8) "Compiled" data handle (lazy) ------------------------------------
+  data_compiled <- arrow::open_dataset(subset_dir, format = "parquet")
+  
+  # ---- 9) Return only data + qc --------------------------------------------
+  list(
+    data = data_compiled,
+    qc   = list(
+      abi_check            = if (length(qc_abi_results) > 0) dplyr::bind_rows(qc_abi_results) else NULL,
+      address_verified     = qc_flag_results[["address_verified"]],
+      address_matched      = qc_flag_results[["address_matched"]],
+      geolocation_verified = qc_flag_results[["geolocation_verified"]],
+      geoid_match          = qc_flag_results[["geoid_match"]],
+      na_census_boundaries = if (length(qc_na_results) > 0) dplyr::bind_rows(qc_na_results) else NULL
+    )
+  )
+}
+
+
+
+
+compile_duckdb_folder <- function(subset_dir,
+                                  pattern = "\\.db$",
+                                  recursive = TRUE,
+                                  abi_ref = NULL) {
+  #' Compile DuckDB QC outputs from a folder (with progress, header cleanup, and ABI QC).
+  #' Reads all DuckDB \code{.db} files in a directory (optionally recursively), loads each
+  #' file via \code{read_list_from_duckdb()}, normalizes column names (including dotted
+  #' headers), optionally performs an ABI integrity QC check, and then binds like-named
+  #' tables across files.
+  #'
+  #' Column-name normalization:
+  #' \itemize{
+  #'   \item Renames \code{"Allow.USPS.API."} to \code{"Allow USPS API"}.
+  #'   \item Replaces one-or-more periods with spaces (e.g., \code{"Any.Addresses.Line.1.NA"}
+  #'         becomes \code{"Any Addresses Line 1 NA"}).
+  #'   \item Collapses repeated whitespace and trims.
+  #' }
+  #'
+  #' ABI QC (optional):
+  #' When \code{abi_ref} is provided, the function checks every list element (table/data.frame)
+  #' that contains an ABI column (case-insensitive match to \code{"abi"}). For each file and
+  #' each ABI-bearing table, it compares the unique ABIs present to the expected ABIs from
+  #' \code{abi_ref[from:to]}, where \code{from/to} are parsed from the filename pattern
+  #' \code{"QC_<from> to <to>"}.
+  #' Unexpected ABIs cause an error; missing ABIs are summarized in \code{out$qc_import}.
+  #'
+  #' @param subset_dir Directory containing DuckDB files.
+  #' @param pattern Regex pattern passed to \code{list.files()} to identify DB files.
+  #'   Defaults to \code{"\\\\.db$"}.
+  #' @param recursive Logical; whether to search \code{subset_dir} recursively.
+  #' @param abi_ref Optional reference vector of ABIs in the intended global order. If
+  #'   provided, ABI integrity QC is enabled. If \code{NULL}, ABI QC is skipped.
+  #'
+  #' @return A named list. Each element corresponds to a table name returned by
+  #'   \code{read_list_from_duckdb()}, with rows bound across all DB files. An additional
+  #'   element \code{$qc_import} contains a tibble summarizing ABI QC results (or \code{NULL} if
+  #'   ABI QC is disabled or no results are produced).
+  #'
+  #' @examples
+  #' \dontrun{
+  #' qc_address <- compile_duckdb_folder(
+  #'   subset_dir = file.path(getwd(), data_root, "batch_array_18850425/Results/Address QC/"),
+  #'   abi_ref    = unique(church_2026_form_dt$abi)
+  #' )
+  #'
+  #' # View ABI QC summary
+  #' qc_address$qc_import
+  #'
+  #' # Example: a normalized dotted header
+  #' names(qc_address$qc1)
+  #' }
+  #'
+  #' @export
+  
+  files <- list.files(
+    subset_dir,
+    pattern = pattern,
+    full.names = TRUE,
+    recursive = recursive
+  )
+  if (length(files) == 0) stop("No .db files found in: ", subset_dir)
+  
+  file_index <- tibble::tibble(file = files) %>%
+    dplyr::mutate(
+      base = basename(file),
+      qc_from = as.integer(stringr::str_match(base, "QC_(\\d+)\\s*to\\s*(\\d+)")[, 2]),
+      qc_to   = as.integer(stringr::str_match(base, "QC_(\\d+)\\s*to\\s*(\\d+)")[, 3]),
+      arr_id  = suppressWarnings(as.integer(stringr::str_match(base, "_slurmArray_(\\d+)")[, 2]))
+    ) %>%
+    dplyr::arrange(qc_from, qc_to, arr_id)
+  
+  if (any(is.na(file_index$qc_from))) {
+    bad <- file_index$file[is.na(file_index$qc_from)]
+    stop("Could not parse QC range from:\n", paste(bad, collapse = "\n"))
+  }
+  
+  # Progress bar (number of .db files)
+  pb <- utils::txtProgressBar(min = 0, max = nrow(file_index), style = 3)
+  on.exit(close(pb), add = TRUE)
+  
+  # Helper: recursively normalize column names across tibbles/data.frames inside a list
+  # - Fixes the known odd header "Allow.USPS.API." -> "Allow USPS API"
+  # - ONLY treats periods: converts one-or-more periods to single spaces
+  # - Collapses repeated whitespace and trims
+  # - Leaves underscores untouched
+  fix_column_names <- function(x) {
+    if (is.data.frame(x)) {
+      nms <- names(x)
+      
+      # 1) Specific one-off fix first (exact match)
+      nms[nms == "Allow.USPS.API."] <- "Allow USPS API"
+      
+      # 2) General cleanup for dotted headers ONLY
+      nms <- gsub("\\.+", " ", nms)   # one-or-more periods -> single space
+      nms <- gsub("\\s+", " ", nms)  # collapse multiple spaces
+      nms <- trimws(nms)             # trim leading/trailing spaces
+      
+      names(x) <- nms
+      return(x)
+    }
+    
+    if (is.list(x)) return(lapply(x, fix_column_names))
+    x
+  }
+  
+  # Helper: find ALL list elements that are data.frames and have an ABI column
+  # (ABI may appear as "abi", "ABI", "Abi", etc.)
+  find_abi_tables <- function(chunk_list) {
+    if (is.null(chunk_list) || !is.list(chunk_list)) return(list())
+    
+    out <- list()
+    for (nm in names(chunk_list)) {
+      obj <- chunk_list[[nm]]
+      if (!is.data.frame(obj)) next
+      
+      nms <- names(obj)
+      if (is.null(nms)) next
+      
+      if (any(tolower(nms) == "abi")) out[[nm]] <- obj
+    }
+    out
+  }
+  
+  # ---- QC: ABI integrity check (case-insensitive ABI column) ----------------
+  qc_abi_results <- list()
+  
+  qc_abi <- function(chunk, key, from, to, arr_id, file, abi_ref) {
+    
+    if (is.null(abi_ref)) return(NULL)  # ABI QC disabled if no reference provided
+    if (is.null(chunk)) stop("ABI QC requested, but NULL chunk encountered in:\n  ", file)
+    
+    abi_col_idx <- which(tolower(names(chunk)) == "abi")
+    if (length(abi_col_idx) == 0) {
+      stop("ABI QC requested, but selected table has no ABI column (any case) in:\n  ", file,
+           "\nList element: ", key)
+    }
+    # If multiple matches (rare), take the first deterministically
+    abi_col <- names(chunk)[abi_col_idx[[1]]]
+    
+    expected_abis <- unique(abi_ref[from:to])
+    actual_abis   <- unique(chunk[[abi_col]])
+    unexpected    <- setdiff(actual_abis, expected_abis)
+    missing       <- setdiff(expected_abis, actual_abis)
+    
+    if (length(unexpected) > 0) {
+      stop(
+        sprintf(
+          "ABI QC FAILED [%d to %d] — %d ABI(s) not found in abi_ref slice.\n",
+          from, to, length(unexpected)
+        ),
+        sprintf("File: %s\n", file),
+        sprintf("List element: %s\n", key),
+        sprintf("ABI column matched: %s\n", abi_col),
+        "Unexpected ABIs: ", paste(head(unexpected, 10), collapse = ", "),
+        if (length(unexpected) > 10) sprintf(" ... and %d more.", length(unexpected) - 10) else ""
+      )
+    }
+    
+    tibble::tibble(
+      array             = sprintf("%03d", arr_id),
+      file              = basename(file),
+      key               = key,
+      from              = from,
+      to                = to,
+      abi_col           = abi_col,
+      n_expected_unique = length(expected_abis),
+      n_actual_unique   = length(actual_abis),
+      n_missing         = length(missing),
+      qc_pass           = length(missing) == 0
+    )
+  }
+  
+  # ---- Read each .db and compute ABI QC per file ----------------------------
+  chunks <- vector("list", nrow(file_index))
+  for (i in seq_len(nrow(file_index))) {
+    f      <- file_index$file[[i]]
+    from   <- file_index$qc_from[[i]]
+    to     <- file_index$qc_to[[i]]
+    arr_id <- file_index$arr_id[[i]]
+    
+    chunk_list <- suppressMessages(
+      suppressWarnings(
+        read_list_from_duckdb(f)
+      )
+    ) |>
+      fix_column_names()
+    
+    # ABI QC over ALL ABI-bearing list elements (optional)
+    if (!is.null(abi_ref)) {
+      abi_tables <- find_abi_tables(chunk_list)
+      if (length(abi_tables) == 0) {
+        stop("ABI QC requested, but no list element with an ABI column (any case) was found in:\n  ", f)
+      }
+      
+      for (key in names(abi_tables)) {
+        r1 <- qc_abi(abi_tables[[key]], key, from, to, arr_id, f, abi_ref)
+        if (!is.null(r1)) qc_abi_results[[length(qc_abi_results) + 1]] <- r1
+      }
+    }
+    
+    chunks[[i]] <- chunk_list
+    utils::setTxtProgressBar(pb, i)
+  }
+  
+  # ---- Combine lists-of-tibbles across DBs by key name ----------------------
+  keys <- Reduce(union, lapply(chunks, names))
+  out  <- stats::setNames(vector("list", length(keys)), keys)
+  
+  for (k in keys) {
+    pieces <- purrr::map(chunks, \(x) x[[k]]) |>
+      purrr::compact()
+    out[[k]] <- dplyr::bind_rows(pieces)
+  }
+  
+  # Name fix again (belt-and-suspenders)
+  out <- fix_column_names(out)
+  
+  # Attach QC output directly (tibble / NULL; not nested in a list)
+  out$qc_import <- if (length(qc_abi_results) > 0) dplyr::bind_rows(qc_abi_results) else NULL
+  
+  out
+}
+
+
+
+
+write_qc_groups <- function(con, qc_groups,
+                            prefixes = NULL,
+                            on_missing = c("skip", "placeholder"),
+                            verbose = TRUE) {
+  #' Writes multiple *groups* of QC tables into an open DuckDB connection using a
+  #' consistent naming convention: $$\texttt{<prefix>__<qc\_name>}$$
+  #'
+  #' This is useful when each batch (or cohort) has a list of QC tables, but some
+  #' QC tables may be missing (`NULL`) in some groups. To avoid schema drift and
+  #' keep downstream reads predictable, the function can create 0-row placeholder
+  #' tables using a schema "template" learned from the first non-`NULL` instance
+  #' of each QC table name across all groups.
+  #'
+  #' @param con A live DBI connection (e.g., from `DBI::dbConnect(duckdb::duckdb(), ...)`).
+  #' @param qc_groups Named list of QC groups. Each element is itself a *named list*
+  #'   of QC tables (data.frame-like objects) or `NULL`.
+  #'   Example structure:
+  #'   \itemize{
+  #'     \item `qc_groups[["import_qc_18"]][["abi_check"]]` is a data.frame or `NULL`
+  #'     \item `qc_groups[["import_qc_20"]][["abi_check"]]` is a data.frame or `NULL`
+  #'   }
+  #' @param prefixes Optional named character vector mapping group names to table prefixes.
+  #'   If `NULL`, group names are used as-is.
+  #'   Example: `c(import_qc_18 = "import_qc_18", import_qc_20 = "import_qc_20")`.
+  #' @param on_missing What to do when a QC table is `NULL` for a group.
+  #'   \itemize{
+  #'     \item `"skip"`: do not write a table for that QC name if it is `NULL` and
+  #'       no template schema can be inferred anywhere.
+  #'     \item `"placeholder"`: write a placeholder 0-row table even if no template
+  #'       exists (uses a trivial single column called `note`).
+  #'   }
+  #' @param verbose Logical. If `TRUE`, prints messages when skipping tables.
+  #'
+  #' @return Invisibly returns a list with:
+  #' \itemize{
+  #'   \item `templates`: named list of template data.frames used to create 0-row tables
+  #'   \item `prefixes`: the resolved prefix mapping used
+  #'   \item `groups`: the group names written (in iteration order)
+  #' }
+  #'
+  #' @details
+  #' Template inference rule: for each QC name (e.g., `"abi_check"`), the function
+  #' scans groups in order and uses the *first* non-`NULL` table with $$ncol(df) > 0$$
+  #' as the schema template. Placeholders are then created via:
+  #' $$\texttt{tmpl[0, , drop = FALSE]}$$
+  #' which yields a 0-row data.frame preserving column names and types as best as R allows.
+  #'
+  #' Each table is written with `overwrite = TRUE`.
+  #'
+  #' @examples
+  #' \dontrun{
+  #' qc_groups <- list(
+  #'   import_qc_18 = list(abi_check = df18, address_verified = NULL),
+  #'   import_qc_20 = list(abi_check = df20, address_verified = df20_addr)
+  #' )
+  #'
+  #' write_qc_groups(con, qc_groups, on_missing = "placeholder")
+  #' # Writes:
+  #' # import_qc_18__abi_check, import_qc_18__address_verified (0-row placeholder)
+  #' # import_qc_20__abi_check, import_qc_20__address_verified
+  #' }
+  
+  # Normalize argument choices
+  on_missing <- match.arg(on_missing)
+  
+  # Basic input validation
+  stopifnot(is.list(qc_groups), length(qc_groups) > 0)
+  stopifnot(all(nzchar(names(qc_groups))))
+  
+  # Resolve prefixes: by default, use group names as prefixes
+  if (is.null(prefixes)) {
+    prefixes <- setNames(names(qc_groups), names(qc_groups))
+  } else {
+    stopifnot(is.character(prefixes), all(names(qc_groups) %in% names(prefixes)))
+  }
+  
+  # --- Build templates across ALL groups -----------------------------------
+  # Goal: for each QC table name (e.g., "abi_check"), find a representative
+  # non-NULL data.frame to use as a schema template for 0-row placeholders.
+  all_qc_names <- unique(unlist(lapply(qc_groups, names)))
+  
+  templates <- list()
+  for (nm in all_qc_names) {
+    for (g in names(qc_groups)) {
+      obj <- qc_groups[[g]][[nm]]
+      if (!is.null(obj)) {
+        df <- as.data.frame(obj)
+        if (ncol(df) > 0) {
+          templates[[nm]] <- df
+          break
+        }
+      }
+    }
+  }
+  
+  # --- Write each group -----------------------------------------------------
+  for (g in names(qc_groups)) {
+    qc_list <- qc_groups[[g]]
+    prefix  <- prefixes[[g]]
+    
+    stopifnot(is.list(qc_list))
+    if (is.null(names(qc_list))) {
+      stop("QC list for group '", g, "' must be a *named* list.")
+    }
+    
+    for (nm in names(qc_list)) {
+      obj <- qc_list[[nm]]
+      
+      # Decide what to write for this group + QC name
+      if (is.null(obj)) {
+        tmpl <- templates[[nm]]
+        
+        if (is.null(tmpl)) {
+          # No data anywhere to infer a schema
+          if (on_missing == "skip") {
+            if (verbose) {
+              message("Skipping ", prefix, "__", nm, " (NULL and no template anywhere)")
+            }
+            next
+          } else {
+            # Placeholder with minimal schema
+            df <- data.frame(note = character(0))
+          }
+        } else {
+          # Placeholder that preserves the inferred schema (0 rows, same columns)
+          df <- tmpl[0, , drop = FALSE]
+        }
+        
+      } else {
+        # Real table exists for this group
+        df <- as.data.frame(obj)
+        
+        # Defensive: skip empty-schema objects
+        if (ncol(df) == 0) {
+          if (verbose) message("Skipping ", prefix, "__", nm, " (0 columns)")
+          next
+        }
+      }
+      
+      # Write to DuckDB as <prefix>__<qc_name>
+      DBI::dbWriteTable(con, paste0(prefix, "__", nm), df, overwrite = TRUE)
+    }
+  }
+  
+  invisible(list(
+    templates = templates,
+    prefixes  = prefixes,
+    groups    = names(qc_groups)
+  ))
+}
+
+
+
+
+import_church_db <- function(db_path,
+                             import_data = c("all", "data", "qc"),
+                             data_table  = "data",
+                             qc_prefixes = c("import_qc_18", "import_qc_20"),
+                             read_only   = TRUE) {
+  #' Import church-closures DuckDB tables (data + QC) with minimal dependencies.
+  #' Reads tables from a DuckDB database file located at `db_path`.
+  #' Designed to avoid `dplyr`/`dbplyr` and return a simple R list:
+  #' - optionally the main compiled `data` table
+  #' - QC tables grouped by prefix (e.g., `import_qc_18`, `import_qc_20`)
+  #'
+  #' QC tables are expected to follow the naming pattern:
+  #'   <prefix>__<qc_name>
+  #' For example: `import_qc_20__abi_check` becomes accessible as
+  #' `res$import_qc_20$abi_check`.
+  #'
+  #' @param db_path Character scalar. Path to the DuckDB database directory/file.
+  #' @param import_data Character. What to import:
+  #'   \itemize{
+  #'     \item `"all"`: import both the main data table and QC tables
+  #'     \item `"data"`: import only the main data table
+  #'     \item `"qc"`: import only QC tables (grouped by `qc_prefixes`)
+  #'   }
+  #' @param data_table Character scalar. Name of the main data table (default `"data"`).
+  #' @param qc_prefixes Character vector. QC table prefixes to import (defaults to
+  #'   `c("import_qc_18","import_qc_20")`).
+  #' @param read_only Logical. Passed to DuckDB connection; should generally stay `TRUE`.
+  #'
+  #' @return A named list.
+  #' - If `import_data` includes `"data"`, the list contains element `$data` (a data.frame).
+  #' - If `import_data` includes `"qc"`, the list contains one element per prefix in
+  #'   `qc_prefixes` (e.g., `$import_qc_18`, `$import_qc_20`), each a named list of
+  #'   QC data.frames keyed by the suffix after `__`.
+  #'
+  #' @examples
+  #' \dontrun{
+  #' # QC only
+  #' res_qc <- import_church_db(out_db, import_data = "qc")
+  #' names(res_qc$import_qc_20)
+  #' res_qc$import_qc_20$abi_check
+  #'
+  #' # Data only
+  #' res_data <- import_church_db(out_db, import_data = "data")
+  #' head(res_data$data)
+  #'
+  #' # Everything
+  #' res_all <- import_church_db(out_db, import_data = "all")
+  #' }
+  
+  # Validate/standardize `import_data`
+  import_data <- match.arg(import_data)
+  
+  # Hard dependencies (kept minimal on purpose)
+  if (!requireNamespace("DBI", quietly = TRUE)) {
+    stop("Package 'DBI' is required.")
+  }
+  if (!requireNamespace("duckdb", quietly = TRUE)) {
+    stop("Package 'duckdb' is required.")
+  }
+  
+  # Open DuckDB connection to the database at `db_path`
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = db_path, read_only = read_only)
+  
+  # Always clean up connection, even if an error occurs mid-import.
+  # This helps avoid: "Connection already working on another query"
+  on.exit({
+    try(DBI::dbDisconnect(con, shutdown = TRUE), silent = TRUE)
+    try(duckdb::duckdb_shutdown(), silent = TRUE)
+  }, add = TRUE)
+  
+  # Discover available tables (we use this to find QC tables by prefix)
+  tabs <- DBI::dbListTables(con)
+  
+  # The result container we will populate and return
+  res <- list()
+  
+  # ---- Import main compiled data table (optional) ----
+  if (import_data %in% c("all", "data")) {
+    if (!data_table %in% tabs) {
+      stop(sprintf("Data table '%s' not found in DB.", data_table))
+    }
+    res$data <- DBI::dbReadTable(con, data_table)
+  }
+  
+  # ---- Import QC tables (optional) ----
+  # For each prefix (e.g., "import_qc_20"), import all tables matching:
+  #   ^import_qc_20__
+  # Then strip the prefix from the list element names so you can do:
+  #   res$import_qc_20$abi_check
+  if (import_data %in% c("all", "qc")) {
+    for (px in qc_prefixes) {
+      # All QC tables for this prefix
+      qc_tabs <- grep(paste0("^", px, "__"), tabs, value = TRUE)
+      
+      # Pre-allocate list for speed and set clean names (suffix after "__")
+      out <- vector("list", length(qc_tabs))
+      names(out) <- sub(paste0("^", px, "__"), "", qc_tabs)
+      
+      # Read each QC table into memory
+      for (i in seq_along(qc_tabs)) {
+        out[[i]] <- DBI::dbReadTable(con, qc_tabs[[i]])
+      }
+      
+      # Store per-prefix QC list at res[[px]] (e.g., res$import_qc_20)
+      res[[px]] <- out
+    }
+  }
+  
+  res
+}
+
+
+
+
+rbind_qc <- function(a, b) {
+  #' Row-bind two QC tables with column alignment (NULL-safe).
+  #' Takes two tabular objects (typically data.frames) and returns a single
+  #' data.frame created by row-binding them. If the two inputs have different
+  #' columns, missing columns are added and filled with `NA` so that `rbind()`
+  #' succeeds. `NULL` inputs are treated as “missing tables”.
+  #'
+  #' @param a A data.frame-like object (data.frame, tibble, etc.) or `NULL`.
+  #' @param b A data.frame-like object (data.frame, tibble, etc.) or `NULL`.
+  #'
+  #' @return
+  #' - If both `a` and `b` are `NULL`, returns `NULL`.
+  #' - Otherwise returns a base `data.frame` containing rows from `a` then `b`,
+  #'   with the union of their columns. Missing columns are filled with `NA`.
+  #'
+  #' @details
+  #' Column order in the result is the union of column names from `a` and `b`
+  #' (as computed by `union()`), and row names are dropped to avoid duplicates.
+  
+  # Handle fully-missing inputs early
+  if (is.null(a) && is.null(b)) return(NULL)
+  
+  # If only one side exists, return it (ensuring base data.frame)
+  if (is.null(a)) return(as.data.frame(b))
+  if (is.null(b)) return(as.data.frame(a))
+  
+  # Coerce both inputs to base data.frames (ensures consistent behavior)
+  a <- as.data.frame(a)
+  b <- as.data.frame(b)
+  
+  # Compute the full set of columns we need in the result
+  all_cols <- union(names(a), names(b))
+  
+  # Add missing columns to each input, filled with NA
+  for (cc in setdiff(all_cols, names(a))) a[[cc]] <- NA
+  for (cc in setdiff(all_cols, names(b))) b[[cc]] <- NA
+  
+  # Reorder columns identically before binding rows
+  a <- a[all_cols]
+  b <- b[all_cols]
+  
+  # Drop row names to prevent duplicated/meaningless rownames after rbind
+  rownames(a) <- NULL
+  rownames(b) <- NULL
+  
+  # Row-bind (a on top of b)
+  rbind(a, b)
+}
+
+
+
+
+flag_boxplot <- function(df, title, x_levels = NULL) {
+  #' Boxplot + jitter for QC flag distributions across arrays/files.
+  #' Creates a compact visualization for QC flag summaries (e.g., `address_verified`,
+  #' `geoid_match`) where each row represents a batch/array and `pct` is the percent
+  #' of unique addresses in a given flag category. The plot shows:
+  #' - a boxplot summarizing the distribution of `pct` by flag value, and
+  #' - jittered points showing each batch/array observation.
+  #'
+  #' If `x_levels` is supplied, the x-axis ordering is forced and missing values
+  #' in `value` are displayed explicitly as the category `"NA"`.
+  #'
+  #' @param df A data.frame/data.table/tibble containing (at minimum) columns:
+  #'   `value` (flag category) and `pct` (percentage, on 0–100 scale).
+  #' @param title Character. Plot title.
+  #' @param x_levels Optional character vector. If provided, sets the order of the
+  #'   x-axis categories. An `"NA"` level is appended automatically to ensure missing
+  #'   values are retained as a visible category.
+  #'
+  #' @return A `ggplot2` object.
+  
+  # Convert to data.table for fast in-place mutation (does not modify `df` in caller)
+  d <- data.table::as.data.table(df)
+  
+  # ---- Force x-axis order (and show NA as its own category) -----------------
+  # Many QC flag columns may contain NA. When x_levels is provided, we:
+  #   1) recode NA -> "NA" (string)
+  #   2) set factor levels so plotting order is consistent across figures
+  #   3) keep "NA" as a visible category via drop = FALSE in scales
+  if (!is.null(x_levels)) {
+    d[, value := data.table::fifelse(is.na(value), "NA", as.character(value))]
+    d[, value := factor(value, levels = c(x_levels, "NA"))]
+  }
+  
+  ggplot2::ggplot(d, ggplot2::aes(x = value, y = pct, fill = value)) +
+    ggplot2::geom_boxplot(alpha = 0.6, outlier.shape = NA) +
+    ggplot2::geom_jitter(ggplot2::aes(colour = value), width = 0.15, size = 2, alpha = 0.8) +
+    ggplot2::scale_fill_brewer(palette = "Set2", drop = FALSE) +
+    ggplot2::scale_colour_brewer(palette = "Set2", drop = FALSE) +
+    ggplot2::scale_y_continuous(limits = c(0, 100), breaks = seq(0, 100, 10)) +
+    ggplot2::labs(
+      title = title,
+      x     = "Verification Status",
+      y     = "% of Unique Addresses"
+    ) +
+    ggplot2::theme_minimal(base_size = 13) +
+    ggplot2::theme(
+      legend.position = "none",
+      plot.title      = ggplot2::element_text(face = "bold", size = 11),
+      axis.text.x     = ggplot2::element_text(angle = 25, hjust = 1)
+    )
+}
+
+
+
+
+join_places_with_zip_fix <- function(dt, places_dt, zip_city_lookup) {
+  #' Join city/state records to a places table, with ZIP-based fallback for missing 
+  #' coordinates. Performs a two-step enrichment of a city-level dataset with 
+  #' longitude/latitude:
+  #' (1) primary join on (state, city) to `places_dt`;
+  #' (2) for rows still missing lon/lat, uses `zipcode` to look up standardized 
+  #'     city/state from `zip_city_lookup`, then re-joins to `places_dt` to 
+  #'     recover coordinates.
+  #'
+  #' @param dt A data.table/data.frame containing (at minimum) columns: `state`, `city`, `zipcode`.
+  #'           `state` and `city` should be comparable to `places_dt` keys (often uppercase/trimmed).
+  #' @param places_dt A data.table/data.frame keyed by `state` and `city`, with columns `lon` and `lat`.
+  #' @param zip_city_lookup A lookup table (data.frame/data.table) with columns `zip`, `city`, `state_id`
+  #'        used to map ZIP codes to a standardized city/state.
+  #'
+  #' @return A data.table with all original columns plus `lon` and `lat` filled when possible.
+  #'
+  #' @details
+  #' Only rows where `lon` or `lat` are NA after the primary join are considered for ZIP rematching.
+  #' When writing back, coordinates are updated only if the original `lon`/`lat` are NA.
+  #'
+  #' @examples
+  #' # na_joined <- join_places_with_zip_fix(na_by_city, places_dt, zip_city_lookup)
+  #' # po_joined <- join_places_with_zip_fix(po_by_city, places_dt, zip_city_lookup)
+  #'
+  #' @export
+  
+  # Defensive copy to avoid modifying caller's object by reference
+  dt <- data.table::copy(dt)
+  
+  # ---- 1) Primary join: (state, city) -> lon/lat -----------------------------
+  # Left join keeps all rows in dt, adds lon/lat where there is a match in places_dt
+  out <- merge(dt, places_dt, by = c("state", "city"), all.x = TRUE)
+  
+  # ---- 2) ZIP-based rematch for rows still missing lon/lat -------------------
+  # Identify only rows that still lack coordinates
+  need <- out[is.na(lon) | is.na(lat)]
+  if (nrow(need) == 0L) return(out)
+  
+  # Build a standardized ZIP -> (city,state) lookup:
+  # - ZIP padded to 5 characters
+  # - city/state uppercased and trimmed for consistent matching
+  zip_lu <- data.table::as.data.table(zip_city_lookup)[, `:=`(
+    zip       = sprintf("%05s", zip),
+    zip_city  = toupper(trimws(city)),
+    zip_state = toupper(trimws(state_id))
+  )]
+  
+  # Join ZIP info onto the subset needing fixes (by dt$zipcode -> zip_lu$zip)
+  need <- merge(
+    need,
+    zip_lu[, .(zip, zip_city, zip_state)],
+    by.x = "zipcode", by.y = "zip",
+    all.x = TRUE
+  )
+  
+  # Use ZIP-derived city/state when available; otherwise fall back to original
+  need[, `:=`(
+    state_zip = data.table::fifelse(!is.na(zip_state), zip_state, state),
+    city_zip  = data.table::fifelse(!is.na(zip_city),  zip_city,  city)
+  )]
+  
+  # Rematch to places_dt using the ZIP-derived (state_zip, city_zip)
+  # Store candidate coordinates as lon_zip/lat_zip to avoid overwriting yet
+  need <- merge(
+    need,
+    places_dt[, .(state, city, lon_zip = lon, lat_zip = lat)],
+    by.x = c("state_zip", "city_zip"),
+    by.y = c("state", "city"),
+    all.x = TRUE
+  )
+  
+  # ---- 3) Write back coordinates only where original lon/lat are NA ----------
+  out[need,
+      `:=`(
+        lon = data.table::fifelse(is.na(lon), i.lon_zip, lon),
+        lat = data.table::fifelse(is.na(lat), i.lat_zip, lat)
+      ),
+      on = .(state, city, zipcode)
+  ]
+  
+  out
+}
+
+
 
 
 
