@@ -198,11 +198,11 @@ full_join(types_long, types_wide, by = "Variable") %>%
 # unique values are formatted this way; only those expected to be relevant to the
 # project goals.
 # 
-# NOTE: When processing the previously exported 2023 data, it was identified that
-# the NAICS code is eight digits long, with the trailing two digits representing
-# an unknown proprietary code from Data Axle. These will be separated into a
-# six-digit naics6 code with description and a two-digit naics2 code with no
-# associated description.
+# NOTE: When processing the previously exported 2023 data, it was identified 
+#       that the NAICS code is eight digits long, with the trailing two digits 
+#       representing an unknown proprietary code from Data Axle. These will be 
+#       separated into a six-digit naics6 code with description and a two-digit 
+#       naics2 code with no associated description.
 # 
 # Some variables have unknown purpose or encoding. These will be handled at
 # the most granular level, parsed for changes by year and variation by location.
@@ -331,7 +331,8 @@ core_fields <- core_fields %>%
   as.data.frame()
 
 
-#' @description Codebook for the output fields produced by the evaluation.
+#' @description 
+#' Codebook for the output fields produced by the evaluation.
 #' 
 #' @field Variable Variable name as it appears in the raw data; present in both
 #'                 versions.
@@ -617,9 +618,9 @@ vars_for_loc <- c(
 loc_condensed <- summarize_many_code_ranges_dt(subset, vars_for_loc) %>%
   arrange(abi)
 
-#' @description Codebook for the output fields produced by the evaluation. For
-#'              each variable condensed to unique abi and address combination,
-#'              additional checks are added.
+#' @description 
+#' Codebook for the output fields produced by the evaluation. For each variable 
+#' condensed to unique abi and address combination, additional checks are added.
 #' 
 #' @field _ranges_OK Logical. TRUE when the `*_ranges` field (e.g., 
 #'                   `census_tract_ranges`) assigns a value for every year 

@@ -1,28 +1,63 @@
 ## ----------------------------------------------------------------
 ## Data Standardization and CSV-to-Parquet Conversion
-##
-## NOTE: This script was designed for the 2026 raw data format and reflects
-##       an updated procedure from the original version found in
-##       "Clean Raw Data_Step 1_2023 Format.R", "Clean Raw Data_Step 2_2023 Format.R", 
-##       and "Clean Raw Data_Step 2 HPC_2023 Format.R". Refer to 
-##       "Process Data Update.R" for a description of the differences and any 
-##       handling variations.
-##
-##
-## FIX Description and load data note
-## 
-# During the raw data review, several nomenclature inconsistencies were
-# identified. The following section applies these standardizations and saves 
-# the output as a Parquet file for faster loading.
-##
-##
-##
 ## 
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 12th, 2026
-## Date Modified: June 10th, 2026
+## Date Modified: August 3rd, 2026
 ## 
-## Description: 
+## Description: "Process Data Update.R" evaluated the differences between the
+##              2023 and 2026 Formatted data. Notably, the 2026 Format contains
+##              numerous additional metadata fields not represented in the 2023
+##              Format. Most are not relevant to the immediate analysis and will
+##              therefore not be processed for cleaning or validation.
+## 
+##              Variable columns directly relevant to the analysis, however,
+##              will be processed for standardization and, where possible,
+##              cleaned and validated. This script focuses on standardizing the
+##              North American Industry Classification System (NAICS) and 
+##              Standard Industrial Classification (SIC) code columns. It also 
+##              converts the CSV to Parquet for efficient and faster data 
+##              storage and loading.
+## 
+## NOTE: Under the Data Use Agreements (DUAs) with Data Axle and the USPS API 
+##       license, raw data cannot be publicly distributed and is stored locally 
+##       in "~/KEEP LOCAL" directories. Some code or results may also be 
+##       restricted. All publicly distributed results are summarized, and 
+##       publicly distributed code has been constructed to avoid referencing 
+##       individual-level data. Executing the code below requires access to the 
+##       raw data and results.
+## 
+##       API keys are user-specific and, where applicable, instructions have 
+##       been provided to help users obtain their own and configure them locally 
+##       or on a High Performance Computer (HPC).
+## 
+## NOTE: In Spring 2026, the pipeline developed for the Summer 2025 symposium
+##       prototype was lightly refactored for clarity and rerun to process all
+##       entries not covered in the initial pass. Core methods remained 
+##       consistent with the prototype. An updated dataset delivered in May 2026 
+##       prompted further expansion of the pipeline to support two designated 
+##       format variations: the 2023 Format and the 2026 Format.
+## 
+##       This script contains the revised pipeline developed and represents the 
+##       current recommended workflow.
+## 
+##       The steps for the 2023 Format and the 2026 Format are no longer in the 
+##       same processing sequence, and are therefore not directly comparable. 
+##       Adjustments were made to:
+## 
+##            1. Implement changes based on the findings in "Process Data Update.R",
+##               which documents key differences between the two formats.
+## 
+##            2. Refactor the workflow to resolve errors encountered during 
+##               prototype development and to improve computational performance.
+## 
+##            3. Increase use of the High Performance Computing (HPC) environment, 
+##               which was not available during initial development and 
+##               previously required more discrete steps to accommodate local 
+##               limitations.
+## 
+##            4. Account for updated USPS API terms of use which will now
+##               incur costs to users.
 ## 
 ## Sections:
 ##    - SET UP THE ENVIRONMENT
@@ -71,36 +106,10 @@ source("./Code/Support Functions/For Step 1_2026 Format.R")
 ## ----------------------------------------------------------------
 ## LOAD IN THE DATA
 
-# NOTE: Individual-level data is stored in the "Data/Raw KEEP LOCAL" file
-# to comply with the Data Use Agreement (DUA).
-
-
-# In May 2026, an updated version of the raw data was provided in a format
-# different from the version exported in July 2023 and provided in the
-# summer of 2025. As a result, data processing was split into two paths:
-# one for the 2023 format and one for the 2026 format.
-#
-# The following is a modified version of the 2023 methods, in which "Step 1"
-# and "Step 2" are applied together with additional quality checks to ensure
-# no duplications are introduced and validation is maximized. Once address
-# uniqueness has been maximized and all addresses have been validated, the
-# dataframe is converted from long to wide format, reducing entries to unique
-# ABI and address combinations.
-#
-# Differences between the two formats were evaluated in
-# "./Code/Process Data Update.R", with findings summarized on the
-# corresponding Review page at:
-# https://socah-lab.github.io/Church-Closures-Dashboard/Pages/Review_2026%20Format.html
-#
-# Insights from the 2023 format are assumed to apply to the 2026 format as
-# well. For complete data exploration and the reporting that justified the
-# steps taken here, please refer to "./Code/Explore the Raw Data.R" and the
-# corresponding Review page at:
-# https://socah-lab.github.io/Church-Closures-Dashboard/Pages/Review_2023%20Format.html
-
 # Load the raw dataset in long format.
 church_2026_form <- read_csv("Data/Raw/KEEP LOCAL/church_long_form_050926.csv")
 
+# Load the coded representation of variables from "Process Data Update.R".
 core_fields <- read_csv("Data/Results/From Process Data Update/Handling Raw Variables_05.12.2026.csv")
 
 
@@ -292,12 +301,41 @@ primary_sic <- church_2026_form %>%
 ## --------------------
 ## SUBSECTION B5: Export Validated SIC Code and Description Summaries
 
-# Save results the primary SIC codes only
-write.csv(primary_sic, file = "Data/Results/KEEP LOCAL/From Process Data Update/Primary SIC Codes_06.10.2026.csv")
+#' @description
+#' Codebook for the table of unique primary SIC codes and their descriptions
+#' following nomenclature cleaning.
+#'
+#' @field primary_sic_code The six-digit primary SIC code.
+#' @field sic6_descriptions The description associated with the SIC code.
 
-# Save results for all SIC columns
-write.csv(sic_results_confirm$presence_wide, file = "Data/Results/KEEP LOCAL/From Process Data Update/Non-Primary SIC Codes_06.10.2026.csv")
+# # Save results the primary SIC codes only
+# write.csv(primary_sic, file = "./Data/Results/KEEP LOCAL/From Process Data Update/Primary SIC Codes_06.10.2026.csv")
 
+# Load in the pre-produced results.
+primary_sic <- read.csv("./Data/Results/KEEP LOCAL/From Process Data Update/Primary SIC Codes_06.10.2026.csv") %>% (\(x) x[, -1, drop = FALSE])()
+
+
+#' @description
+#' Codebook for the table listing all unique SIC codes with their descriptions
+#' and boolean columns indicating whether each code appears in the primary SIC
+#' code column or any of the four additional overflow columns. Values reflect
+#' codes and descriptions following nomenclature cleaning.
+#'
+#' @field sic_code The six-digit SIC code.
+#' @field sic_desc The description associated with the SIC code.
+#' @field primary_sic_code...sic6_descriptions,
+#'        `sic_code...sic6_descriptions_sic`,
+#'        `sic_code_1...sic6_descriptions_sic1`,
+#'        `sic_code_2...sic6_descriptions_sic2`,
+#'        `sic_code_3...sic6_descriptions_sic3`
+#'        Boolean. TRUE if the code and description pair appear in that column;
+#'        FALSE otherwise.
+
+# # Save results for all SIC columns
+# write.csv(sic_results_confirm$presence_wide, file = "./Data/Results/KEEP LOCAL/From Process Data Update/Non-Primary SIC Codes_06.10.2026.csv")
+
+# Load in the pre-produced results.
+sic_results_confirm <- read.csv("./Data/Results/KEEP LOCAL/From Process Data Update/Non-Primary SIC Codes_06.10.2026.csv") %>% (\(x) x[, -1, drop = FALSE])()
 
 
 
@@ -332,6 +370,19 @@ church_2026_form <- church_2026_form %>%
 
 ## ----------------------------------------------------------------
 ## PART D: Save As Parquet
+
+#' @description
+#' Codebook for new output fields produced by the data cleaning and validation
+#' step. All other fields were present at the time of data import.
+#'
+#' @field primary_naics6_code First six digits of the eight-digit NAICS code,
+#'                            representing the true NAICS classification (813110).
+#'
+#' @field naics6_descriptions Renamed form of the `naics8_descriptions` column.
+#'
+#' @field primary_naics2_code Last two digits of the eight-digit NAICS code.
+#'                            These are proprietary encodings added by Data Axle;
+#'                            no data dictionary was provided.
 
 write_parquet(church_2026_form, "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2026 Format/church_2026_form_standardized_06.10.2026.parquet")
 
