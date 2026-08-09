@@ -1,10 +1,5 @@
 ## ----------------------------------------------------------------
 ## Consolidate Reduplicate Records Caused by Minor Address Typographical Variations
-## 
-## NOTE: This script was designed for the 2023 raw data format. An updated
-##       version has been created to handle the 2026 format. Refer to
-##       "Process Data Update.R" for a description of their differences and
-##       any handling variations.
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025
