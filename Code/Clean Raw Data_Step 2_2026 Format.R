@@ -7,6 +7,9 @@
 ## 
 ## Description: 
 ## 
+# "SUBSECTION D1: Load Combined Batch Results",
+#       demonstrating the read-in for these complex DuckDB results.
+## 
 ## NOTE: Under the Data Use Agreements (DUAs) with Data Axle and the USPS API 
 ##       license, raw data cannot be publicly distributed and is stored locally 
 ##       in "~/KEEP LOCAL" directories. Some code or results may also be 
@@ -93,10 +96,11 @@
 ##    - SET UP THE ENVIRONMENT
 ##    - LOAD IN THE DATA
 ## 
-##    - PART A: 
-##        * SUBSECTION A1: 
-##        * SUBSECTION A2: Set Geocoder Search Priorities
-##        * SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages
+##    - PART A: Variable Characteristics and Missingness Impact
+##        * SUBSECTION A1: Uniqueness, Missingness, and Key Variable Characteristics
+##        * SUBSECTION A2: Distribution of Characteristics Requiring Removal
+##        * SUBSECTION A3: Set Geocoder Search Priorities
+##        * SUBSECTION A4: Build Precompiled TIGER/Line GeoPackages
 ## 
 ##    - PART B: ALGORITHM TO CLEAN, VALIDATE, AND ANNOTATE ADDRESS DATA
 ## 
@@ -195,10 +199,19 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 
 
 ## ----------------------------------------------------------------
-## PART A: 
+## PART A: Variable Characteristics and Missingness Impact
+
+# Prior to running the cleaning and validation algorithm, it is important
+# to assess the overall characteristics and missingness of the variables
+# being processed. This section reviews these aspects and reports on them.
+# 
+# Note that the algorithm was designed with the explicit intention of
+# retaining as much of the original raw data as possible. Only ABIs filing
+# under addresses outside of the United States were excluded prior to
+# evaluation.
 
 ## --------------------
-## SUBSECTION A1: 
+## SUBSECTION A1: Uniqueness, Missingness, and Key Variable Characteristics
 
 # Count the number of unique ABIs.
 church_2026_form_dt[
@@ -277,6 +290,25 @@ round(prop.table(table(
   "NA Address" = problematic_entries$any_na_address,
   useNA = "ifany"
 ))*100, digits = 2)
+
+# All character columns with an expected fixed size (state acronym, ZIP
+# code, and extension) are consistent across all ABIs.
+church_2026_form_dt[
+  ,
+  .(
+    n = .N,
+    
+    # max observed character length (excluding NA)
+    max_nchar_state   = max(nchar(as.character(state)),   na.rm = TRUE),
+    max_nchar_zipcode = max(nchar(as.character(zipcode)), na.rm = TRUE),
+    max_nchar_zip4    = max(nchar(as.character(zip4)),    na.rm = TRUE),
+    
+    # any non-NA values with unexpected length (state=2, zipcode=5, zip4=4)
+    any_badlen_state   = any(!is.na(state)   & nchar(as.character(state))   != 2L),
+    any_badlen_zipcode = any(!is.na(zipcode) & nchar(as.character(zipcode)) != 5L),
+    any_badlen_zip4    = any(!is.na(zip4)    & nchar(as.character(zip4))    != 4L)
+  )
+]
 
 
 ## --------------------
@@ -424,17 +456,17 @@ round((po_joined[is.na(lon) | is.na(lat), .N]/nrow(po_joined))*100, digits = 2)
 #'
 #' @field n_abi Number of unique ABIs represented in that city or zip code.
 #'
-#' @field n_abi_any_na_address_line_1/pct_abi_any_na_address_line_1 Count and
-#'              percent of ABIs with at least one missing address_line_1.
+#' @field `[n|pct]_abi_any_na_address_line_1` Count and percent of ABIs with at 
+#'                                            least one missing address_line_1.
 #'
-#' @field n_abi_poBox/pct_abi_poBox Count and percent of ABIs with at least
-#'                                  one PO Box entry.
+#' @field `[n|pct]_abi_poBox` Count and percent of ABIs with at least one PO 
+#'                            Box entry.
 #'
 #' @field lon/lat TIGER/Line Shapefile geocoordinates associated with the city.
 
-# Save result.
-write.csv(na_joined, file = "./Data/Results/From Clean Raw Data/Step 2_2026 Format/ABI with NA Addresses by City_08.07.2026.csv")
-write.csv(po_joined, file = "./Data/Results/From Clean Raw Data/Step 2_2026 Format/ABI with PO Boxes by City_08.07.2026.csv")
+# # Save result.
+# write.csv(na_joined, file = "./Data/Results/From Clean Raw Data/Step 2_2026 Format/ABI with NA Addresses by City_08.07.2026.csv")
+# write.csv(po_joined, file = "./Data/Results/From Clean Raw Data/Step 2_2026 Format/ABI with PO Boxes by City_08.07.2026.csv")
 
 
 # -- Distribution of ABI Characteristics by City -----
@@ -533,7 +565,7 @@ p_na / p_po
 
 
 ## --------------------
-## SUBSECTION A2: Set Geocoder Search Priorities
+## SUBSECTION A3: Set Geocoder Search Priorities
 
 # The U.S. Census Geocoder API supports multiple benchmarks and vintages for
 # geolocation searches. The following lines identify the available options
@@ -557,7 +589,7 @@ geocoder_census_tries <- census_geo_make_tries(spec)
 
 
 ## --------------------
-## SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages
+## SUBSECTION A4: Build Precompiled TIGER/Line GeoPackages
 
 # When processing the 2023 Format, the tigris R package was used to retrieve 
 # relevant decennial data from the U.S. Census Bureau's TIGER/Line Shapefiles 
@@ -741,33 +773,132 @@ if (status$core_areas_ok && status$states_ok) {
 }
 
 
+#' @description
+#' Codebook for the block and block-group level shapefiles created for each
+#' state. Both will result in similar standardized outcomes, only reflecting
+#' different levels of census boundary detail. Files for each state contain
+#' three layers: one for the 2000, 2010, and 2020 decennial years, prefaced
+#' as, for example, "bg_2000" for the block-group 2000 decennial year layer.
+#' 
+#' When these results are imported into the HPC algorithm, each state's
+#' shapefile layers are stored as a list element indexed by its state acronym.
+#'
+#' @field decennial_year The decennial census year associated with the boundary
+#'                       definition (2000, 2010, or 2020).
+#'                       
+#' @field geoid Full concatenated census geographic identifier, combining the
+#'              state, county, tract, and block-group FIPS codes into a unique 
+#'              identifier for each boundary unit.
+#'              
+#' @field statefp Two-digit state Federal Information Processing Series (FIPS)
+#'                code identifying the state.
+#'                
+#' @field countyfp Three-digit county FIPS code identifying the county within
+#'                 the state.
+#'                 
+#' @field tractce Six-digit census tract code identifying the census tract
+#'                within the county.
+#'                
+#' @field blkgrpce Single-digit block-group code identifying the block group
+#'                 within the census tract.
+#'                 
+#' @field geom Spatial geometry column containing the boundary polygons for
+#'             each census unit, in the form of an `sf` geometry object.
+
+
+#' @description
+#' Codebook for the core area shapefiles, encompassing Metropolitan and
+#' Micropolitan Statistical Areas (CBSA) and Combined Statistical Areas (CSA).
+#' All area types were compiled together, with separate layers representing 
+#' three decennial years: 2000 (approximated by 2007, the earliest available), 
+#' 2010, and 2020.
+#'
+#' @field vintage_year The decennial census year associated with the boundary
+#'                     definition (2007, 2010, or 2020).
+#'
+#' @field area_type    Classification of the area as either a Core-Based
+#'                     Statistical Area (CBSA) or a Combined Statistical
+#'                     Area (CSA).
+#'                     
+#' @field area_code    Official Census Bureau numeric code uniquely identifying
+#'                     the CBSA or CSA.
+#'                     
+#' @field area_level   Hierarchical classification of the CBSA, indicating
+#'                     whether the area is Metropolitan or Micropolitan. CSA
+#'                     entries are `NA`.
+#'                     
+#' @field area_name    Full official name of the statistical area as designated
+#'                     by the Census Bureau (e.g., "Atlanta-Sandy Springs-
+#'                     Alpharetta, GA").
+#'                     
+#' @field area_states  Concatenated string of state abbreviations for all
+#'                     states encompassed by the statistical area boundary.
+#'
+#' @field geom         Spatial geometry column containing the boundary polygons
+#'                     for each census unit, in the form of an `sf` geometry
+#'                     object.
+
+
+#' @description
+#' Codebook for the core are shapefiles, encompassing ZIP Code Tabulation Areas
+#' (ZCTA). Each shapefile contains separate layers representing three decennial
+#' years: 2000, 2010, and 2020.
+#'
+#' @field vintage_year The decennial census year associated with the boundary
+#'                     definition (2000, 2010, or 2020).
+#'
+#' @field area_type    Classification of the area as ZCTA.
+#'
+#' @field area_code    Official Census Bureau numeric code uniquely identifying
+#'                     the ZCTA.
+#'
+#' @field area_states  Concatenated string of state abbreviations derived from
+#'                     a spatial join with the state-level TIGER/Line Shapefile
+#'                     for the respective decennial year.
+#'
+#' @field geom         Spatial geometry column containing the boundary polygons
+#'                     for each census unit, in the form of an `sf` geometry
+#'                     object.
+
+
 
 
 ## ----------------------------------------------------------------
 ## PART B: ALGORITHM TO CLEAN, VALIDATE, AND ANNOTATE ADDRESS DATA
 
-# Add blurb about what is being validated etc.
+# The complete algorithm for cleaning and validation is stored in
+# "Code/Clean Raw Data_Step 2 HPC v2_2026 Format.R". It is configured to run
+# either locally or on Yale's High Performance Computing (HPC) cluster. This
+# algorithm completes all necessary validation and cleaning outlined in this
+# step of the process and generates relevant quality control outputs at the
+# point of computation.
 
-# LOOP PART A: Isolate Unique Candidate Addresses
-# LOOP PART B: Consolidate and Verify the Addresses
-# LOOP PART B.i.: Validate Addresses with USPS Database
-# LOOP PART B.ii.: Resolve Records with No Address Match Found
-# LOOP PART B.iii.: Agnostically Resolve Record Heterogeneity
-# LOOP PART C: Verify Geolocation with the US Census Bureau’s Geocoder Database
-# LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information
-# LOOP PART E: Add Back to Main Dataset
-# LOOP PART F: Quality Checks — Address Validation and Consolidation Results
-# LOOP PART G: Quality Checks — Variation with Geolocation
-# LOOP PART H: Quality Checks — Variation with Census Information
-# LOOP PART I: Commit Results
+# Algorithm Parts:
+#     - LOOP PART A: Isolate Unique Candidate Addresses
+#     - LOOP PART B: Consolidate and Verify the Addresses
+#     - LOOP PART B.i.: Validate Addresses with USPS Database
+#     - LOOP PART B.ii.: Resolve Records with No Address Match Found
+#     - LOOP PART B.iii.: Agnostically Resolve Record Heterogeneity
+#     - LOOP PART C: Verify Geolocation with the US Census Bureau’s Geocoder Database
+#     - LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information
+#     - LOOP PART E: Add Back to Main Dataset
+#     - LOOP PART F: Quality Checks — Address Validation and Consolidation Results
+#     - LOOP PART G: Quality Checks — Variation with Geolocation
+#     - LOOP PART H: Quality Checks — Variation with Census Information
+#     - LOOP PART I: Commit Results
+
+# After running the algorithm, the subsets will need to be compiled within
+# a given batch run and, if multiple batches were run, across batches as
+# well. This can be a nuanced process. PART C outlines how this was
+# accomplished for the Summer 2026 process run.
 
 
 ## ----------------------------------------------------------------
 ## PART C: Recompile Results from the HPC
 
-# Compute resources for batches deployed on Yale's High Performance Computing
-# (HPC) cluster are managed using SLURM. Due to these resource constraints,
-# only 25 arrays could be processed concurrently.
+# Compute resources for batches deployed on Yale's HPC cluster are managed 
+# using SLURM. Due to these resource constraints, only 25 arrays could be 
+# processed concurrently.
 # 
 # As a result, not all arrays were processed before the USPS API transitioned
 # from version 3.2.3 to 3.3.1 on August 1st. Several errors also arose during
@@ -781,6 +912,12 @@ if (status$core_areas_ok && status$states_ok) {
 # Two batches were run. The subsections below describe the relevant settings
 # and considerations for each. Results from both batches are then combined to
 # produce the final, clean, and validated dataset.
+# 
+# NOTE: Normally, the data dictionary is provided at the time results are
+#       written. However, because the compilation process is complex, this
+#       information is instead provided in "SUBSECTION D1: Load Combined
+#       Batch Results", which demonstrates the read-in process for these
+#       complex DuckDB results.
 
 # Directory containing all batch results.
 data_root <- "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format"
@@ -836,6 +973,34 @@ qc_address_18 <- compile_duckdb_folder(
 # verification and matching.
 table(qc_address_18$qc1$`New vs Old differ`, useNA = "ifany")
 
+# Column names with capitalization and spaces are not easily read by DuckDB.
+# These are converted here for consistent reading.
+qc_address_18$qc1 <- qc_address_18$qc1 %>%
+  rename(
+    abi                    = ABI,
+    allow_usps_api         = `Allow USPS API`,
+    api_used               = `API Used`,
+    verification_attempted = `Verification Attempted`,
+    match_attempted        = `Match Attempted`,
+    duplicates_induced     = `Duplicates Induced`,
+    any_addresses_line1_na = `Any Addresses Line 1 NA`,
+    new_not_in_old_addr_yr = `New not in Old addr yr`,
+    old_not_in_new_addr_yr = `Old not in New addr yr`,
+    new_vs_old_differ      = `New vs Old differ`
+  )
+
+# The match_attempted column was intended to reflect the presence of the
+# matched_address column during analysis, indicating whether address matching
+# was attempted. Instead, it was mistakenly assigned to geo_matched_address,
+# which indicates whether the address found through address-based geocoding
+# matched the one queried.
+#
+# If any ABI is present in qc3, matching was attempted; otherwise, it was not.
+# Replace this column with the correct results.
+
+qc_address_18$qc1 <- qc_address_18$qc1 %>%
+  mutate(match_attempted = abi %in% unique(qc_address_18$qc3$abi))
+
 # The initial settings for interpreting USPS API response codes did not
 # correctly classify successful queries. Additionally, some shorthand
 # descriptions were later determined to be misleading and were revised.
@@ -866,22 +1031,34 @@ qc_address_18$qc2 <- qc_address_18$qc2 %>%
       is.na(address_verified) ~ "No address_line_1",
       TRUE                    ~ address_verified
     ),
-    usps_status = case_when(
-      usps_status_detail == "200 Successful operation" ~ 200,
-      TRUE                                             ~ usps_status
-    ),
     usps_status_detail = case_when(
       usps_status_detail == "Other unanticipated errors" ~ "200 Successful operation",
       usps_status_detail == "403 Forbidden"              ~ "403 Access denied",
       TRUE                                               ~ usps_status_detail
+    ),
+    usps_status = case_when(
+      usps_status_detail == "200 Successful operation" ~ 200,
+      TRUE                                             ~ usps_status
     )
   )
+
+# Remove the column indicating which ABI column was used for evaluation, as
+# this is redundant.
+qc_address_18$qc_import <- qc_address_18$qc_import %>% select(-abi_col)
 
 
 qc_census_18 <- compile_duckdb_folder(
   subset_dir = file.path(getwd(), data_root, "batch_array_18850425/Results/Census QC/"),
   abi_ref    = unique(church_2026_form_dt$abi)
 )
+
+# Some column names erroneously included "census". Remove for clarity.
+qc_census_18$qc1 <- qc_census_18$qc1 %>%
+  rename(
+    tract_any_match = census_tract_any_match,
+    block_any_match = census_block_any_match
+  )
+
 
 qc_geo_18 <- compile_duckdb_folder(
   subset_dir = file.path(getwd(), data_root, "batch_array_18850425/Results/Geo QC/"),
@@ -917,6 +1094,14 @@ qc_geo_18$qc1 <- qc_geo_18$qc1 %>%
       is.na(address_verified) ~ "No address_line_1",
       TRUE                    ~ address_verified
     )
+  )
+
+# The actual test compared max - min > 0.02. Update the column name to reflect
+# this.
+qc_geo_18$qc3 <- qc_geo_18$qc3 %>%
+  rename(
+    lat_spread_gt_02 = lat_spread_gt_002,
+    lon_spread_gt_02 = lon_spread_gt_002
   )
 
 
@@ -1002,10 +1187,47 @@ qc_address_20 <- compile_duckdb_folder(
   abi_ref    = unique(church_2026_form_dt$abi)
 )
 
+# Column names with capitalization and spaces are not easily read by DuckDB.
+# These are converted here for consistent reading.
+qc_address_20$qc1 <- qc_address_20$qc1 %>%
+  rename(
+    abi                    = ABI,
+    allow_usps_api         = `Allow USPS API`,
+    api_used               = `API Used`,
+    verification_attempted = `Verification Attempted`,
+    match_attempted        = `Match Attempted`,
+    duplicates_induced     = `Duplicates Induced`,
+    any_addresses_line1_na = `Any Addresses Line 1 NA`,
+    new_not_in_old_addr_yr = `New not in Old addr yr`,
+    old_not_in_new_addr_yr = `Old not in New addr yr`,
+    new_vs_old_differ      = `New vs Old differ`
+  )
+
+# The match_attempted column was intended to reflect the presence of the
+# matched_address column during analysis, indicating whether address matching
+# was attempted. Instead, it was mistakenly assigned to geo_matched_address,
+# which indicates whether the address found through address-based geocoding
+# matched the one queried.
+#
+# If any ABI is present in qc3, matching was attempted; otherwise, it was not.
+# Replace this column with the correct results.
+
+qc_address_20$qc1 <- qc_address_20$qc1 %>%
+  mutate(match_attempted = abi %in% unique(qc_address_20$qc3$abi))
+
+
 qc_census_20 <- compile_duckdb_folder(
   subset_dir = file.path(getwd(), data_root, "batch_array_20823868/Results/Census QC/"),
   abi_ref    = unique(church_2026_form_dt$abi)
 )
+
+# Some column names erroneously included "census". Remove for clarity.
+qc_census_20$qc1 <- qc_census_20$qc1 %>%
+  rename(
+    tract_any_match = census_tract_any_match,
+    block_any_match = census_block_any_match
+  )
+
 
 qc_geo_20 <- compile_duckdb_folder(
   subset_dir = file.path(getwd(), data_root, "batch_array_20823868/Results/Geo QC/"),
@@ -1031,6 +1253,14 @@ qc_geo_20$qc1$query_statuses <- qc_geo_20$qc1$query_statuses %>%
   str_replace_all("vintage_lookup_network_error", "network_error") %>%
   str_replace_all("vintage_lookup_html_response", "html_not_json") %>%
   str_replace_all("vintage_lookup_timeout", "request_timed_out")
+
+# The actual test compared max - min > 0.02. Update the column name to reflect
+# this.
+qc_geo_20$qc3 <- qc_geo_20$qc3 %>%
+  rename(
+    lat_spread_gt_02 = lat_spread_gt_002,
+    lon_spread_gt_02 = lon_spread_gt_002
+  )
 
 
 ## --------------------
@@ -1069,13 +1299,19 @@ arrow::write_dataset(qc_df_20$data, p20, format = "parquet")
 # Open a writable DuckDB connection to the target database file.
 con <- dbConnect(duckdb::duckdb(), dbdir = out_db, read_only = FALSE)
 
-# Build/refresh "data" by unioning both parquet datasets and aligning columns 
-# by name.
+# Build/refresh "data" by unioning parquet batches (align by name) and sorting 
+# by ABI then archive_version_year (asc; NULLs last).
 dbExecute(con, sprintf("
   CREATE OR REPLACE TABLE data AS
-  SELECT * FROM read_parquet('%s/**/*.parquet')
-  UNION ALL BY NAME
-  SELECT * FROM read_parquet('%s/**/*.parquet');
+  SELECT *
+  FROM (
+    SELECT * FROM read_parquet('%s/**/*.parquet')
+    UNION ALL BY NAME
+    SELECT * FROM read_parquet('%s/**/*.parquet')
+  )
+  ORDER BY
+    abi ASC,
+    archive_version_year ASC NULLS LAST;
 ", p18, p20))
 
 # Write QC outputs as separate tables named qc_df_18__* and qc_df_20__* (skips 
@@ -1285,31 +1521,550 @@ data_root <- "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format"
 # been precompiled in their respective macro-algorithm cleaning and validation
 # steps below: address, census, and geo.
 
+#' @description
+#' Codebook for new output fields produced during the data cleaning and
+#' validation step. All other fields were present in the Step 1 form of
+#' the data.
+#'
+#' @field address Best-available address, derived by using verified_address 
+#'                (trimmed; excluding "No address match found"), else 
+#'                matched_address, else combined_address.
+#'
+#' @field address_verified If the given address was verified against the USPS
+#'                         API, this field contains the verified result. If no
+#'                         match is found, the value is reported as NA.
+#'
+#' @field address_matched If agnostic address matching was performed, this
+#'                        field contains the result if the match succeeded via 
+#'                        either "Exact matching" or "Fuzzy matching". "Only
+#'                        one address" represents cases where matching was 
+#'                        attempted but only one address was reported.
+#'
+#' @field reported_address The original reported address, prior to any cleaning 
+#'                         or verification.
+#'
+#' @field longitude/latitude Best-available geocoordinates, using verified
+#'                           coordinates when available, otherwise falling back
+#'                           to averaged raw coordinates.
+#'                           
+#' @field geolocation_verified 
+#'
+#' @field geoid_[2000|2010|2020] Full concatenated census GEOID assigned to the
+#'                               record via point-in-polygon spatial join with 
+#'                               the block-group level TIGER/Line  Shapefile for 
+#'                               the respective decennial year.
+#'
+#' @field geoid_match Summary outcome of the GEOID spatial assignment across all 
+#'                    decennial years. One of: "Matched" (all decennial years 
+#'                    assigned), "Some matches not found" (partial assignment), 
+#'                    "Matches not found" (no years assigned), or "Not enough 
+#'                    info" (insufficient coordinate data to attempt assignment).
+#'
+#' @field cbsa_code_[2007|2010|2020] Official Census Bureau numeric code 
+#'                                   identifying the CBSA assigned to the 
+#'                                   record via point-in-polygon spatial join 
+#'                                   for the respective vintage year.
+#'
+#' @field cbsa_level_[2007|2010|2020] Hierarchical classification of the 
+#'                                    assigned CBSA, indicating whether the 
+#'                                    area is Metropolitan or Micropolitan, for 
+#'                                    the respective vintage year.
+#'                                    
+#' @field csa_code_[2007|2010|2020] Official Census Bureau numeric code 
+#'                                  identifying the CSA assigned to the record
+#'                                  via point-in-polygon spatial join for the
+#'                                  respective vintage year.
+#'
+#' @field zcta_[2000|2010|2020] Five-digit ZCTA code assigned to the record via
+#'                              point-in-polygon spatial join with the 
+#'                              ZCTA-level TIGER/Line Shapefile for the 
+#'                              respective decennial year.
+
 church_2026_form_validated <- import_church_db(
   db_path = file.path(data_root, "Compiled by Batches", "church_2026_form_validated_08.03.2026.db"),
   import_data = "data"
 )
-church_2026_form_validated_dt <- as.data.table(church_2026_form_validated$data)  # Convert for efficient data manipulation
-setorder(church_2026_form_validated_dt, abi)  # Organize the table by state to increase census boundary efficiency then abi
+#church_2026_form_validated_dt <- as.data.table(church_2026_form_validated$data)  # Convert for efficient data manipulation
+#setorder(church_2026_form_validated_dt, abi)  # Organize the table by abi
 
 
 # Otherwise, import the QC results, which cover algorithm cleaning and
 # validation as well as high-level batch result checks. List elements
 # containing "import" pertain to the latter.
 
+#' @description
+#' The main dataset was compiled from multiple HPC batches. At the time of
+#' import, a series of quality checks were run to confirm ABI coverage against
+#' the Step 1 data and summarize key validation outcomes.
+#'
+#' This codebook documents the list items produced by the quality check
+#' algorithm across the following fields: \code{address_verified},
+#' \code{address_matched}, \code{geoid_match}, \code{geolocation_verified},
+#' and the distribution of \code{NA}s across all census boundary columns.
+#' Each batch's import results are annotated with the first two digits of
+#' the batch number (\code{<XX>}).
+#'
+#' @name import_qc_<XX>$abi_check
+#'
+#' @field array The batch array number the results come from.
+#' @field file The file name the results come from.
+#' @field from/to The ABI search space index range defined under "SUBSECTION B1: 
+#'                Index Queue" in \file{Clean Raw Data_Step 2 HPC v2_2026 Format.R}.
+#' @field n_expected_unique The number of unique ABIs expected in the Step 1
+#'                          data for the given index range.
+#' @field n_actual_unique The number of unique ABIs present in the batch results 
+#'                        for the given index range.
+#' @field n_missing The number of ABIs absent from the batch results, computed 
+#'                  as the length of \code{setdiff()} between the expected and 
+#'                  actual ABIs.
+#' @field qc_pass Boolean. TRUE if \code{n_missing == 0}, otherwise FALSE.
+#' 
+#' 
+#' @name import_qc_<XX>$[address_matched|address_verified|geoid_match|geolocation_verified]
+#' 
+#' @field array The batch array number the results come from.
+#' @field value The unique outcome observed for that column (e.g., 
+#'              \code{"Exact match"}).
+#' @field n The number of records with that outcome.
+#' @field n_addr The total number of addresses in that array.
+#' @field pct The percentage of addresses with that outcome.
+#' 
+#' 
+#' @name import_qc_<XX>$na_census_boundaries
+#' 
+#' @field array The batch array number the results come from.
+#' @field column The variable being checked for \code{NA} values.
+#' @field n_addr The total number of addresses in that array.
+#' @field n_na The number of \code{NA} entries observed.
+#' @field pct_na The percentage of addresses with a \code{NA} for that census 
+#'               boundary column.
+
 church_2026_form_validated_import_qc <- import_church_db(
   db_path = file.path(data_root, "Compiled by Batches", "church_2026_form_validated_08.03.2026.db"),
   import_data = "qc"
 )
+
 
 # Import the QC datasets generated by the cleaning and validation algorithms
 # at the time of processing. The import framework and import metrics are
 # provided here, but the quality assessment for the cleaning and validation
 # method is documented in the separate "Preparation Step 2 QC_2026 Format"
 # PDF report.
+
+#' @description
+#' The three quality control datasets — \code{address_qc}, \code{census_qc},
+#' and \code{geo_qc} — collected at the time of import were compiled from
+#' multiple HPC batches. A series of quality checks were run to confirm ABI
+#' coverage against the Step 1 data. Each batch's results are annotated with
+#' the first two digits of the batch number (\code{<XX>}).
+#'
+#' @name import_qc_<XX>
+#'
+#' @field array The batch array number the results come from.
+#' @field file The file name the results come from.
+#' @field key The quality check list (e.g., \code{qc1}, \code{qc2}) within
+#'            that file the results come from.
+#' @field from/to The ABI search space index range defined under "SUBSECTION B1:
+#'                Index Queue" in \file{Clean Raw Data_Step 2 HPC v2_2026 Format.R}.
+#' @field n_expected_unique The number of unique ABIs expected in the Step 1
+#'                          data for the given index range.
+#' @field n_actual_unique The number of unique ABIs present in the batch results
+#'                        for the given index range.
+#' @field n_missing The number of ABIs absent from the batch results, computed
+#'                  as the length of \code{setdiff()} between the expected and
+#'                  actual ABIs.
+#' @field qc_pass Boolean. TRUE if \code{n_missing == 0}, otherwise FALSE.
+
+
+#' @description
+#' Three quality checks were conducted over the address validation and matching
+#' process. QC1: General indicator whether API verification was allowed, which 
+#' ABIs were verified, whether any addresses were matched, and two checks for 
+#' duplications or other introductions/loss of results. QC2: Summarizes all
+#' quality check outcomes from address validation using the USPS API over unique
+#' ABIs and addresses. QC3: Summarizes all quality check outcomes from address
+#' matching over unique ABIs and addresses.
+#'
+#' @name qc1
+#'
+#' @field i Results produced by the for loop are saved as lists. \code{i}
+#'          indicates which iteration of the loop the results are from.
+#'          
+#' @field abi The business ID the results relate to.
+#' 
+#' @field allow_usps_api Boolean. TRUE if any USPS API usage was allowed during
+#'                       that array run via \code{verify_addresses}, otherwise
+#'                       FALSE.
+#'                       
+#' @field api_used Boolean. TRUE if the entries for that ABI are configured
+#'                 for USPS API usage via \code{do_api}, otherwise FALSE.
+#'                 
+#' @field verification_attempted Boolean. TRUE if \code{verified_address}
+#'                               is present. Results reiterate \code{do_api}
+#'                               and should match.
+#'                               
+#' @field match_attempted Boolean. TRUE if agnostic matching was attempted
+#'                        for any addresses for that ABI, indicated by the
+#'                        presence of the \code{matched_address} column.
+#'                        
+#' @field duplicates_induced Boolean. TRUE if any duplicates over
+#'                           \code{combined_address}, \code{anchor_year_min},
+#'                           and \code{anchor_year_max} are detected, otherwise
+#'                           FALSE.
+#'                           
+#' @field any_addresses_line1_na Boolean. TRUE if any \code{address_line_1}
+#'                               for that ABI is \code{NA}, otherwise FALSE.
+#'                               
+#' @field new_not_in_old_addr_yr The function \code{compare_tabs()} checks whether
+#'                               any unique \code{combined_address} and
+#'                               \code{archive_version_year} outcomes between the
+#'                               cleaned and Step 1 data are the same. This field
+#'                               indicates whether the cleaned data has any
+#'                               outcomes not present in the Step 1 standardized 
+#'                               version.
+#'                               
+#' @field old_not_in_new_addr_yr The inverse of \code{new_not_in_old_addr_yr}.
+#'                               Indicates whether the Step 1 standardized data
+#'                               has any outcomes not present in the cleaned data.
+#'                               
+#' @field new_vs_old_differ Boolean. TRUE if the processed data differed
+#'                          at all from the Step 1 standardized form, otherwise
+#'                          FALSE.
+#' 
+#' 
+#' @name qc2
+#'
+#' @field i Results produced by the for loop are saved as lists. \code{i}
+#'          indicates which iteration of the loop the results are from.
+#'          
+#' @field abi The business ID the results relate to.
+#' 
+#' @field address Best-available address, derived by using \code{verified_address}
+#'                (trimmed; excluding "No address match found"), else
+#'                \code{matched_address}, else \code{combined_address}.
+#'                
+#' @field archive_versions_present String listing all the years that address
+#'                                 was observed.
+#'                                 
+#' @field reported_address The original reported address, prior to any cleaning
+#'                         or verification.
+#'                         
+#' @field address_verified If the given address was verified against the USPS
+#'                         API, this field is TRUE. If it is unverified but a
+#'                         match is found, the value indicates the mode of
+#'                         string matching: \code{"Override"} or \code{"Exact"}.
+#'                         If no \code{address_line_1} was present for matching
+#'                         this is indicated with \code{"No address_line_1"}.
+#'                         
+#' @field ver_geolocation_test Geolocation test for matching attempts to verified
+#'                             addresses. \code{"Override"} if \code{"Exact"}
+#'                             matched, TRUE/FALSE if \code{"Fuzzy"} matched.
+#'                             \code{NA} if no match was attempted.
+#'                             
+#' @field usps_status Numeric summarizing the API query interaction
+#'                    (e.g. \code{200}, \code{400}).
+#'                    
+#' @field usps_status_detail Status description for the above code (e.g.
+#'                           \code{"200 Successful operation"}).
+#'                           
+#' @field attempt_succeeded Indicates if the verification attempt succeeded on
+#'                          the first try or via the fallback, or if the attempt
+#'                          failed entirely.
+#'                          
+#' @field verified_address The verified address result from the USPS API query.
+#'  
+#'  
+#' @name qc3
+#'
+#' @field i Results produced by the for loop are saved as lists. \code{i}
+#'          indicates which iteration of the loop the results are from.
+#'          
+#' @field abi The business ID the results relate to.
+#' 
+#' @field address Best-available address, derived by using verified_address 
+#'                (trimmed; excluding "No address match found"), else 
+#'                matched_address, else combined_address.
+#'                
+#' @field archive_versions_present String listing all the years that address
+#'                                 was observed.
+#'                                 
+#' @field reported_address The original reported address, prior to any cleaning 
+#'                         or verification.
+#'                         
+#' @field address_matched If agnostic address matching was performed, this
+#'                        field contains the result if the match succeeded via 
+#'                        either "Exact matching" or "Fuzzy matching". "Only
+#'                        one address" represents cases where matching was 
+#'                        attempted but only one address was reported.
+#'                        
+#' @field match_geolocation_test Geolocation test for agnostic matching attempts.
+#'                               \code{"Override"} if \code{"Exact"} matched,
+#'                               \code{PASS}/\code{FAIL} if \code{"Fuzzy"}
+#'                               matched. If \code{PASS} includes \code{"no Lon"}, 
+#'                               \code{"no Lat"}, or \code{"no Lon/Lat"}, this 
+#'                               indicates one pair was missing that geolocation. 
+#'                               \code{NA} if no match was attempted.
+#'                               
+#' @field matched_address The matched address result.
+
 address_qc <- read_list_from_duckdb(file.path(data_root, "Compiled by Batches", "address_qc_08.05.2026.db"))
-census_qc  <- read_list_from_duckdb(file.path(data_root, "Compiled by Batches", "census_qc_08.06.2026.db"))
-geo_qc     <- read_list_from_duckdb(file.path(data_root, "Compiled by Batches", "geo_qc_08.06.2026.db"))
+
+
+#' @description
+#' Two quality checks were conducted over the census boundary verification
+#' process. QC1 and QC2 apply the same test over different columns, verifying
+#' whether the reported census boundaries correspond with any of the spatial
+#' join results, and whether the matched vintages align with the dates that
+#' address was filed.
+#'
+#' @name qc1
+#'
+#' @field i Results produced by the for loop are saved as lists. \code{i}
+#'          indicates which iteration of the loop the results are from.
+#'          
+#' @field abi The business ID the results relate to.
+#' 
+#' @field address Best-available address, derived by using \code{verified_address}
+#'                (trimmed; excluding "No address match found"), else
+#'                \code{matched_address}, else \code{combined_address}.
+#'                
+#' @field archive_versions_present String listing all the years that address
+#'                                 was observed.
+#'                                 
+#' @field census_[block|tract]/[county|fips]_code The original reported census
+#'                                                boundaries recorded for that
+#'                                                address.
+#'                                                
+#' @field n_address The number of times that ABI and address combination were
+#'                  recorded.
+#'                  
+#' @field geoid_[2000|2010|2020] Full concatenated census GEOID assigned to the
+#'                               record via point-in-polygon spatial join with
+#'                               the block-group level TIGER/Line Shapefile for
+#'                               the respective decennial year.
+#'                               
+#' @field `[fips|county|tract|block]_code_any_match` Checks if any of the original
+#'                                                   values correspond with any
+#'                                                   of the decennial outcomes
+#'                                                   annotated using spatial
+#'                                                   joining. \code{"Matched"} if
+#'                                                   any do, \code{"Uncheckable"}
+#'                                                   if there was no original
+#'                                                   value to compare, \code{"None"}
+#'                                                   if no matches.
+#'                                                   
+#' @field `[fips|county|tract|block]_vintages` Lists the vintages that were
+#'                                             matched. \code{"None"} if none
+#'                                             matched, or \code{"Not reported"}
+#'                                             if no original value was reported.
+#'                                             
+#' @field `[fips|county|tract|block]_vintages_aligned` Uses the function
+#'                                                     \code{check_alignment()}
+#'                                                     to assess if the vintages
+#'                                                     matched align with the
+#'                                                     dates that address was
+#'                                                     reported. \code{TRUE} if
+#'                                                     so, otherwise \code{FALSE}.
+#'                                                     \code{NA} if no comparison
+#'                                                     was available.
+#'                                                     
+#' @field block_type Identifies the level of the block census boundary reported:
+#'                   \code{"None reported"} if missing, \code{"Blocks"} if four
+#'                   digits, \code{"Block groups"} if one digit, or
+#'                   \code{"Not the expected dimensions"} if neither.
+#' 
+#' 
+#' @name qc2
+#' 
+#' @field i Results produced by the for loop are saved as lists. \code{i}
+#'          indicates which iteration of the loop the results are from.
+#'          
+#' @field abi The business ID the results relate to.
+#' 
+#' @field address Best-available address, derived by using \code{verified_address}
+#'                (trimmed; excluding "No address match found"), else
+#'                \code{matched_address}, else \code{combined_address}.
+#'                
+#' @field archive_versions_present String listing all the years that address
+#'                                 was observed.
+#'                                 
+#' @field n_address The number of times that ABI and address combination were
+#'                  recorded.
+#'                                 
+#' @field cbsa_[level|code]/csa_code The original reported census boundaries 
+#'                                   recorded for that address.
+#' 
+#' @field cbsa_code_[2007|2010|2020] Official Census Bureau numeric code 
+#'                                   identifying the CBSA assigned to the 
+#'                                   record via point-in-polygon spatial join 
+#'                                   for the respective vintage year.
+#'
+#' @field cbsa_level_[2007|2010|2020] Hierarchical classification of the 
+#'                                    assigned CBSA, indicating whether the 
+#'                                    area is Metropolitan or Micropolitan, for 
+#'                                    the respective vintage year.
+#'                                    
+#' @field csa_code_[2007|2010|2020] Official Census Bureau numeric code 
+#'                                  identifying the CSA assigned to the record
+#'                                  via point-in-polygon spatial join for the
+#'                                  respective vintage year.
+#'
+#' @field `cbsa_[level|code]_code_any_match/csa_code_code_any_match` 
+#'                  Checks if any of the original values correspond with any
+#'                  of the decennial outcomes annotated using spatial joining. 
+#'                  \code{"Matched"} if any do, \code{"Uncheckable"} if there 
+#'                  was no original value to compare, \code{"None"} if no matches.
+#'                                                   
+#' @field `cbsa_[level|code]_vintages/csa_code_vintages` 
+#'                  Lists the vintages that were matched. \code{"None"} if none
+#'                  matched, or \code{"Not reported"} if no original value was 
+#'                  reported.
+#'                                             
+#' @field `cbsa_[level|code]_vintages_aligned/csa_code_vintages_aligned`  
+#'                  Uses the function \code{check_alignment()} to assess if the 
+#'                  vintages matched align with the dates that address was
+#'                  reported. \code{TRUE} if so, otherwise \code{FALSE}. 
+#'                  \code{NA} if no comparison was available.
+
+census_qc <- read_list_from_duckdb(file.path(data_root, "Compiled by Batches", "census_qc_08.06.2026.db"))
+
+
+#' @description
+#' Three quality checks were conducted over the geocoordinates verification
+#' process.
+#' 
+#' QC1 and QC2 apply the same test over different columns, verifying
+#' whether the reported census boundaries correspond with any of the spatial
+#' join results, and whether the matched vintages align with the dates that
+#' address was filed.
+#'
+#' @name qc1
+#'
+#' @field i Results produced by the for loop are saved as lists. \code{i}
+#'          indicates which iteration of the loop the results are from.
+#'          
+#' @field abi The business ID the results relate to.
+#' 
+#' @field address Best-available address, derived by using \code{verified_address}
+#'                (trimmed; excluding "No address match found"), else
+#'                \code{matched_address}, else \code{combined_address}.
+#'                
+#' @field archive_versions_present String listing all the years that address
+#'                                 was observed.
+#'                                 
+#' @field n_address The number of times that ABI and address combination were
+#'                  recorded.
+#'                  
+#' @field enough_geo Boolean. TRUE if both longitude and latitude were reported
+#'                   otherwise FALSE.
+#'                   
+#' @field geolocation_verified Boolean. TRUE if an address-based geocoding
+#'                             match was retrieved from the US Census Bureau
+#'                             Geocoder API, otherwise FALSE.
+#'                             
+#' @field n_attempts The number of API query attempts made. Each uses a different
+#'                   benchmark and vintage for the query URL.
+#'                   
+#' @field query_statuses Summary of the query statuses returned. \code{200}
+#'                       indicates the interaction was successful, even if no
+#'                       match was found. Each attempt is separated by a
+#'                       vertical bar.
+#'                       
+#' @field all_200 Boolean. TRUE if all benchmark and vintage pairs returned a
+#'                status of \code{200}, indicating no match could be found but
+#'                the API interaction succeeded, otherwise FALSE.
+#'               
+#' @field geo_matched_address The resulting matched address found in the database.
+#' 
+#' @field matched_address_same Uses \code{find_similar_addresses(threshold = 0)}
+#'                             to check if the addresses are exactly the same.
+#'                             
+#' @field matched_address_similar Uses \code{find_similar_addresses(threshold = 0.15)}
+#'                                to check if the addresses are similar.
+#'                                
+#' @field benchmark/vintage_input The specific reference database used for
+#'                                searching for an address match during geocoding.
+#'                                
+#' @field address_verified If the given address was verified against the USPS
+#'                         API, this field is TRUE. If it is unverified but a
+#'                         match is found, the value indicates the mode of
+#'                         string matching: \code{"Override"} or \code{"Exact"}.
+#'                         If no \code{address_line_1} was present for matching
+#'                         this is indicated with \code{"No address_line_1"}.
+#'                         
+#' @field ver_geolocation_test Geolocation test for matching attempts to verified
+#'                             addresses. \code{"Override"} if \code{"Exact"}
+#'                             matched, TRUE/FALSE if \code{"Fuzzy"} matched.
+#'                             \code{NA} if no match was attempted.
+#'                             
+#' @field address_matched If agnostic address matching was performed, this
+#'                        field contains the result if the match succeeded via 
+#'                        either "Exact matching" or "Fuzzy matching". "Only
+#'                        one address" represents cases where matching was 
+#'                        attempted but only one address was reported.
+#'                        
+#' @field match_geolocation_test Geolocation test for agnostic matching attempts.
+#'                               \code{"Override"} if \code{"Exact"} matched,
+#'                               \code{PASS}/\code{FAIL} if \code{"Fuzzy"}
+#'                               matched. If \code{PASS} includes \code{"no Lon"}, 
+#'                               \code{"no Lat"}, or \code{"no Lon/Lat"}, this 
+#'                               indicates one pair was missing that geolocation. 
+#'                               \code{NA} if no match was attempted.
+#' 
+#' 
+#' @name qc2
+#'
+#' @field i Results produced by the for loop are saved as lists. \code{i}
+#'          indicates which iteration of the loop the results are from.
+#'          
+#' @field abi The business ID the results relate to.
+#' 
+#' @field address Best-available address, derived by using \code{verified_address}
+#'                (trimmed; excluding "No address match found"), else
+#'                \code{matched_address}, else \code{combined_address}.
+#'                
+#' @field archive_versions_present String listing all the years that address
+#'                                 was observed.
+#'                                 
+#' @field `[lat|lon]_abs_diff` The absolute difference between the reported
+#'                             geocoordinate and the validated one.
+#'                             
+#' @field `[lat|lon]_gt_002` Boolean. TRUE if the absolute difference exceeds
+#'                           0.002 degrees, otherwise FALSE. NA if there were
+#'                           no geocoordinates to compare.
+#' 
+#' 
+#' @name qc3
+#'
+#' @field i Results produced by the for loop are saved as lists. \code{i}
+#'          indicates which iteration of the loop the results are from.
+#'          
+#' @field abi The business ID the results relate to.
+#' 
+#' @field address Best-available address, derived by using \code{verified_address}
+#'                (trimmed; excluding "No address match found"), else
+#'                \code{matched_address}, else \code{combined_address}.
+#'                
+#' @field n_address The number of times that ABI and address combination were
+#'                  recorded.
+#'                                 
+#' @field `[lat|lon]_[min|q1|median|mean|q3|max]` Summary statistics describing
+#'                                                 the spread of geocoordinates
+#'                                                 reported for a unique address.
+#'                                                 
+#' @field `[lat|lon]_spread_gt_02` Boolean. TRUE if the spread of geocoordinates
+#'                                 exceeds 0.02 degrees, otherwise FALSE. NA if
+#'                                 there were no geocoordinates to compare.
+#'                                 
+#' @field any_address_verified Boolean. TRUE if any of the addresses reflected
+#'                             in these results came from a verified address.
+#'                             NA if no validation was used.
+#'                             
+#' @field any_address_matched Boolean. TRUE if any of the addresses reflected
+#'                            in these results came from an agnostically matched
+#'                            address. NA if no validation was used.
+
+geo_qc <- read_list_from_duckdb(file.path(data_root, "Compiled by Batches", "geo_qc_08.06.2026.db"))
 
 
 ## --------------------
