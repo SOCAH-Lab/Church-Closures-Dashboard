@@ -1,0 +1,1190 @@
+---
+format:
+  pdf:
+    include-in-header: 
+      - text: |
+          \input{../../Scripts/For Analytical Reports/LaTeX Formatting/PDF Formatting Script.tex}
+highlight-style: ../../_styles/idle-fingers-light.theme
+bibliography: ../references.bib
+csl: ../../Scripts/nature.csl
+---
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| include: false
+
+## ----------------------------------------------------------------
+## SET UP THE ENVIRONMENT
+
+# Initiate the package environment.
+renv::restore()
+
+suppressPackageStartupMessages({
+  library("readr")            # Reads in CSV and other delimited files
+  library("arrow")            # Parquet/Feather & fast I/O (Arrow)
+  library("dplyr")            # Data manipulation and transformation
+  library("stringr")          # String operations
+  library("ggplot2")          # Graphics and visualization
+  library("patchwork")        # Combine multiple ggplot objects into a single layout
+  library("scales")           # Scale/label helpers for plots (percent/number/date formatting, breaks)
+  library("gridExtra")        # Arrange multiple grid-based plots on a page
+  library("tibble")           # Manipulate data frames in tidyverse
+  library("data.table")       # High-performance data manipulation
+  library("future.apply")     # Parallel processing
+  library("sf")               # Simple Features for spatial data (geometry + CRS operations)
+})
+
+# Set up the plan for parallel processing
+plan(multisession, workers = 4)
+
+# Define the "not in" operation
+"%!in%" <- function(x,y)!("%in%"(x,y))
+
+# Define the "if else" for null options operation
+"%||%" <- function(a, b) if (!is.null(a)) a else b
+```
+
+\clearpage
+\null
+\thispagestyle{empty}
+\newpage
+\setcounter{page}{1}
+
+
+\tableofcontents
+\newpage
+
+# Preparation of the 2023 Format Raw Data
+
+**Prepared By:** [Shelby Golden, M.S.](https://www.linkedin.com/in/shelby-golden) from the Yale School of Public Health [Data Science and Data Equity](https://ysph.yale.edu/research/research-centers-and-initiatives/public-health-data-science-and-data-equity/) team
+
+**Date Created:** August 7<sup>th</sup>, 2026
+
+**Date Updated:** August 7<sup>th</sup>, 2026
+
+# Overview
+
+The project objectives were as follows:
+
+1. **REVIEW:** Evaluate the raw data and previously outlined cleaning, validation, and harmonization methods employed by [Dr. Insang Song](https://sigmafelix.wixsite.com/mysite) for accuracy and identify opportunities for improvement.
+
+2. **PREPARATION:** Implement identified improvements to prepare the dataset for analysis and distribution to qualifying collaborators.
+
+3. **METRICS:** Calculate the metrics necessary for dynamic visualization.
+
+
+Additionally, the project Principal Investigator (PI), [Professor Yusuf Ransome](https://ysph.yale.edu/profile/yusuf-ransome/), requested the pipeline be reproducible for future collaborators and readily adaptable to potential changes in project scope.
+
+Following receipt of the raw data in Summer 2025, a review was conducted and findings were compared against the original methodology provided by Dr. Song. When an updated dataset was subsequently delivered in May 2026, the pipeline was expanded to accommodate two designated variations: the **2023 Format** and the **2026 Format**.
+
+This document provides an overview of the methodological changes implemented following the initial prototype developed using the 2023 Format, and to accommodate the differences identified in the 2026 Format Review. While many of the fundamental methods were retained, notable changes to the step-wise ordering and consideration of edge cases were implemented in light of the prototype's algorithm performance and access to the High Performance Computer (HPC).
+
+Results generated from this pipeline were used for the Fall 2026 [dashboard](https://www.socahlab.org/church-closures) developed by [Gordon Tu](https://gordontu.com/).
+
+# Important Considerations
+
+Selected code excerpts are referenced below. All snippets are drawn from scripts saved to the ["Code/"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Code) directory, each prefixed by a descriptor indicating the step to which they apply:
+
+**Clean Raw Data_Step \*:** A discrete step in the methods pipeline outlined below. Additional classifiers may indicate whether the script was designed for use on the HPC and/or whether it applies to the 2023 or 2026 version of the raw data.
+
+## Ignored Files
+
+Individual-level files are withheld from GitHub and Git tracking in accordance with the Data Use Agreement (DUA) with the data provider. Many of these are stored in `**/KEEP LOCAL/` directories or are explicitly listed under the "Project-Specific Exclusions" section of the `.gitignore` file.
+
+Most files are available on the SOCAH Lab OneDrive for the project, while others are user-specific and do not need to be shared. If there are local-only files for this project, they will be added to the "Church-Closures-Dashboard GitHub LOCAL ONLY Files" directory. This directory will contain `README.md` files specifying the intended use and filepath for each file.
+
+If you do not have access to the SOCAH Lab OneDrive, carefully follow the codebase instructions to establish the repository and replicate results on your own device. Raw data access instructions may vary depending on your institution.
+
+## Environment Reproducibility
+
+Results were produced using R (v4.5.2), RStudio (v2026.01.1+403), and Quarto (v1.8.27). The `renv` package (v1.1.4) is included to reproduce the coding environment, capturing all relevant packages and their versions. If issues arise when running the scripts, verify that the environment is initialized and that the correct versions of R, RStudio, and Quarto are being used.
+
+\vspace{1ex}
+
+\begin{callout-warning}[Compatibility]
+\small Updating packages, R, or Quarto may introduce compatibility issues with legacy code that will need to be resolved on a case-by-case basis.
+\end{callout-warning}
+
+\vspace{1ex}
+
+First-time users should initialize the environment to install all required packages and ensure a reproducible coding environment. To do so:
+
+1. In the command-line application (i.e., Terminal for Macs or Git Bash for Windows) navigate to the codebase file location.
+
+\begin{list}{}{\setlength\leftmargin{2.5em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{Command-Line Interface} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+  \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\func{cd} \str{"FILE-PATH/Church-Closures-Dashboard/"}
+  \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}
+\end{list}
+
+2. Launch the project by opening the `*.Rproj` file in RStudio.
+
+3. In the R console, activate the environment by running the following lines of code:
+
+\begin{list}{}{\setlength\leftmargin{2.5em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{Command-Line Interface} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\func{renv::restore()}   \com{# Download packages and their version saved in the lockfile.}
+  \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}
+\end{list}
+
+\vspace{1em}
+
+:::{.callout-note}
+\small If you are asked to update packages, say no.`renv` is intended to recreate the same environment under which the project was created, making it reproducible. You are ready to proceed when running `renv::restore()` gives the output:
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+- The library is already synchronized with the lockfile.
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-3.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+If you experience any trouble with this step, you might want to confirm that you are using R (v4.5.2) in the RStudio (v2026.01.1+403) and Quarto (v1.8.27). You can also read more about `renv` in their [vignette](https://rstudio.github.io/renv/articles/renv.html)\ [@renv_intro].
+:::
+
+\newpage
+
+# Methods
+
+## Approach and Methodological Objectives
+
+The following pipeline was designed to address two primary goals:
+
+1. Produce a cleaned and validated form of the raw data suitable for dynamic visualization at the finest regional resolution: block groups.
+
+2. Associate each address with census boundaries defined during the 2000, 2010, and 2020 decennial years, including block group, tract, county, state, and ZIP Code Tabulation Areas (ZCTAs).
+
+Documentation on the expected accuracy of geocoordinates provided in the raw data was not made available by the data distributor. It was therefore considered important to compare the raw geolocations against a trusted database in order to associate verified geolocations and assess the extent of error in the raw form. While not the most accurate approach, address-based database matching is a generally accepted method for confirming approximate geocoordinates\ [@validate_lon_lat_methods].
+
+Each address's geolocation coordiantes can be used to annotate each entry with the respective decennial years census boundary via point-in-polygon geocoding. The U.S. Census Bureau TIGER/Line shapefiles containing the required census boundary information provide corresponding files for decennial years requested: 2000, 2010, and 2020. However, this technique can be computationally costly; resulting in maxing in memory limits or causing preclusively slow loading if not handled strategically.
+
+During the raw data review, it was noted that typographical errors resulted in duplicate address entries, where the associated open/closure years remained unique. Ideally, these errors would be cleanly reconciled to produce a concise dataset free of unnecessary redundancies. However, the presence of address variants is not precluding to the overall goals of this project. Mitigating these variations is nonetheless worthwhile to minimize unnecessary computational costs during geocoding and subsequent metric summarization across all addresses. Therefore, an attempt will be made to responsibly consolidate addresses using string similarity matching. Additional resolution is expected when address validation is done against a trusted database.
+
+## Limitations on Pre-Cleaning and Data Retention
+
+It is important that simplifying the data cleaning and validation process does not necessitate the removal of potentially valuable or salvageable entries. Therefore, many of the algorithmic approaches employed were designed to accommodate complicated cases and missing data, with the aim of maximizing the number of usable final results. Quality control metrics were captured at the time of processing to support post-algorithm adjudication, back-tracking, and identification of values requiring removal prior to metric calculation.
+
+Specific workarounds are described in each relevant methods section, with brief assessments of algorithmic performance reported in the respective [Results](#results) section. The scope of **Step 2** was extensive enough that its findings have been compiled in a separate document dedicated solely to reporting these results. Only key insights and conclusions are presented here.
+
+## Special Considerations for PO Boxes and Missing `address_line_1` Entries
+
+The raw data review of the 2023 and 2026 Formats revealed several notable special cases requiring specific handling. These are described in the respective sections of [Step 2: Clean and Validate Addresses and Geolocation, and Annotate Records with Census Boundaries](#method-step-2). Notably, approximately 14\% of businesses had at some point filed under a PO Box, and approximately 3\% had at some point submitted a record with no `address_line_1` value (`address_line_1 == NA`; no blank strings were observed). For context, each entry in the dataset represents a unique combination of address and year over 1,080,764 unique ABI, with no year repeated within a given business.
+
+Later in the analysis, religious organizations are classified as closed if they did not file for four consecutive years during the observed period; organizations that subsequently resumed filing are classified as reopened. Closures are further differentiated into two categories: those that stopped operations entirely and closures due to relocation. Relocated organizations remained operational but moved outside the community, thereby resulting in a loss of social benefits to that community.
+
+Addresses filed under a PO Box or missing an `address_line_1` value present challenges for generating these metrics. Dr. Insong's method addressed this by removing all PO Box entries while retaining the remaining addresses for each business. However, since reported dates were unique across entries, this was expected to skew results. The Summer 2025 prototype methods sought to associate each PO Box with a nearby physical address (both spatially and temporally) to serve as a proxy for the organization's location on those dates. This relied on the assumption that PO Boxes are opened near the business's operating location, which was later deemed too strong an assumption to adopt.
+
+For these reasons, under the following three conditions, all entries associated with a business are removed:
+
+- Geocoordinates are absent and could not be recovered through address-based validation, preventing spatial joining (____).
+
+- `address_line_1` is missing, preventing verification that the geocoordinates correspond to the institution itself rather than a general location within that ZIP code (3\% ABI).
+
+- PO Box used: the physical location of the business, and consequently its presence or absence within the community of impact, is ambiguous (14\% ABI).
+
+Table \ref{tbl-abi_varying_metadata} shows the distribution of ABIs impacted by any one of these conditions. Not shown are results indicating that longitude and latitude were always missing together, affecting 0.4\% of ABIs. These results demonstrate very little overlap between conditions, suggesting that approximately 17\% of ABIs, nearly one-fifth of ABI, could potentially qualify for removal.
+
+\noindent\begin{minipage}{\linewidth}
+\small
+\captionof{table}{Percentages of ABI with Address and Geolocation Considerations}
+\label{tbl-abi_varying_metadata}
+
+\begin{minipage}{0.48\textwidth}
+\centering
+\textit{NA Address = FALSE}
+
+\vspace{0.5em}
+\begin{tabular}{lrr}
+ & \multicolumn{2}{c}{\textbf{PO Box}} \\
+\cmidrule(l){2-3}
+\textbf{NA Lon} & \textbf{FALSE} & \textbf{TRUE} \\
+\midrule
+FALSE & 83.51 & 13.48 \\
+TRUE  & 0.36  & 0.02  \\
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textit{NA Address = TRUE}
+
+\vspace{0.5em}
+\begin{tabular}{lrr}
+ & \multicolumn{2}{c}{\textbf{PO Box}} \\
+\cmidrule(l){2-3}
+\textbf{NA Lon} & \textbf{FALSE} & \textbf{TRUE} \\
+\midrule
+FALSE & 2.38 & 0.24 \\
+TRUE  & 0.02 & 0.00 \\
+\end{tabular}
+\end{minipage}
+
+\end{minipage}
+
+Simply removing ABIs with these characteristics introduces a potential source of bias, especially among those filing under a PO Box. Table \ref{tbl-na_pobox_summary} summarizes the share of ABIs affected by PO Box filings and missing `address_line_1` across U.S. cities, with some reaching 100\% of ABIs impacted. @fig-na-po maps these values spatially, confirming that some communities are disproportionately affected by this data loss. Note that 10.6\% and 12.6\% of cities could not be matched to TIGER/Line Shapefile features imported via the `tigris` package.
+
+\noindent\begin{minipage}{\linewidth}
+\captionof{table}{Summary Statistics of ABIs with Select Characteristics by City}
+\label{tbl-na_pobox_summary}
+\centering
+\begin{tabular}{lrrrrrr}
+ & \textbf{Min.} & \textbf{1st Qu.} & \textbf{Median} & \textbf{Mean} & \textbf{3rd Qu.} & \textbf{Max.} \\
+\midrule
+\textbf{NA address line 1 (\%)} & 0.09 & 2.56 & 6.25 & 14.93 & 17.65 & 100.00 \\
+\textbf{PO Box (\%)}            & 0.26 & 15.38 & 33.33 & 42.16 & 63.64 & 100.00 \\
+\end{tabular}
+\end{minipage}
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+## --------------------
+## SUBSECTION A2: Distribution of Characteristics Requiring Removal
+
+# -- Import City-Level TIGER/Line Shapefiles ---------
+
+us_states_sf <- st_read("../../Data/Results/From Clean Raw Data/Step 2_2026 Format/us_states_sf.shp", quiet = TRUE)
+
+
+# -- Distribution of ABI Characteristics by City -----
+
+na_joined <- read_csv("../../Data/Results/From Clean Raw Data/Step 2_2026 Format/ABI with NA Addresses by City_08.07.2026.csv") %>% as.data.table()
+po_joined <- read_csv("../../Data/Results/From Clean Raw Data/Step 2_2026 Format/ABI with PO Boxes by City_08.07.2026.csv") %>% as.data.table()
+
+# One plotting function for either joined dataset (na_joined or po_joined)
+plot_city_metric <- function(
+  dt, pct_col, n_col, title, subtitle = NULL,
+  contig = setdiff(c(state.abb, "DC"), c("AK","HI"))
+) {
+  # ---- global (consistent) font sizing / theme controls ----
+  base_size         <- 10
+  plot_title_size   <- 14
+  plot_subtitle_size<- 11
+  legend_title_size <- 11
+  legend_text_size  <- 10
+  
+  # consistent legend titles across all plots
+  legend_pct_title <- "% of ABIs"
+  legend_n_title   <- "N ABIs"
+
+  dt <- dt[state %in% contig & !is.na(lon) & !is.na(lat)]
+
+  sf_dt <- st_as_sf(dt, coords = c("lon", "lat"), crs = 4326) |>
+    st_transform(5070)
+
+  ggplot() +
+    geom_sf(data = us_states_sf, fill = "grey95", color = "grey35", linewidth = 0.6) +
+    geom_sf(data = sf_dt, aes(color = .data[[pct_col]], size = .data[[n_col]]), alpha = 0.85) +
+    scale_color_viridis_c(
+      option = "magma", end = 0.90,
+      name   = legend_pct_title,
+      labels = scales::label_number(suffix = "%")
+    ) +
+    scale_size_continuous(
+      name   = legend_n_title,
+      labels = scales::label_comma()
+    ) +
+    coord_sf(crs = st_crs(5070)) +
+    labs(title = title, subtitle = subtitle) +
+    theme_minimal(base_size = base_size) +
+    theme(
+      panel.grid = element_blank(),
+      axis.title = element_blank(),
+      axis.text  = element_blank(),
+      axis.ticks = element_blank(),
+      plot.title    = element_text(size = plot_title_size),
+      plot.subtitle = element_text(size = plot_subtitle_size),
+      legend.title  = element_text(size = legend_title_size),
+      legend.text   = element_text(size = legend_text_size)
+    )
+}
+
+p_na <- plot_city_metric(
+  na_joined,
+  pct_col = "pct_abi_any_na_address_line_1",
+  n_col   = "n_abi_any_na_address_line_1",
+  title   = "ABIs with Any Missing Address Line 1 by City",
+  subtitle= "Color = % of ABIs; size = N ABIs"
+)
+
+p_po <- plot_city_metric(
+  po_joined,
+  pct_col = "pct_abi_poBox",
+  n_col   = "n_abi_poBox",
+  title   = "ABIs using PO Boxes by City",
+  subtitle= "Color = % of ABIs; size = N ABIs"
+)
+```
+
+```{r}
+#| label: fig-na-po
+#| echo: false
+#| message: false
+#| warning: false
+#| fig.width: 14
+#| fig.height: 10
+
+p_na / p_po
+```
+
+The agreed-upon mitigation strategy is to remove an ABI only when the selected date range includes an address with a missing `address_line_1`, a PO Box filing, or an address without geocoordinates and, consequently, no census boundary mapping. The number of ABIs removed under each condition will be reported on the dashboard to inform users of the extent of data loss attributable to each condition.
+
+## Step 1: Nomenclature Standardization and Parquet Conversion {#method-step-1}
+
+:::{.callout-tip}
+# Computational Dependencies and Custom Functions
+
+All packages required for this step are documented in the **SET UP THE ENVIRONMENT** section of ["Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). Custom functions used throughout the script are in ["Support Functions/For Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Support%20Functions/For%20Step%201_2026%20Format.R).
+:::
+
+\vspace{1em}
+
+The 2026 Formatted data included a number of additional metadata fields; some were directly relevant to the analysis done here, while many others were not directly relevant or were undefinable. Further details can be found in the "Review_2026 Format.pdf" report. It was decided to retain all metadata fields in accordance with good data science practices, while limiting further validation and processing steps to only those fields relevant to the immediate analysis.
+
+In **Step 2**, address, geolocation, and census boundary variables are thoroughly processed through sequential validation and cleaning measures. Prior to this step, a few additional metadata fields were reformatted but not validated, as the data provider is treated as the known authoritative source of these categorical attributes.
+
+The North American Industry Classification System (NAICS) code is typically six digits long; however, the data provider appended an additional proprietary two-digit code whose encoding is unknown. These were separated into two columns to clarify the association between the NAICS code and its description, distinct from the additional two-digit code. This yielded three new columns: `primary_naics6_code`, `naics6_descriptions`, and `primary_naics2_code`, the last of which has no associated description.
+
+The SIC codes appear in a primary column, limited to 42 unique values, and four additional overflow columns representing over 2,500 unique attributes, such as denomination, functional capacities (e.g., screen printing, concert venues, stables), and services (e.g., clothing, food banks, substance abuse support). Three assumptions associated with these columns were validated: (1) the additional SIC code columns are overflow columns, where preceding columns are non-`NA`, indicating progressive filling; (2) codes and descriptions are mapped one-to-one; and (3) codes are always associated with a non-`NA` description.
+
+Assumptions were tested using the custom function `sic_overflow_audit()`, which generates all relevant diagnostics. Minor inconsistencies between descriptions associated with the same SIC code were manually revised across all SIC columns using the custom function `clean_sic_descs()`. Any SIC code sometimes associated with a description and sometimes `NA` was revised to use the available description using the custom function `set_sic_desc_for_code()`. If multiple descriptions were associated with the same code, one description was chosen at random using the custom function `clean_sic_codes()`.
+
+As a final step, the dataset was converted from the CSV output of the Data Axle database to Parquet format using the `arrow` package\ [@arrow]. This columnar format stores large datasets more efficiently, enabling faster read and write operations. It also supports database-style querying, allowing users to limit the amount of data loaded into memory at any given time and making better use of available RAM.
+
+Additional details regarding the algorithm's performance outcomes can be found in [Results - Step 1: Nomenclature Standardization and Parquet Conversion](#results-1).
+
+## Step 2: Clean and Validate Addresses and Geolocation, and Annotate Records with Census Boundaries {#method-step-2}
+
+:::{.callout-tip}
+# Computational Dependencies and Custom Functions
+
+All packages required for this step are documented in the **SET UP THE ENVIRONMENT** section of ["Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). Custom functions used throughout the script are in ["Support Functions/For Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Support%20Functions/For%20Step%202_2026%20Format.R).
+
+\vspace{1em}
+
+The algorithm implementing the described methods has been separated into a dedicated HPC script, contained in ["Clean Raw Data_Step 2 HPC v2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202%20HPC%20v2_2026%20Format.R), which includes its own **SET UP THE ENVIRONMENT** section. **PART A: UTILIZING THE HPC** further describes how to reproducibly run the script within the HPC environment as both a live session or batch array. The preconfigured shell script used for deploying batch arrays is ["Validation SLURM_2026 Format.sh"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Validation%20SLURM_2026%20Format.sh).
+
+\vspace{1em}
+
+Note that the comparative HPC script ["Clean Raw Data_Step 2 HPC v1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202%20HPC%20v1_2026%20Format.R) reflects the initial approach assuming unrestricted access to the USPS API. However, in Spring 2026, the USPS announced an update from version 3.2.3 to 3.3.1 with revised terms of use and a new pricing tier that took effect August 1\textsuperscript{st}, 2026. In response, the algorithm was modified to more flexibly support agnostic address compression based on string similarity, and to control API usage via a boolean flag indicating whether the API should be used and, if `TRUE`, a query limit specifying how many addresses were to be validated in that run.
+
+\vspace{1em}
+
+The methods are comparable between the two versions, with the logical flow of the address validation and compression algorithm being the principal difference. As a consequence of the API terms of use update, v2 was used to process the entire dataset. Users should therefore treat v1 as archived for posterity and v2 as the version to be used going forward. The specifics of v1 are not discussed here.
+:::
+
+\vspace{1em}
+
+With access to the HPC, all sequential steps that validate and compress addresses, use them for address-based geocoding, and annotate unique ABI and address entries with census boundaries are completed within a single algorithm. Each macro component is prefaced with **LOOP**, corresponding to the respective section of the HPC script.
+
+Each validation section requires user-specified configurations or pre-analysis setup. The specifics of these are described in each relevant section, but must be completed prior to running the algorithm to ensure it operates correctly and within the constraints of the project's available resources.
+
+### LOOP PART A: Isolate Unique Candidate Addresses
+
+Addresses associated with each individual ABI are processed simultaneously. First, each ABI’s unique address is identified and saved into `candidate_addresses`, which retains the key address fields. For each unique address, the earliest and latest years it appears are recorded, the number of entries with valid longitude/latitude is counted, and the average longitude and latitude (among valid entries) is computed. Additionally, the boolean `do_api`, indicating whether the USPS API should be used, is carried forward when present. These candidate addresses are then passed through all subsequent processing sections.
+
+If `address_line_1` is missing, the entry cannot be processed for address validation or address-based geocoding. As noted earlier, any given geocoordinates for these records cannot be assumed to represent the business’s physical location. Although the algorithm can still annotate these entries with census boundaries, this does not mean they are suitable for mapping closure results. To prevent errors when `address_line_1 == NA`, these records are separated from those with an `address_line_1` so they can be validated and then condensed. 
+
+\vspace{1em}
+
+:::{.callout-important}
+#  Note on Geocoordinate Accuracy for Entries Missing the Address
+
+While entries lacking an `address_line_1` but have a valid geocoordinates are annotated with census boundaries, this does not imply that the geocoordinates accurately reflect the physical location of the business. This measure is intended solely to allow the algorithm to run without error, and affords users the opportunity to adjudicate these entries at a later stage if desired.
+:::
+
+### LOOP PART B: Consolidate and Verify the Addresses
+
+Address heterogeneity arising from typographical errors was observed in the 2023 Format and is assumed to exist in the 2026 Format. In the 2023 version of this stepwise process, addresses were first compressed based on similarity before validation. This ordering was necessary because the workflow was run locally, and reducing the number of unique addresses to validate helped expedite the USPS API step.
+
+However, a post-assessment of the algorithm’s outputs showed that the original compression step induced duplications in years-open and years-closed measures. This largely occurred because the same `address_line_1` was reported with differing metadata (e.g., city or ZIP code). After validation, a secondary address-compression step was run on qualifying entries where this issue was detected, using the corrected, standardized address information to recompress records.
+
+With access to the HPC, the compute constraints of address verification at scale became tractable. The revised workflow reflected here resolves heterogeneity in two stages: (1) USPS API verification, which standardizes addresses and reconciles unverified records to their closest verified match using string similarity; and (2) agnostic clustering (a fallback when verification is unavailable or fails), which groups similar addresses by string similarity and resolves conflicts within each cluster to reduce redundant entries.
+
+The same algorithm is used at both points where address string similarity is evaluated, but the way “best” matches are triaged differs between the two stages. To prevent the table from expanding when multiple best matches are identified, a single match is forcibly selected by ranking candidates according to a predefined set of criteria and choosing the top-ranked result.
+
+### LOOP PART B.i.: Validate Addresses with USPS Database
+
+Excessive deviation from standard address formatting has the potential to contribute to failed matches with the [U.S. Census Bureau's Geocoder API](https://geocoding.geo.census.gov/geocoder/), used in **LOOP PART C** to validate the geocoordinates associated with each address\ [@us_census_bureau_geocoder]. To mitigate this risk, addresses were first validated against the [USPS Address API](https://developers.usps.com/addressesv3) to retrieve the preferred, standardized form of each address prior to geocoding\ [@usps_3_api].
+
+\vspace{1em}
+
+:::{.callout-note}
+# Alternative Validation Resources
+
+These APIs were chosen primarily for their relative simplicity of setup and use, their suitability for automation and parallelization within the HPC environment, and their lack of associated cost. However, as described in their respective results sections, these processes were unable to validate as many records as anticipated. Furthermore, as they are separate systems, they required sequential processing, whereas alternative resources can offer both address and geolocation validation within a single query. The following alternative databases were considered for validating the listed physical addresses and associated geolocations:
+
+- Environmental Systems Research Institute, Inc. (Esri) StreetMap Premium, including the locally hosted version available to Yale affiliates
+
+- Google Maps API
+
+These sources were ultimately not used due to a combination of limiting factors. Under the applicable Data Use Agreements (DUAs), it was necessary to confirm that no API usage would violate the terms of those agreements. The USPS and U.S. Census Bureau APIs were approved following coordination with the relevant security review processes; however, accessing the Esri online database or Google Maps API required additional review.
+
+\vspace{1em}
+
+The review process was initiated for the Google Maps API given its anticipated capacity to efficiently validate addresses and geolocation. However, the review extended beyond the project timeline, rendering those resources inaccessible. Additionally, Esri requires manual adjudication of alternative address suggestions, which would have been prohibitively time-intensive. Researchers from the  [Yale Center for Geospatial Solutions (YCGS)](https://geospatial.yale.edu/) further noted that the online Esri resource is more current and robust than its locally hosted counterpart, suggesting that the local version would offer little advantage over the USPS Address database in terms of address validation quality.
+:::
+
+:::{.callout-warning}
+# USPS API Version 3.3.1 Update: Compatibility and Pricing
+
+As of August 1\textsuperscript{st}, 2026, the USPS upgraded the API from version 3.2.3 to 3.3.1 and updated their terms of use to include tiered pricing for API access.
+
+\vspace{1em}
+
+Users should be aware that the algorithm reported here was designed for version 3.2.3 and may not be fully compatible with the updated API without modification. Additionally, the 2023 Format implementation assumes unrestricted access to the API, whereas the 2026 Format implementation was updated with a version 2 allowing users to specify the number of addresses queried against the USPS API, enabling cost management.
+:::
+
+\vspace{1em}
+
+In response to the updated terms of use, the workflow was revised to give users more control over address verification. All settings are outlined and explained in **SUBSECTION B3: Optional USPS Address Verification (API Setup and Quota Controls)**. Users can set the boolean `verify_addresses` to indicate whether verification should be run, and API credentials are imported only when `verify_addresses == TRUE`.
+
+Users can also define an address-count quota via `set_quota`. This quota is then applied through an if/else selection and custom function `usps_quota_mark_api()` to determine which ABIs are sent for verification. Selection is made at the ABI level: if an ABI is chosen, all of its addresses are verified, and no partial ABI selections are allowed. As a result, `set_quota` functions as an upper bound on the number of addresses verified (the total may fall below the quota to avoid splitting an ABI). The if/else conditionals generate a message indicating whether the API will be used, how many ABI entries will be validated, and whether addresses were randomly sampled. A set seed allows users to reproduce any randomized selections.
+
+When `verify_addresses == TRUE` the algorithm queries the USPS Address API using the API specifications, methods, and sample processes outlined in the official [developer documentation](https://developers.usps.com/addressesv3) and the [USPS API Examples GitHub](https://github.com/USPS/api-examples) repository\ [@usps_3_api; @usps_api_examples]. Pre-configured customer key and secret credentials are used to generate an API token for each address query via the custom function `generate_usps_token()`. The raw address fields, address lines 1 and 2, city, state, and five-digit ZIP code, are submitted to the database, and the response JSON is parsed to extract validated address components into discrete columns via the custom function `validate_usps_address()`. Both functions utilize the `httr` and `jsonlite` packages for API interaction\ [@httr; @jasonlite].
+
+If the initial USPS validation did not return a match, one fallback strategy was applied using the recommended city associated with the five-digit ZIP code. If this also failed to produce a match, the query returned "No address match found".
+
+This fallback was particularly important for the 2023 Formatted dataset. Initial assessment showed that ZIP code fields had been converted to numeric values at some point, stripping leading and trailing zeros. Before querying, ZIP codes were normalized back to the expected five-digit format, but any padded zeros were added arbitrarily. Although the 2026 Formatted dataset correctly preserves ZIP codes as character variables, this step was retained as a precaution in cases where the provided city does not align with the ZIP code and ZIP codes got mistakenly converted to numeric.
+
+In the **LOAD IN THE DATA** section, users can indicate whether ZIP codes were retained as character strings (i.e., no flanking zeros were stripped) by setting the boolean `zip_codes_character`. When `zip_codes_character == TRUE`, the fallback uses the custom function `get_city_info()` to retrieve the recommended city for a given ZIP code. The resulting valid ZIP code–city pair is then substituted for the raw values and the USPS query is resubmitted. The ZIP–city lookup table is built from the SimpleMaps Basic [United States Cities Database](https://simplemaps.com/data/us-cities) (version 1.90) using the custom function `build_zip_city_lookup()`\ [@simplemaps].
+
+If ZIP codes are indicated as having lost flanking zeros, candidate ZIP code variants are first generated using the custom function `make_zip5_candidates()`. For example, `make_zip5_candidates("01230")` would generate "01230", "00123", and "12300". The custom `function get_city_info()` then retrieves the recommended city associated with each candidate ZIP code. Valid ZIP code–city pairings are subsequently substituted for the raw values to resubmit the query, though the algorithm attempts only the first valid pairing returned by `get_city_info()`.
+
+Five quality-control columns were used, including: (1) a boolean indicating whether the address was validated; (2) a character field indicating which attempt succeeded (e.g., “First try” or “With city correction by zip5”); and (3) the USPS API query status. The status codes were decoded using the custom function `usps_status_group()`, based on the expected outcomes defined in the USPS API documentation.
+
+\vspace{1em}
+
+:::{.callout-note}
+# API Credentials and Configuration
+
+Users who wish to utilize this resource for their own work will need to register for a USPS Developer account, sign the license agreement, and configure their own individual API client key and secret. 
+
+\vspace{1em}
+
+The client key and secret must be kept private and must not be shared. Instructions for configuring these credentials are provided in the header of ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R).
+:::
+
+
+### LOOP PARTS B.ii–B.iii: String Similarity Matching for Unverified and Heterogeneous Address
+
+The same underlying algorithm is used whenever string-similarity matching is performed. However, best-match selection differs by phase (matching with unverified addresses vs. "agnostic" matching). In both phases, candidate pairs are evaluated under two match classes: “exact” and “fuzzy.”
+
+**Exact matches.** Exact matches compare `address_line_1` using threshold $\delta = 0$ and are treated as valid regardless of associated address metadata. In these cases, its assumed the likelihood that the records represent separate addresses due to a true physical move is low. Accordingly, the geolocation test is overridden and the match is retained.
+
+**Fuzzy matches.** Fuzzy matches compare `address_line_1` using threshold $\delta > 0$ but $\leq 0.2$. For these match pairs, the longitude and latitude differences are required to fall within 0.02 degrees each. If the geolocation test fails, the match is rejected and the records are kept separate.
+
+#### Verified-Address Matching
+
+This step occurs after addresses are querried against the USPS API. Unverified addresses are triaged by attempting to link each record to a verified address using `address_line_1`. 
+
+The algorithm first attempts an exact match by selecting the verified candidate whose years-open interval overlaps (or touches) the record’s window, or—if none overlap—the candidate with the smallest year-gap; geolocation checks are skipped. If multiple candidates remain, ties are broken by preferentially selecting the closest match occurring before the window, and then after, then forcing only a single top candidate is retained.
+
+If no exact match exists, the algorithm attempts a fuzzy match using the same years-open selection rule but requiring geolocation validation; records that fail validation remain separate. Fuzzy matching is run iteratively starting at $\delta = 0.2$  and then applying progressively more stringent similarity thresholds until each unmatched address resolves to a single best candidate; if no match is found at any threshold, the record is passed to the next section.
+
+#### Agnostic Matching
+
+This step runs after addresses are queried against the USPS API and unmatched records remain, or when no address validation is performed (i.e. either `verify_addresses == FALSE`, or `verify_addresses == TRUE` but `all(unver_candidates$do_api == FALSE)`). Because there is no predefined pool of verified candidates, the algorithm selects best matches agnostically from the addresses available within each cluster.
+
+Within each exact `address_line_1` group, matching is restricted to records sharing the same expected city for the ZIP code, as defined by the lookup table produced by `build_zip_city_lookup()`. Using the custom function `pick_best_by_city()`, rows are split into trusted anchors where the reported and expected city are the same (`city_match == TRUE`) and conflicting records (`city_match == FALSE/NA`). If no trusted anchor exists, the best conflict row is promoted to serve as an anchor. Each record is then linked to a single best anchor, prioritized by (1) years-open overlap (or, if none overlaps, the smallest year-gap), (2) presence of geolocation, (3) smallest lon/lat difference across candidates, and (4) a stable tie-break. The geolocation test is bypassed and recorded as an override. Records with no anchor in their city are left for the fuzzy pass.
+
+For fuzzy matching, similar strings are clustered and one anchor per validated city is chosen. Anchors are preferred in order: presence of an exact match from the prior step, earliest year recorded open, then a stable tie-break; if no prior match exists, the "best" anchor is chosen based on geolocation pass rate, mean year gap, and geolocation coverage. Candidate pairs are rejected when both sides have coordinates and either longitude or latitude differences exceed 0.02 degrees. If either record in the pair is missing coordinates, the missing values are ignored and the test is recorded as `"PASS; no Lon"`, `"PASS; no Lat"`, or `"PASS; no Lon/Lat"` to indicate which geocoordinate is absent. Fuzzy matches are applied only when `geo_valid == TRUE`; otherwise records remain unmatched, with provenance recorded as `address_matched = "Fuzzy match"` and `match_geolocation_test` indicating whether the geolocation check was evaluated/passed.
+
+For fuzzy matching, similar strings are clustered with $\delta = 0.2$ and one anchor per validated city is chosen, first preferring any exact matches created in the prior section. If no exact match is available, the anchor is selected based on how well each candidate represents the rest of the pool using the custom function `pick_best()`. This algorithm chooses the record whose coordinates agree with the largest number of other records (within the longitude/latitude difference $< 0.02$ degrees) and, if needed, the record whose years-open range overlaps with the most others. If ambiguity remains, it selects the record with the smallest overall year separation from the remaining records, then favors entries with a ZIP+4 and a larger number of records with valid geocoordinates for that address, and finally applies a stable alphabetical tie-break on the combined address string.
+
+#### Fuzzy Matching Algorithm
+
+Different uniquely listed address line 1 (`address_line_1`) strings for a given business (`abi`) were fuzzy matched using the Jaro-Winkler method available through `stringdist(method = "jw")` in the custom function `find_similar_addresses()`\ [@stringdist]. This edit distance method measures string similarity by accounting for the proportion of characters shared between two strings and the number of transpositions needed to place matching characters in the same order, normalized by string length\ [@wikipedia_edit_distance; @medium_jw; @wikipedia_jw]. Scores range from zero to one, where a score of zero indicates identical strings and smaller values reflect greater similarity.
+
+Prior to processing, addresses were normalized in the custom function `preprocess_address()` by converting all characters to lowercase, normalizing spacing and punctuation, removing non-alphanumeric characters (with the exception of commas and spaces), and trimming extraneous whitespace.
+
+$\Comb{n}{2}$ pairwise comparisons between $n$ unique normalized `address_line_1` strings produce a symmetric $n \times n$ string distance matrix, that is $d(i,j) = d(j,i)$ and the diagonal entries $d(i,i) = 0$ represent the trivial self-similarity solution. To reduce redundancy, the algorithm evaluates only one orientation of each pair and omits self-similarity comparisons, computing only the upper triangle of the matrix. Addresses with a pairwise Jaro-Winkler score below a set threshold, $\delta$, are saved as a qualifying match. The matching threshold $\delta > 0$ and $\leq 0.2$ was determined empirically through testing on a sample of addresses, confirming sufficiently accurate grouping of similar entries without the erroneous inclusion of dissimilar ones.
+
+\vspace{1em}
+
+:::{.callout-note}
+## Computational Performance
+
+The time complexity of this operation is $\mathcal{O}\left(n^2 \times l\right)$, where $n$ is the number of unique addresses and $l$ denotes the computational cost of the Jaro-Winkler algorithm for a string of length $l$\ [@wikipedia_jw; @wikipedia_big_o; @w3schools_big_o]. 
+
+\vspace{1em}
+
+Because the algorithm operates solely on `address_line_1`entries, string lengths remain relatively short, making the contribution of $l$ negligible. Additionally, because the number of unique addresses is expected to be bounded by the number of dates in the observed period, the computational demand of this method is not expected to be a limiting factor in the algorithm.
+:::
+
+\vspace{1em}
+
+Consider the following example of a business that filed under two distinct addresses, each of which was reported with slight variations, resulting in five unique address strings.
+
+\begin{table}[H]
+    \small
+    \centering
+    \begin{tabular}{cl}
+        \toprule
+        \textbf{Node} & \textbf{Address} \\
+        \midrule
+        1 & \texttt{123 Main Street} \\
+        2 & \texttt{123 Main St} \\
+        3 & \texttt{123 Main St.} \\
+        4 & \texttt{456 Oak Avenue} \\
+        5 & \texttt{456 Oak Ave} \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:example_addresses}
+\end{table}
+
+\vspace{-1em}
+
+Using `stringdist(method = "jw")` the pairwise distances are computed for all $\Comb{5}{2} = 10$ unique address pairs. This yields the following upper-triangular distance matrix:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{cccccc}
+        \toprule
+        & \textbf{1} & \textbf{2} & \textbf{3} & \textbf{4} & \textbf{5} \\
+        \midrule
+        \textbf{1} & $-$  & 0.08 & 0.09 & 0.41 & 0.38 \\
+        \textbf{2} &      & $-$  & 0.05 & 0.39 & 0.35 \\
+        \textbf{3} &      &      & $-$  & 0.40 & 0.36 \\
+        \textbf{4} &      &      &      & $-$  & 0.11 \\
+        \textbf{5} &      &      &      &      & $-$  \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:jw_matrix}
+\end{table}
+
+\vspace{-1em}
+
+Pairs falling below the threshold $d(i,j) \leq \delta$ are considered candidate matches and recorded as edges in an undirected graph, where each node represents a unique address. This graph is stored as an adjacency list, like the one shown below\ [@wikipedia_adjacency]:
+
+\begin{table}[H]
+    \small
+    \centering
+    \begin{tabular}{clll}
+        \toprule
+        \textbf{Node} & \textbf{Address} & \textbf{Nearest Neighbors} & 
+        \textbf{JW Distances} \\
+        \midrule
+        1 & \texttt{123 Main Street} & $\{2, 3\}$ & $\{0.08, 0.09\}$ \\
+        2 & \texttt{123 Main St}     & $\{1, 3\}$ & $\{0.08, 0.05\}$ \\
+        3 & \texttt{123 Main St.}    & $\{1, 2\}$ & $\{0.09, 0.05\}$ \\
+        4 & \texttt{456 Oak Avenue}  & $\{5\}$    & $\{0.11\}$       \\
+        5 & \texttt{456 Oak Ave}     & $\{4\}$    & $\{0.11\}$       \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:nearest_neighbors}
+\end{table}
+
+\vspace{-1em}
+
+A Depth-First Search (DFS) algorithm in the custom function `find_components()` is applied to the adjacency list to identify connected components, where each component forms a cluster of similar addresses.
+
+\vspace{1em}
+
+\begin{algorithm}[H]
+\caption{Depth-First Search --- Connected Component Identification}
+\begin{algorithmic}[1]
+    \Require Adjacency list $\texttt{address\_graph}$, node set 
+             $\{1, \ldots, n\}$
+
+    \State Initialize an empty list of clusters
+
+    \For{each node $i$ in $\{1, \ldots, n\}$}
+        \State Begin a new traversal from node $i$
+        \State Initialize an empty cluster
+        \Repeat
+            \State Add the current node to the current cluster
+            \If{the current node has an unvisited neighbor}
+                \State Move to an unvisited neighbor and continue
+            \Else
+                \State Backtrack to the previous node
+            \EndIf
+        \Until{no unvisited neighbors can be reached in the current traversal}
+        \State Record the cluster
+    \EndFor
+
+    \State Remove duplicate clusters
+    \State \Return list of unique clusters
+\end{algorithmic}
+\end{algorithm}
+
+One candidate address is selected from each cluster using the triage rules described above to serve as the best match and anchor for associating the other addresses in the pool. Because the reliability of string-based matching can vary with string length, an additional geographic validation step is applied: for each matched set, the absolute range in reported longitude and latitude is computed as the difference between the maximum and minimum values.
+
+For reference, one degree of longitude is approximately 69 miles (111 kilometers), while one degree of latitude varies with proximity to the equator, averaging approximately 54 miles (87 kilometers) across the contiguous United States\ [@geological_survey_degree; @noaa_latitudelongitude]. The length of a typical U.S. city block similarly varies, with common estimates ranging from 100 to 200 meters\ [@wikipedia_city_block; @wikipedia_city_area]. Based on these benchmarks, address sets in which both the longitudinal and latitudinal differences exceeded 0.02 degrees (approximately 2 kilometers or $\approx$ 1.4 miles) were flagged as invalid matches and retained as distinct addresses in the final dataset.
+
+This approach assumes that reported geolocations for each address are accurate to within the specified range with sufficient consistency to be reliable. As the primary objective of this method is to reduce address reduplication and improve downstream algorithmic performance, variations that may undermine this validation step are not considered to meaningfully impact the final results. When uncertain, the method is designed to err on the side of caution by retaining addresses as distinct rather than risk consolidating genuinely separate addresses that share strong surface-level similarities.
+
+### LOOP PART C: Verify Geolocation with the US Census Bureau’s Geocoder Database
+
+The dashboard visualizes aggregated addresses at multiple census geographies—block group, tract, county, state, and ZIP Code Tabulation Areas (ZCTAs). While small location differences have little impact on county-level summaries, they can substantially affect assignment to finer boundaries such as block groups and tracts.
+
+In the 2023 Format, results from "Step 1: Address Deduplication via String Similarity Matching" showed that geocoordinates for records sharing the same `address_line_1` (and thus potentially the same physical location) sometimes differed by as much as 3 degrees. At mid-latitudes, a 3-degree difference is roughly 150–175 miles—about the distance between New Haven, CT and Philadelphia, PA.
+
+To mitigate these errors, addresses are geocoded using the [U.S. Census Bureau's Geocoder API](https://geocoding.geo.census.gov/geocoder/) to retrieve the coordinates assigned to each address, prioritizing verified addresses when available\ [@us_census_bureau_geocoder]. The API's documentation does not specify which part of the building the coordinates represent, such as the delivery entrance or rooftop centroid\ [@us_census_bureau_geocoder_docs]. All available address fields (address line 1, city, state, and five-digit ZIP code) were used to find matches, prioritizing verified addresses over raw, given values.
+
+Raw address fields are submitted to the Census Geocoder API, and the response JSON is parsed to extract validated address components into discrete columns via the custom function `validate_geocoordinates_geoCoder()`. This function internally calls `call_census_geocoder()`, which relies on the `httr` and `jsonlite` packages for API interaction\ [@httr; @jasonlite]. The geocoding process first builds an ordered list of benchmark/vintage candidates, then iterates through them in priority order until a successful match is found. 
+
+In **SUBSECTION B2: Set Geocoder Search Priorities**, users specify the ordered list of benchmark/vintage pairs the geocoder should try. If users prefer not to use the default triage list, **SUBSECTION A2: Set Geocoder Search Priorities** in "Clean Raw Data_Step 2_2026 Format.R" provides the custom function `census_geo_show_options()`, which retrieves all available benchmark and vintage options that can be used for configuration.
+
+\newpage
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Construct a prioritized table of benchmark/vintage search criteria,}
+\com{# where earlier rows take precedence.}
+spec \op{<-} tibble\op{::}tibble(
+   \atr{benchmark\_name =} \func{c}(\str{"Public\_AR\_Census2020"}, \str{"Public\_AR\_Census2020"},
+                      \str{"Public\_AR\_Current"},  \str{"Public\_AR\_ACS2025"}),
+   \atr{vintage\_name   =} \func{c}(\str{"Census2020\_Census2020"}, \str{"Census2010\_Census2020"},
+                      \str{"Current\_Current"},       \str{"Current\_ACS2025"})
+)
+
+\com{# Construct the "tries" input for `validate_geolocation()`}
+geocoder_census_tries \op{<-} \func{census_geo_make_tries}(spec)
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+For each candidate, the vintage is resolved to a numeric ID using `resolve_vintage_id()` — leveraging a per-run cache and skipping any candidates that fail due to lookup, network, HTTP, or parsing errors — before constructing a request URL, calling the API, and logging the outcome. An example query URL constructed from parsed address components using the custom function `build_addr_geo_url()` is shown below.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+httr\op{::}modify\_url(
+    \str{"https://geocoding.geo.census.gov/geocoder/geographies/address"},
+    \atr{query =} \func{list}(
+      \atr{format    =} \str{"json"},
+      \atr{benchmark =} benchmark,
+      \atr{vintage   =} vintage,
+      \atr{street    =} street,
+      \atr{city      =} city,
+      \atr{state     =} state,
+      \atr{zip       =} zip
+    )
+  )
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+The API sometimes returns multiple possible matches. If there are multiple candidates, the custom function `select_best_match()` first tries to resolve the choice using the ZIP code by preferring a candidate whose ZIP uniquely matches the input ZIP (treating ZIP+4 as the 5-digit ZIP). If ZIP does not identify a single candidate, it compares the input address text to the candidates’ matched-address text using `find_similar_addresses()`, progressively tightening $\delta = 0.2$ until one candidate is most clearly paired with the input. If that still does not produce a clear winner, it defaults to the first candidate in the remaining list.
+
+### LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information {#method-step-2-loop-part-d}
+
+The data spans three decennial years: 2000, 2010, and 2020. Because users can select varying date ranges and may expect temporally accurate census boundary mappings, each address must be annotated with the census boundaries associated with all three. Once annotated, entries can be aggregated to the census boundary identifier from a given decennial US Census Bureau's [TIGER/Line Shapefile](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) release\ [@census_tigerline]. This enables results to be spatially projected onto maps via the decennially accurate demarcations of census boundaries.
+
+Accurate spatial depiction of these trends across census boundary levels requires consideration of varying degrees of locational error. Counties and states represent larger areas, making them less sensitive to imprecise locational information and less prone to boundary changes between decennial periods. In contrast, smaller boundaries such as block groups and tracts can change substantially between decennial periods and are more sensitive to locational errors. Ensuring accurate fine-level annotations for historical decennial years is therefore an important consideration.
+
+The preceding sections focus on validating and improving the geocoordinates associated with each business through address-based geocoding. When attaching census boundary identifiers to these records, there are two fundamental approaches:
+
+1. Referencing a database with decennial boundary information already associated with each address.
+
+2. Assigning decennial boundaries to each address via point-in-polygon spatial joining of verified longitude and latitude coordinates against reliable spatial representations of map boundaries, known as polygons.
+
+The second approach is the standard of practice, ensuring all desired decennial boundary information is correctly assigned to the provided geocoordinates. Its accuracy is limited only by the reliability of the available address coordinates and boundary shapefiles. @fig-demo-polygon demonstrates how geocoordinate points are interpreted by a spatial join to polygon geometries, such as county-level census boundaries, geographically.
+
+\vspace{1em}
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+set.seed(1)
+
+# --- Example polygons in lon/lat (replace polys_ll with your own sf polygons if you have them) ---
+poly1 <- st_polygon(list(rbind(
+  c(-74.01, 40.70), c(-73.97, 40.70), c(-73.98, 40.74), c(-74.02, 40.73), c(-74.01, 40.70)
+)))
+poly2 <- st_polygon(list(rbind(
+  c(-73.99, 40.75), c(-73.94, 40.75), c(-73.95, 40.79), c(-74.00, 40.78), c(-73.99, 40.75)
+)))
+
+polys_ll <- st_sf(
+  poly_id = c("A", "B"),
+  geometry = st_sfc(poly1, poly2),
+  crs = 4326
+) %>% st_make_valid()
+
+# --- Create random points around polygons (some inside, some outside) ---
+bb <- st_bbox(polys_ll)
+pad <- 0.02
+bb_pad <- bb
+bb_pad[c("xmin","ymin")] <- bb[c("xmin","ymin")] - pad
+bb_pad[c("xmax","ymax")] <- bb[c("xmax","ymax")] + pad
+
+n_pts <- 120
+pts <- tibble::tibble(
+  lon = runif(n_pts, bb_pad["xmin"], bb_pad["xmax"]),
+  lat = runif(n_pts, bb_pad["ymin"], bb_pad["ymax"])
+) %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+  mutate(pt_id = row_number())
+
+# --- Point-in-polygon match ---
+idx <- st_within(pts, polys_ll)                 # list of matches per point
+pts$inside <- lengths(idx) > 0
+pts$poly_id <- ifelse(pts$inside, polys_ll$poly_id[sapply(idx, `[`, 1)], "Outside")
+pts$poly_id <- factor(pts$poly_id, levels = c(polys_ll$poly_id, "Outside"))
+
+# --- Plot: polygons filled by polygon id, points colored by polygon matched (or Outside) ---
+demo_point_polygon <- ggplot() +
+  geom_sf(data = polys_ll, aes(fill = poly_id), color = "black", linewidth = 0.8, alpha = 0.35) +
+  geom_sf(data = pts, aes(color = poly_id), size = 1.6, alpha = 0.9) +
+  scale_fill_brewer(palette = "Set2", name = "Census\nBounary") +
+  scale_color_manual(
+    values = c(setNames(RColorBrewer::brewer.pal(n = nrow(polys_ll), "Dark2"), polys_ll$poly_id),
+               Outside = "gray45"),
+    name = "Address\nLon/Lat"
+  ) +
+  coord_sf(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  labs(title = "") +
+  theme(
+    aspect.ratio = 0.55,
+
+    plot.title   = element_text(size = 12),
+    axis.title   = element_text(size = 10),
+    axis.text    = element_text(size = 10),
+
+    legend.title = element_text(size = 11),
+    legend.text  = element_text(size = 11)
+  )
+```
+
+
+```{r}
+#| label: fig-demo-polygon
+#| fig-cap: "Illustration of Point-in-Polygon Spatial Joining"
+#| echo: false
+#| message: false
+#| warning: false
+#| fig.width: 10
+#| fig.height: 4
+
+# Combine the plots side-by-side
+demo_point_polygon
+```
+
+:::{.callout-note}
+## Computational Performance
+
+The time complexity of a naïve spatial join for a single decennial period is $\mathcal{O}\left(N \times M\right)$, where $N$ denotes the number of points and $M$ the number of polygons\ [@forrest_spatial; @wikipedia_big_o].
+
+\vspace{1em}
+
+This can create significant time lags when associating multiple addresses across many boundaries, such as block groups or tracts in a densely populated region. Steps leading up to the point-in-polygon operation reduce the number of comparisons by consolidating addresses and filtering regions down to the state level. The county and other census boundaries were not used for filtering, as they were assumed to vary between decennial periods.
+
+\vspace{1em}
+
+Other strategies exist that can improve the speed of this operation. For example, spatial filtering or indexing can reduce the complexity to $\mathcal{O}\left(N \log(N) \times M \log(M)\right)$\ [@forrest_spatial]. Due to time constraints developing the process, these were not explored, and some entries, particularly those spanning denser census regions with more addresses, took orders of magnitude longer to compute than others.
+:::
+
+\vspace{1em}
+
+While developing the pipeline for the 2023 Format, three sources of census boundary information were explored, all of which involved API calls to retrieve the requisite information at the time of annotation. This process exacerbated what was already a computationally costly spatial join operation, and was expected to worsen once the algorithm was expanded to include block group-level census codes, which are notoriously slow to query. Additionally, the `tigris` process exhibited issues retrieving data for the 2000 and 2020 decennial years.
+
+To improve performance and accuracy in preparation for migration to the HP environment, the relevant [TIGER/Line Shapefiles](https://www.census.gov/cgi-bin/geo/shapefiles/index.php) were manually downloaded and preprocessed. Each shapefile was structured to include the desired metadata by decennial year as discrete layers. The pipeline supports both block-level and block group-level shapefiles: both contain polygon boundaries that associate block or block group, tract, county, and state codes with any longitude/latitude coordinate falling within a given polygon. Block group-level shapefiles are preferred for generating summary statistics due to their reduced complexity compared to block-level shapefiles.
+
+In the 2026 Format workflow, two additional geographic codes representing Core Based Statistical Areas were associated using the same method: Metropolitan/Micropolitan Statistical Areas (denoted as CBSA) and Combined Statistical Areas (CSA). These designations were first introduced in 2003, replacing the Office of Management and Budget's (OMB) prior use of "Standard Metropolitan Areas." CBSA and CSA boundaries are typically updated annually, every five years at mid-decade, and following each decennial census. For the purposes of this processing, the 2010 and 2020 decennial releases were used alongside the earliest available annual release from the 2000s decade (the 2007 vintage) to provide coverage across all relevant time periods.
+
+Additionally, ZIP Code Tabulation Areas (ZCTA) national files were obtained for each decennial year and compiled alongside the CBSA/CSA output. To speed up processing, the state acronym is joined during preparation of the compiled core areas file (containing the combined CBSA/CSA and ZCTA decennial details as layers).
+
+Six types of census boundary shapefiles are used: state block-level, state block group-level, national CBSA, national CSA, national ZCTA, and national states (and equivalents). Each was obtained for the 2000, 2010, and 2020 decennial vintages, except CBSA and CSA, for which the 2007 vintage was substituted for 2000. These shapefiles were processed and compiled as GeoPackage (`*.gpkg`) files in `"Data/Results/Census Bureau TIGER Line Shapefiles/"`, with state block- and block group-level data organized as layers by decennial year. CBSA, CSA, and ZCTA data (annotated with the state acronym) were compiled into a single file, with one layer per census boundary type and decennial year combination.
+
+Unlike the CBSA and CSA shapefiles, the ZCTA shapefiles did not contain any state information. This was added via a spatial join with the state-level shapefile for the respective decennial year.
+
+\vspace{1em}
+
+:::{.callout-note}
+## Census Boundary Files: Download and Local Build Requirements
+
+All census boundary files, both the downloaded raw shapefiles and the compiled GeoPackage versions, are too large for effective Git tracking and distribution. New users will need to download the source files independently and generate the GeoPackage files locally. For download instructions and links to sources, refer to the [Directory Specific Notes](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Raw) in the project GitHub repository.  For the coded implementation, refer to **SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages** in ["Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R).
+
+\vspace{1em}
+
+Because this process is involved, a dedicated set of functions was created for the generation of these reference shapefiles: ["Support Functions/For Step 2_Compile Decennial Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Support%20Functions/For%20Step%202_Compile%20Decennial%20Data.R). The custom function `preflight_tiger_outputs()` first assesses the local environment for the status of shapefile downloads and builds, flagging any missing files or incomplete downloads to the user.
+
+\vspace{1em}
+
+In brief, standardized decennial spatial layers for all census boundaries are compiled using `standardize_geo_layer()` for block and block group-level state GEOIDs, and `standardize_core_area_layer()` for CBSAs, CSAs, and ZCTAs. These standardized files are then written using `write_state_gpkg()` for GEOIDs and `write_core_areas_gpkg()` for CBSAs, CSAs, and ZCTAs, following the execution of their respective `build_cbsa_csa()` and `build_zcta()` functions.
+
+\vspace{1em}
+
+For size considerations, the GEOID files are retained separately by state, while the CBSA, CSA, and ZCTA layers are compiled as nationally representative files.
+:::
+
+\vspace{1em}
+
+For each array run, the dataset is organized by state then ABI to mitigate the number of block group-level GeoPackages loaded simultaneously. GeoPackages for each state represented in that subset are imported using the custom function `read_state_gpkgs_for_data()` under **SUBSECTION B4: Load Relevant Block-Level GeoPackages by State**, creating one layer per state where, within each state, there is one layer per decennial period. Users must predefine the geography level — $\in c("\text{blocks}", "\text{block group}")$ — using `block_geography` to specify which level to utilize. The algorithm is configured to process either; while the block-level files contain block group information, processing only at the block group level yields faster performance.
+
+The core areas shapefile contains national-level layers for all three areas (CBSA, CSA, and ZCTA) census boundaries across the three decennial periods. Prior to spatial joining, these files are filtered by the `area_states` column, which is extracted from `area_name` during the shapefile building process.
+
+Spatial joining was conducted using the `sf` package via the custom functions `add_decennial_geoid_block()`, `decode_zcta()`, and `decode_cbsa_csa()`\ [@edzer_sf]. Geocoordinates were converted to the standard World Geodetic System 1984 (WGS84) and projected into the coordinate reference system (CRS) of the census boundary polygons. A generalized outline of the algorithm executed by each function is outlined below.
+
+\begin{algorithm}[H]
+\caption{High-Level Procedure: Spatial Join for Census/Area Identifier Assignment (CRS alignment; optional state partitioning)}
+\begin{algorithmic}[1]
+\Require Points $\texttt{cand\_sf}$ (\texttt{sf} POINT) with unique $\texttt{row\_id}$ and optional $\texttt{state}$
+\Require Polygon layer(s) containing boundary ID field(s) $\texttt{id\_col}$ (e.g., Census $\texttt{GEOID}$, block $\texttt{geoid\_block}$, ZCTA/CBSA/CSA codes)
+\Ensure Table keyed by $\texttt{row\_id}$ with attached ID(s) (often year-suffixed for decennial layers), $\texttt{NA}$ if unmatched
+
+\State \textbf{Hard-stop checks:} inputs are \texttt{sf}; $\texttt{row\_id}$ exists; $\texttt{id\_col}$ exists in polygons
+\State \textbf{CRS match:} $\texttt{pts} \gets \texttt{st\_transform}(\texttt{cand\_sf},\ \texttt{st\_crs}(\texttt{poly\_sf}))$
+\State \textbf{Keep only needed polygon fields:} $\texttt{poly\_id} \gets \texttt{poly\_sf}[\texttt{id\_col}]$
+\State \textbf{Point-in-polygon join (left join):} $\texttt{joined} \gets \texttt{st\_join}(\texttt{pts},\ \texttt{poly\_id},\ \texttt{join}=\texttt{st\_within},\ \texttt{left}=\texttt{TRUE})$
+\State \textbf{Return:} drop geometry; output $\texttt{row\_id}$ and attached boundary IDs (e.g., $\texttt{geoid\_2000}$, $\texttt{geoid\_2010}$, $\texttt{geoid\_2020}$)
+
+\Statex \textbf{Variations (mapped to functions):}
+\Statex \hspace{\algorithmicindent} \textbf{add\_decennial\_geoid\_block():} loop by \textbf{state} $\rightarrow$ loop by \textbf{year} (2000/2010/2020); join to each state-year layer; merge year-specific IDs by $\texttt{row\_id}$.
+\Statex \hspace{\algorithmicindent} \textbf{decode\_zcta():} use a \textbf{national} polygon layer; optionally pre-filter polygons by candidate states via an \texttt{area\_states} field; then do a single join to return a ZCTA code column.
+\Statex \hspace{\algorithmicindent} \textbf{decode\_cbsa\_csa():} optionally pre-filter by \texttt{area\_states}; split polygons into CBSA vs.\ CSA; perform \textbf{two} joins and return CBSA code/level plus CSA code (year-suffixed).
+\end{algorithmic}
+\end{algorithm}
+
+Addresses where no `address_line_1` was reported were reintroduced to the running candidate address dataset and, if valid geocoordinates were present, annotated with census boundaries. As noted above, this does not imply that the geocoordinates are valid for mapping closures.
+
+Addresses were also annotated to indicate whether sufficient geocoordinates were available for GEOID joining and whether any match was found. Users should note that it is possible for addresses to not match with a core statistical area (CBSA or CSA), as these boundaries largely represent urban areas rather than rural ones.
+
+\newpage
+
+### LOOP PART E-I: 
+
+Up to this point, only a subset of the available columns had been evaluated in the preceding steps: address variables, summaries of year-open date ranges, geocoordinates, and all compiled validation results and quality control outcomes. The remainder of the loop rejoins this table with the rest of the metadata, which is then processed through three subsequent quality control assessments designed to generate insights at the time of execution.
+
+These quality control tables also serve as the location where all raw values are presented alongside their relevant validation outcomes and quality control variables. Finally, all excess columns are consolidated into the final dataset form, prioritizing validated results over unvalidated versions and retaining a limited set of quality control columns to facilitate quick adjudication and back-tracking.
+
+A separate report has been created to complement this one, specifically assessing the outcomes of the three quality control assessments. Refer to "Preparation Step 2 QC_2026 Format.pdf" for these results and further descriptions about what was collected for the quality control metrics.
+
+For the implementation of these loop parts, refer to ["Code/Clean Raw Data_Step 2 HPC v2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202%20HPC%20v2_2026%20Format.R). The input data consisted of the standardized and converted dataset generated in **Step 1**: `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2026 Format/church_2026_form_standardized_06.10.2026.parquet"`. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/"`.
+
+### Compiling Results and Evaluating Import Quality
+
+Results were saved in two columnar formats: Parquet and DuckDB\ [@arrow; @duckdb]. Parquet files are easy to handle during importation and exportation, but can only contain one dataframe at a time, much like a `*.csv` file. In contrast, DuckDB supports saving lists of dataframes, much like an `*.xlsx` file. To support the writing and reading of DuckDB files, custom functions were created for this purpose. Directories containing result Parquets, representing subset results from batch arrays, are compiled using `compile_parquet_folder()`. Directories containing result DuckDB lists are compiled using `compile_duckdb_folder()`.
+
+Both functions also include generalized import quality checks, which use the file name to verify that all expected ABIs are present in a defined subset. This check requires precise alignment between the dataset organization in the HPC script and the range defined in the file name, and allows for a quick confirmation that no information was lost across batch array runs. Additionally, `compile_parquet_folder()` generates summaries of the discrete quality check outcomes (address validation and matching, census annotation, and geocoordinates) saved in the main dataset alongside all results and metadata.
+
+Two batches were run to complete the process described here. Any subsetting of the ABI search space, which defines which ABIs are processed during a given batch, is described in each respective section in **PART C: Recompile Results from the HPC**. Some quality checks were also revised for conciseness and to account for variations not considered or covered by the HPC script. This was done in preparation for compiling the results across batches into the final result in **SUBSECTION C3: Combining the Batches**.
+
+Primary datasets, comprising the main data with all metadata and quality control data, were compiled across batches, while import quality controls were maintained as separate lists for each batch. Batch-specific results are denoted by the first two digits of the batch number it is from. The main dataset was too large to compile in-memory, necessitating a DuckDB SQL compilation approach (code below). Results were then consolidated using the custom function `write_qc_groups()`, combining the compiled main data with their respective batch import quality control datasets.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{## SUBSECTION C3: Combining the Batches}
+\com{# ~ line 1089-1141}
+
+\com{# Open a writable DuckDB connection to the target database file.}
+con \op{<-} \func{dbConnect}(duckdb\op{::}\func{duckdb}(), \atr{dbdir =} out\_db, \atr{read\_only =} \kw{FALSE})
+
+\com{# Build/refresh "data" by unioning parquet batches (align by name) and sorting }
+\com{# by ABI then archive\_version\_year (asc; NULLs last).}
+\func{dbExecute}(con, \func{sprintf}(\str{"
+  CREATE OR REPLACE TABLE data AS
+  SELECT *
+  FROM (
+    SELECT * FROM read\_parquet('%s/**/*.parquet')
+    UNION ALL BY NAME
+    SELECT * FROM read\_parquet('%s/**/*.parquet')
+  )
+  ORDER BY
+    abi ASC,
+    archive\_version\_year ASC NULLS LAST;
+"}, p18, p20))
+
+\com{# Write QC outputs as separate tables named qc\_df\_18\_\_* and qc\_df\_20\_\_* }
+\com{# (skips NULLs without templates).}
+\func{write\_qc\_groups}(
+  con,
+  \func{list}(
+    \atr{qc\_df\_18 =} qc\_df\_18\op{$}qc,
+    \atr{qc\_df\_20 =} qc\_df\_20\op{$}qc
+  ),
+  \atr{prefixes =} \func{c}(\atr{qc\_df\_18 =} \str{"import\_qc\_18"}, \atr{qc\_df\_20 =} \str{"import\_qc\_20"}),
+  \atr{on\_missing =} \str{"skip"},
+  \atr{verbose    =} \kw{TRUE}
+)
+
+\com{# Closes the connection and persists changes to disk.}
+dbDisconnect(con, \atr{shutdown =} \kw{TRUE})
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-2ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+The three at-point-of-analysis quality control datasets were smaller and easier to compile in memory. All outputs were saved using `write_list_to_duckdb(),` which also consolidated all datasets alongside their respective batch import quality control datasets.
+
+For the implementation of data variable assessments relevant to the cleaning algorithm, post-evaluation importation, compiling, and checking, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). The input data consisted of the standardized and converted dataset generated in **Step 1**: `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2026 Format/church_2026_form_standardized_06.10.2026.parquet"`. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/"`.
+
+Additional details regarding some of the algorithm's performance outcomes can be found in [Results - Step 1: Clean and Validate Addresses and Geolocation, and Annotate Records with Census Boundaries](#results-2). Most results were compiled in a separate report assessing all quality control outcomes at the time of analysis. Refer to "Preparation Step 2 QC_2026 Format.pdf" for these results.
+
+## Step 3: 
+
+\newpage
+
+# Results {#results}
+
+## Step 1: Nomenclature Standardization and Parquet Conversion {#results-1}
+
+Processing the NAICS code columns was straightforward, involving the creation of new columns from the trailing two-digit proprietary codes and the renaming of the six-digit NAICS column names.
+
+Testing the SIC code assumptions revealed points where standardization was needed. Overall, 18 description pairs with minor typographical variations were reconciled to a single version, 2 code redundancies were reduced, and 4 sources of `NA` descriptions were reconciled to existing descriptions for the same code.
+
+Refer to Appendix - [Primary SIC Codes and Descriptions](#code-results-source-2) and [All SIC Codes and Descriptions](#code-results-source-1) for information on where to find the code that generates these results, as well as the results codebook.
+
+## Step 2: Clean and Validate Addresses and Geolocation, and Annotate Records with Census Boundaries {#results-2}
+
+Most results were compiled in a separate report assessing all quality control outcomes at the time of analysis. Refer to "Preparation Step 2 QC_2026 Format.pdf" for these results. 
+
+Refer to Appendix - [State-Level Shapefile for Basemap](#code-results-source-3), [Missing Address Lines and PO Boxes By City](#code-results-source-4), [GEOID Prebuild Shapefiles](#code-results-source-5), [Core Area CBSA/CSA Prebuild Shapefiles](#code-results-source-6), [Core Area ZCTA Prebuild Shapefiles](#code-results-source-7) for information on where to find the code that generates these results, as well as the results codebook.
+
+## Step 3:  {#results-3}
+
+\newpage
+
+# Appendix
+
+## All SIC Codes and Descriptions {#code-results-source-1}
+
+For the implementation, refer to **PART B: Correct the SIC Nomenclature** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). The data processed was the raw export `church_long_form_050926.csv`. Results were written to `"./Data/Results/KEEP LOCAL/From Process Data Update/Non-Primary SIC Codes_06.10.2026.csv"`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for Unique SIC Codes, Descriptions, and Column-Presence Flags (Post-Cleaning)}
+\label{tab:codebook-1}
+\begin{tabular}{l p{0.45\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{sic\_code} & The six-digit SIC code. \\
+\addlinespace[10pt]
+\texttt{sic\_desc} & The description associated with the SIC code (following nomenclature cleaning). \\
+\addlinespace[10pt]
+\texttt{primary\_sic\_code...sic6\_descriptions} & Boolean. TRUE if the code--description pair appears in the primary SIC code column; FALSE otherwise. \\
+\addlinespace[10pt]
+\texttt{sic\_code...sic6\_descriptions\_sic} & Boolean. TRUE if the code--description pair appears in the first overflow SIC column; FALSE otherwise. \\
+\addlinespace[10pt]
+\texttt{sic\_code\_1...sic6\_descriptions\_sic1} & Boolean. TRUE if the code--description pair appears in the second overflow SIC column; FALSE otherwise. \\
+\addlinespace[10pt]
+\texttt{sic\_code\_2...sic6\_descriptions\_sic2} & Boolean. TRUE if the code--description pair appears in the third overflow SIC column; FALSE otherwise. \\
+\addlinespace[10pt]
+\texttt{sic\_code\_3...sic6\_descriptions\_sic3} & Boolean. TRUE if the code--description pair appears in the fourth overflow SIC column; FALSE otherwise. \\
+\end{tabular}
+\endgroup
+
+## Primary SIC Codes and Descriptions {#code-results-source-2}
+
+For the implementation, refer to **PART B: Correct the SIC Nomenclature** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). The data processed was the raw export `church_long_form_050926.csv`. Results were written to `"./Data/Results/KEEP LOCAL/From Process Data Update/Primary SIC Codes_06.10.2026.csv"`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for Unique Primary SIC Codes and Descriptions (Post-Cleaning)}
+\label{tab:codebook-2}
+\begin{tabular}{l p{0.78\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{primary\_sic\_code} & The six-digit primary SIC code. \\
+\addlinespace[10pt]
+\texttt{sic6\_descriptions} & The description associated with the SIC code (after nomenclature cleaning). \\
+\end{tabular}
+\endgroup
+
+## State-Level Shapefile for Basemap {#code-results-source-3}
+
+For the implementation, refer to **SUBSECTION A2: Distribution of Characteristics Requiring Removal** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). State-level census boundary files were incorporated using the `tigris` package\ [@walker_tigris_package]. Results were written to `"./Data/Results/From Clean Raw Data/Step 2_2026 Format/us_states_sf.shp"`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for \texttt{us\_states\_sf} 2023 Cartographic Boundaries Basemap}
+\label{tab:codebook-3}
+\begin{tabular}{l p{0.74\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{STATEFP} & Two-digit state FIPS code (character). \\
+\addlinespace[6pt]
+\texttt{STATENS} & GNIS feature identifier for the state (character). \\
+\addlinespace[6pt]
+\texttt{GEOIDFQ} & Fully qualified geographic identifier (character). \\
+\addlinespace[6pt]
+\texttt{GEOID} & State geographic identifier (typically the state FIPS code as character). \\
+\addlinespace[6pt]
+\texttt{STUSPS} & USPS state abbreviation (e.g., ``CA'') (character). \\
+\addlinespace[6pt]
+\texttt{NAME} & State name (character). \\
+\addlinespace[6pt]
+\texttt{LSAD} & Legal/statistical area description code (character). \\
+\addlinespace[6pt]
+\texttt{ALAND} & Land area in square meters (numeric/integer). \\
+\addlinespace[6pt]
+\texttt{AWATER} & Water area in square meters (numeric/integer). \\
+\addlinespace[6pt]
+\texttt{geometry} & State boundary geometry as MULTIPOLYGON. \\
+\end{tabular}
+\endgroup
+
+
+## Missing Address Lines and PO Boxes By City {#code-results-source-4}
+
+For the implementation, refer to **SUBSECTION A2: Distribution of Characteristics Requiring Removal** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). The **Step 1** standardized data were summarized by city (as recorded on the form or, when needed, validated via ZIP code using the SimpleMaps Basic [United States Cities Database](https://simplemaps.com/data/us-cities) (version 1.90) lookup table created with the custom function `build_zip_city_lookup()`\ [@simplemaps]). These results were then joined to city geocoordinates from the `tigris` package\ [@walker_tigris_package]. Results showing missing `address_line_1` and the presence of PO Boxes were written separately to `"./Data/Results/From Clean Raw Data/Step 2_2026 Format/ABI with NA Addresses by City_08.07.2026.csv"` and \linebreak `"~/ABI with PO Boxes by City_08.07.2026.csv"`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for Evaluation Summary Output Fields (Missing \texttt{address\_line\_1} and PO Box Datasets)}
+\label{tab:codebook-4}
+\begin{tabular}{l p{0.5\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{state/city/zip\_code} & Address elements associated with each entry. \\
+\addlinespace[6pt]
+\texttt{n\_abi} & Number of unique ABIs represented in that city or zip code. \\
+\addlinespace[6pt]
+\texttt{[n|pct]\_abi\_any\_na\_address\_line\_1}
+& Count and percent of ABIs with at least one missing \texttt{address\_line\_1}. \\
+\addlinespace[6pt]
+\texttt{[n|pct]\_abi\_poBox} & Count and percent of ABIs with at least one PO Box entry. \\
+\addlinespace[6pt]
+\texttt{lon/lat} & TIGER/Line Shapefile geocoordinates associated with the city. \\
+\end{tabular}
+\endgroup
+
+\newpage
+
+## GEOID Prebuild Shapefiles {#code-results-source-5}
+
+For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line GeoPackages** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). As described in the methods for [LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information](#method-step-2-loop-part-d), pulling in shapefiles using the `tigris` package was computationally prohibitive. Instead, relevant state-level shapefiles at the block and block-group level were manually downloaded from the Census Bureau TIGER/Line Shapefiles database (see [Directory Specific Notes](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Raw) in the project GitHub repository for direct links to sources)\ [@census_tigerline]. These were then compiled into standardized shapefiles with layers for each decennial period (2000, 2010, and 2020) and written to the `"./Data/Results/Census Bureau TIGER Line Shapefiles"` directory.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for State Block and Block-Group Shapefile Layers (2000/2010/2020)}
+\label{tab:codebook-5}
+\begin{tabular}{l p{0.76\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{decennial\_year} & The decennial census year associated with the boundary definition (2000, 2010, or 2020). \\
+\addlinespace[6pt]
+\texttt{geoid} & Full concatenated census geographic identifier, combining the state, county, tract, and block-group FIPS codes into a unique identifier for each boundary unit. \\
+\addlinespace[6pt]
+\texttt{statefp} & Two-digit state Federal Information Processing Series (FIPS) code identifying the state. \\
+\addlinespace[6pt]
+\texttt{countyfp} & Three-digit county FIPS code identifying the county within the state. \\
+\addlinespace[6pt]
+\texttt{tractce} & Six-digit census tract code identifying the census tract within the county. \\
+\addlinespace[6pt]
+\texttt{blkgrpce} & Single-digit block-group code identifying the block group within the census tract. \\
+\addlinespace[6pt]
+\texttt{geom} & Spatial geometry column containing the boundary polygons for each census unit, in the form of an \texttt{sf} geometry object. \\
+\end{tabular}
+\endgroup
+
+\newpage
+
+## Core Area CBSA/CSA Prebuild Shapefiles {#code-results-source-6}
+
+For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line GeoPackages** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). As described in the methods for [LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information](#method-step-2-loop-part-d), pulling in shapefiles using the `tigris` package was computationally prohibitive. Instead, relevant state-level shapefiles for the Metropolitan and Micropolitan Statistical Areas (CBSA) and Combined Statistical Areas (CSA) were manually downloaded from the Census Bureau TIGER/Line Shapefiles database (see [Directory Specific Notes](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Raw) in the project GitHub repository for direct links to sources)\ [@census_tigerline]. These were then compiled into standardized shapefiles with layers for each decennial period (2000, 2010, and 2020) and written to the `"./Data/Results/Census Bureau TIGER Line Shapefiles"` directory.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for Core Area Shapefiles (CBSA/CSA; 2007/2010/2020 Layers)}
+\label{tab:codebook-6}
+\begin{tabular}{l p{0.78\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{vintage\_year} & The decennial census year associated with the boundary definition (2007, 2010, or 2020). \\
+\addlinespace[6pt]
+\texttt{area\_type} & Classification of the area as either a Core-Based Statistical Area (CBSA) or a Combined Statistical Area (CSA). \\
+\addlinespace[6pt]
+\texttt{area\_code} & Official Census Bureau numeric code uniquely identifying the CBSA or CSA. \\
+\addlinespace[6pt]
+\texttt{area\_level} & Hierarchical classification of the CBSA, indicating whether the area is Metropolitan or Micropolitan; CSA entries are \texttt{NA}. \\
+\addlinespace[6pt]
+\texttt{area\_name} & Full official name of the statistical area as designated by the Census Bureau (e.g., \detokenize{Atlanta-Sandy Springs-Alpharetta, GA}). \\
+\addlinespace[6pt]
+\texttt{area\_states} & Concatenated string of state abbreviations for all states encompassed by the statistical area boundary. \\
+\addlinespace[6pt]
+\texttt{geom} & Spatial geometry column containing the boundary polygons for each census unit, in the form of an \texttt{sf} geometry object. \\
+\end{tabular}
+\endgroup
+
+\newpage
+
+## Core Area ZCTA Prebuild Shapefiles {#code-results-source-7}
+
+For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line GeoPackages** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). As described in the methods for [LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information](#method-step-2-loop-part-d), pulling in shapefiles using the `tigris` package was computationally prohibitive. Instead, relevant state-level shapefiles for the ZIP Code Tabulation Areas (ZCTA) were manually downloaded from the Census Bureau TIGER/Line Shapefiles database (see [Directory Specific Notes](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Raw) in the project GitHub repository for direct links to sources)\ [@census_tigerline]. These were then compiled into standardized shapefiles with layers for each decennial period (2000, 2010, and 2020) and written to the `"./Data/Results/Census Bureau TIGER Line Shapefiles"` directory.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for ZCTA Shapefiles (2000/2010/2020 Layers)}
+\label{tab:codebook-7}
+\begin{tabular}{l p{0.78\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{vintage\_year} & The decennial census year associated with the boundary definition (2000, 2010, or 2020). \\
+\addlinespace[6pt]
+\texttt{area\_type} & Classification of the area as ZCTA. \\
+\addlinespace[6pt]
+\texttt{area\_code} & Official Census Bureau numeric code uniquely identifying the ZCTA. \\
+\addlinespace[6pt]
+\texttt{area\_states} & Concatenated string of state abbreviations derived from a spatial join with the state-level TIGER/Line Shapefile for the respective decennial year. \\
+\addlinespace[6pt]
+\texttt{geom} & Spatial geometry column containing the boundary polygons for each census unit, in the form of an \texttt{sf} geometry object. \\
+\end{tabular}
+\endgroup
+
+
+# References
