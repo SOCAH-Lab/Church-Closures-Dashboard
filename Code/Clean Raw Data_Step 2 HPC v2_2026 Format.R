@@ -1017,7 +1017,7 @@ for (i in 1:length(search_space)) {
   # --------------------
   # LOOP PART B: Consolidate and Verify the Addresses
   
-  # Address heterogeneity was detected in the 2023 format: duplicate entries
+  # Address heterogeneity was detected in the 2023 Format: duplicate entries
   # arise from minor typographical variation, and some records sharing the same
   # address_line_1 are associated with different cities, producing inconsistent
   # coordinates.
@@ -1066,7 +1066,7 @@ for (i in 1:length(search_space)) {
         #     (e.g., HTTP 400 "Address Not Found") for audit purposes.
         mutate(attempt_succeeded = NA_character_) %>%
         #   - Initialize standardized USPS status fields (from usps_status_group())
-        mutate(usps_status = NA_integer_,usps_status_detail = NA_character_) %>%
+        mutate(usps_status = NA_integer_, usps_status_detail = NA_character_) %>%
         #   - Initialize ver_geolocation_test as NA for downstream geocoding checks.
         mutate(ver_geolocation_test = NA_character_)
       
@@ -1652,9 +1652,9 @@ for (i in 1:length(search_space)) {
       
       # --------------------
       # LOOP PART B.iii.: Agnostically Resolve Record Heterogeneity
-      #
+      
       # For addresses that could not be verified, route them through triage to
-      # associate each record with a verified/anchored address:
+      # associate each record with an anchored address agnostic of validity:
       #
       #   a) Exact duplicate address_line_1 (metadata conflict):
       #      - Work within each exact address_line_1 group, and only match within 
@@ -1667,13 +1667,11 @@ for (i in 1:length(search_space)) {
       #          2) presence of geolocation,
       #          3) smallest lon/lat distance,
       #          4) stable tie-break (e.g., alphabetical).
-      #      - Geolocation guardrail: if both sides have coords and either
-      #        $$|\Delta lon| > 0.02$$ or $$|\Delta lat| > 0.02$$, reject the pair;
-      #        if coords are missing on either side, keep the pair eligible.
+      #      - Geolocation guardrail: test is skipped and denoted as "override"
       #      - Records whose pred_city has no anchor counterpart are left unmatched
       #        for the fuzzy pass.
-      #      - Provenance fields: address_matched = "Exact match"; match_geolocation_test
-      #        indicates whether the geo check was evaluated/passed.
+      #      - Provenance fields: address_matched = "Exact match"; 
+      #        match_geolocation_test - "Override".
       #
       #   b) Fuzzy match on address_line_1 (similar strings):
       #      - Form similarity clusters and select one anchor per pred_city within
@@ -1684,7 +1682,9 @@ for (i in 1:length(search_space)) {
       #        "Exact*"), then earliest anchor_year_min, then stable tie-break; if no
       #        prior match exists, fall back to a “best” anchor based on geo-guardrail
       #        pass rate, mean year gap, geo coverage, then stable key.
-      #      - Apply the same geolocation guardrail as in (a).
+      #      - Geolocation guardrail: if both sides have coords and either
+      #        $$|\Delta lon| > 0.02$$ or $$|\Delta lat| > 0.02$$, reject the pair;
+      #        if coords are missing on either side, keep the pair eligible.
       #      - Only apply the fuzzy match when geo_valid == TRUE; if geo_valid == FALSE,
       #        leave the record as unverified/unmatched.
       #      - Provenance fields: address_matched = "Fuzzy match"; match_geolocation_test
@@ -1693,8 +1693,7 @@ for (i in 1:length(search_space)) {
       #   Both passes:
       #   - First-write wins: only fill blank/NA fields; never overwrite earlier, higher-
       #     confidence results.
-      #   - At most one match per record; ties resolved by closest lon/lat, then a
-      #     stable tie-break.
+      #   - At most one match per record
       
       # ---- reset per-ABI verification state ----
       check_city <- data.table()
@@ -1769,7 +1768,7 @@ for (i in 1:length(search_space)) {
         #
         # Grouping:
         #   exact_matches = address_line_1 values with frequency > 1 in check_city.
-        #
+        # 
         # Within each exact address_line_1 group:
         #   dtT (trusted)   = city_match %in% TRUE   (eligible anchors)
         #   dtF (untrusted) = everything else        (rows to resolve)
@@ -3162,23 +3161,23 @@ for (i in 1:length(search_space)) {
   )
   
   qc_address$qc1[[i]] <- data.frame(
-    "ABI"                      = unique(combined$abi) %>% first(),
-    "Allow USPS API?"          = verify_addresses,
-    "API Used?"                = 
+    abi                      = unique(combined$abi) %>% first(),
+    allow_usps_api           = verify_addresses,
+    api_used                 = 
       if (verify_addresses) {
         if ("do_api" %in% names(combined)) paste(unique(combined$do_api), collapse = ", ")
       } else {
         NA
       },
-    "Verification Attempted"   = !is.null(combined$verified_address),
-    "Match Attempted"          = !is.null(combined$geo_matched_address),
-    "Duplicates Induced?"      = induced_duplicates %>% first(), 
-    "Any Addresses Line 1 NA"  = na_addresses,
+    verification_attempted   = !is.null(combined$verified_address),
+    match_attempted          = !is.null(combined$matched_address),
+    duplicates_induced       = induced_duplicates %>% first(), 
+    any_addresses_line1_na   = na_addresses,
     
     # New vs Old (address+year) comparison
-    "New not in Old (addr+yr)" = cmp$n_new_not_old,
-    "Old not in New (addr+yr)" = cmp$n_old_not_new,
-    "New vs Old differ?"       = (cmp$n_new_not_old + cmp$n_old_not_new) > 0,
+    new_not_in_old_addr_yr   = cmp$n_new_not_old,
+    old_not_in_new_addr_yr   = cmp$n_old_not_new,
+    new_vs_old_differ        = (cmp$n_new_not_old + cmp$n_old_not_new) > 0,
     
     check.names = FALSE
   )
@@ -3519,12 +3518,12 @@ for (i in 1:length(search_space)) {
       lon_max    = ifelse(any(!is.na(longitude)), round(max(longitude, na.rm = TRUE), 4), NA_real_),
       
       # Spread flags: only meaningful if there are at least 2 non-NA values
-      lat_spread_gt_002 = ifelse(
+      lat_spread_gt_02 = ifelse(
         sum(!is.na(latitude)) >= 2,
         (max(latitude, na.rm = TRUE) - min(latitude, na.rm = TRUE)) > 0.02,
         NA
       ),
-      lon_spread_gt_002 = ifelse(
+      lon_spread_gt_02 = ifelse(
         sum(!is.na(longitude)) >= 2,
         (max(longitude, na.rm = TRUE) - min(longitude, na.rm = TRUE)) > 0.02,
         NA
