@@ -90,6 +90,11 @@
 ## 3. Ensure that the ".Renviron" file is listed in your ".gitignore" file and
 ##    is not being tracked by Git.
 ## 
+## NOTE: If environment variables fail to load, explicitly set the path using:
+##
+##    rprojroot::find_rstudio_root_file()
+##    readRenviron(rprojroot::find_rstudio_root_file(".Renviron"))
+## 
 ## Sections:
 ##    - SET UP THE ENVIRONMENT
 ##    - LOAD IN THE DATA
