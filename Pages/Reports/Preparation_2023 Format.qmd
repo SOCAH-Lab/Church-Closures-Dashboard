@@ -181,7 +181,7 @@ The following pipeline was designed to address two primary goals:
 
 2. Associate each address with census boundaries defined during the 2000, 2010, and 2020 decennial years, including block group, tract, county, state, and ZIP Code Tabulation Areas (ZCTAs).
 
-Documentation on the expected accuracy of geocoordinates provided in the raw data was not made available by the data distributor. It was therefore considered important to compare the raw geolocations against a trusted database in order to associate verified geolocations and assess the scope of error in the raw form. While not the most accurate approach, address-based database matching is a generally accepted method for confirming approximate geocoordinates\ [@validate_lon_lat_methods].
+Documentation on the expected accuracy of geocoordinates provided in the raw data was not made available by the data distributor. It was therefore considered important to compare the raw geolocations against a trusted database in order to associate verified geolocations and assess the extent of error in the raw form. While not the most accurate approach, address-based database matching is a generally accepted method for confirming approximate geocoordinates\ [@validate_lon_lat_methods].
 
 Each address's geolocation coordiantes can be used to annotate each entry with the respective decennial years census boundary via point-in-polygon geocoding. The U.S. Census Bureau TIGER/Line shapefiles containing the required census boundary information provide corresponding files for decennial years requested: 2000, 2010, and 2020. However, this technique can be computationally costly; resulting in maxing in memory limits or causing preclusively slow loading if not handled strategically.
 
@@ -201,7 +201,7 @@ b) Geocoordinates listed for PO Boxes sometimes corresponded exactly with an ass
 
 For these reasons, verifying the geolocation of a PO Box is treated as zero-sum, whereas the inability to verify geocoordinates for a physical address is not considered critical. Under the following three conditions, all entries associated with a business are removed:
 
-- Geocoordinates are absent and could not be recovered through address-based validation, preventing geocoding.
+- Geocoordinates are absent and could not be recovered through address-based validation, preventing spatial joining.
 
 - `address_line_1` is missing, preventing verification that the geocoordinates correspond to the institution itself rather than a general location within that ZIP code.
 
@@ -213,7 +213,7 @@ If no qualifying match is found, or the PO Box is too far from any nearby addres
 
 ## A Step-Wise Framework
 
-To acheive these goals, sequential steps were outlined, each building on the results of the preceding steps.
+To achieve these goals, sequential steps were outlined, each building on the results of the preceding step.
 
 ### Step 1: Address Deduplication via String Similarity Matching
 
