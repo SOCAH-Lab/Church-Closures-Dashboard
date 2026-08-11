@@ -56,13 +56,13 @@ plan(multisession, workers = 4)
 \tableofcontents
 \newpage
 
-# Preparation of the 2023 Format Raw Data
+# Preparation of the 2026 Format Raw Data
 
 **Prepared By:** [Shelby Golden, M.S.](https://www.linkedin.com/in/shelby-golden) from the Yale School of Public Health [Data Science and Data Equity](https://ysph.yale.edu/research/research-centers-and-initiatives/public-health-data-science-and-data-equity/) team
 
 **Date Created:** August 7<sup>th</sup>, 2026
 
-**Date Updated:** August 7<sup>th</sup>, 2026
+**Date Updated:** August 11<sup>th</sup>, 2026
 
 # Overview
 
@@ -980,13 +980,13 @@ Processing the NAICS code columns was straightforward, involving the creation of
 
 Testing the SIC code assumptions revealed points where standardization was needed. Overall, 18 description pairs with minor typographical variations were reconciled to a single version, 2 code redundancies were reduced, and 4 sources of `NA` descriptions were reconciled to existing descriptions for the same code.
 
-Refer to Appendix - [Primary SIC Codes and Descriptions](#code-results-source-2) and [All SIC Codes and Descriptions](#code-results-source-1) for information on where to find the code that generates these results, as well as the results codebook.
+Refer to Appendix - [Primary SIC Codes and Descriptions](#code-results-source-2) [All SIC Codes and Descriptions](#code-results-source-1), and [Step 1 Final Result](#code-results-source-3) for information on where to find the code that generates these results, as well as the results codebook.
 
 ## Step 2: Clean and Validate Addresses and Geolocation, and Annotate Records with Census Boundaries {#results-2}
 
 Most results were compiled in a separate report assessing all quality control outcomes at the time of analysis. Refer to "Preparation Step 2 QC_2026 Format.pdf" for these results. 
 
-Refer to Appendix - [State-Level Shapefile for Basemap](#code-results-source-3), [Missing Address Lines and PO Boxes By City](#code-results-source-4), [GEOID Prebuild Shapefiles](#code-results-source-5), [Core Area CBSA/CSA Prebuild Shapefiles](#code-results-source-6), [Core Area ZCTA Prebuild Shapefiles](#code-results-source-7) for information on where to find the code that generates these results, as well as the results codebook.
+Refer to Appendix - [State-Level Shapefile for Basemap](#code-results-source-4), [Missing Address Lines and PO Boxes By City](#code-results-source-5), [GEOID Prebuild Shapefiles](#code-results-source-6), [Core Area CBSA/CSA Prebuild Shapefiles](#code-results-source-7), [Core Area ZCTA Prebuild Shapefiles](#code-results-source-8) for information on where to find the code that generates these results, as well as the results codebook.
 
 ## Step 3:  {#results-3}
 
@@ -996,14 +996,14 @@ Refer to Appendix - [State-Level Shapefile for Basemap](#code-results-source-3),
 
 ## All SIC Codes and Descriptions {#code-results-source-1}
 
-For the implementation, refer to **PART B: Correct the SIC Nomenclature** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). The data processed was the raw export `church_long_form_050926.csv`. Results were written to `"./Data/Results/KEEP LOCAL/From Process Data Update/Non-Primary SIC Codes_06.10.2026.csv"`.
+For the implementation, refer to **PART B: Correct the SIC Nomenclature** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). The data processed was the raw export \linebreak `church_long_form_050926.csv`. Results were written to `"./Data/Results/KEEP LOCAL/From Process Data Update/Non-Primary SIC Codes_06.10.2026.csv"`.
 
 \vspace{2ex}
 
 \begingroup
 \captionof{table}{Codebook for Unique SIC Codes, Descriptions, and Column-Presence Flags (Post-Cleaning)}
 \label{tab:codebook-1}
-\begin{tabular}{l p{0.45\linewidth}}
+\begin{tabular}{l p{0.47\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
 \texttt{sic\_code} & The six-digit SIC code. \\
@@ -1024,14 +1024,14 @@ For the implementation, refer to **PART B: Correct the SIC Nomenclature** in ["C
 
 ## Primary SIC Codes and Descriptions {#code-results-source-2}
 
-For the implementation, refer to **PART B: Correct the SIC Nomenclature** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). The data processed was the raw export `church_long_form_050926.csv`. Results were written to `"./Data/Results/KEEP LOCAL/From Process Data Update/Primary SIC Codes_06.10.2026.csv"`.
+For the implementation, refer to **PART B: Correct the SIC Nomenclature** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). The data processed was the raw export \linebreak `church_long_form_050926.csv`. Results were written to `"./Data/Results/KEEP LOCAL/From Process Data Update/Primary SIC Codes_06.10.2026.csv"`.
 
 \vspace{2ex}
 
 \begingroup
 \captionof{table}{Codebook for Unique Primary SIC Codes and Descriptions (Post-Cleaning)}
 \label{tab:codebook-2}
-\begin{tabular}{l p{0.78\linewidth}}
+\begin{tabular}{l p{0.72\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
 \texttt{primary\_sic\_code} & The six-digit primary SIC code. \\
@@ -1040,7 +1040,34 @@ For the implementation, refer to **PART B: Correct the SIC Nomenclature** in ["C
 \end{tabular}
 \endgroup
 
-## State-Level Shapefile for Basemap {#code-results-source-3}
+## Step 1 Final Result {#code-results-source-3}
+
+For the implementation, refer to ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). The raw data from `"./Data/Raw/KEEP LOCAL/church_long_form_050926.csv"` were run through the nomenclature standardization and file type conversion outlined in **Step 1**. were run through the select nomenclature standardization and filetype conversion outlined in **Step 1**. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2026 Format/church_2026_form_standardized_06.10.2026.parquet"`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for new output fields produced by the evaluation.}
+\label{tab:codebook-3}
+\begin{tabular}{l p{0.68\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+
+\texttt{primary\_naics6\_code} &
+First six digits of the eight-digit NAICS code, representing the underlying NAICS classification (813110). \\
+\addlinespace[6pt]
+
+\texttt{naics6\_descriptions} &
+Renamed form of the \texttt{naics8\_descriptions} column. \\
+\addlinespace[6pt]
+
+\texttt{primary\_naics2\_code} &
+Last two digits of the eight-digit NAICS code. These are proprietary encodings added by Data Axle; no data dictionary was provided. \\
+
+\end{tabular}
+\endgroup
+
+## State-Level Shapefile for Basemap {#code-results-source-4}
 
 For the implementation, refer to **SUBSECTION A2: Distribution of Characteristics Requiring Removal** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). State-level census boundary files were incorporated using the `tigris` package\ [@walker_tigris_package]. Results were written to `"./Data/Results/From Clean Raw Data/Step 2_2026 Format/us_states_sf.shp"`.
 
@@ -1048,7 +1075,7 @@ For the implementation, refer to **SUBSECTION A2: Distribution of Characteristic
 
 \begingroup
 \captionof{table}{Codebook for \texttt{us\_states\_sf} 2023 Cartographic Boundaries Basemap}
-\label{tab:codebook-3}
+\label{tab:codebook-4}
 \begin{tabular}{l p{0.74\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1074,16 +1101,15 @@ For the implementation, refer to **SUBSECTION A2: Distribution of Characteristic
 \end{tabular}
 \endgroup
 
+## Missing Address Lines and PO Boxes By City {#code-results-source-5}
 
-## Missing Address Lines and PO Boxes By City {#code-results-source-4}
-
-For the implementation, refer to **SUBSECTION A2: Distribution of Characteristics Requiring Removal** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). The **Step 1** standardized data were summarized by city (as recorded on the form or, when needed, validated via ZIP code using the SimpleMaps Basic [United States Cities Database](https://simplemaps.com/data/us-cities) (version 1.90) lookup table created with the custom function `build_zip_city_lookup()`\ [@simplemaps]). These results were then joined to city geocoordinates from the `tigris` package\ [@walker_tigris_package]. Results showing missing `address_line_1` and the presence of PO Boxes were written separately to `"./Data/Results/From Clean Raw Data/Step 2_2026 Format/ABI with NA Addresses by City_08.07.2026.csv"` and \linebreak `"~/ABI with PO Boxes by City_08.07.2026.csv"`.
+For the implementation, refer to **SUBSECTION A2: Distribution of Characteristics Requiring Removal** in ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). The **Step 1** standardized data were summarized by city (as recorded on the form or, when needed, validated via ZIP code using the SimpleMaps Basic [United States Cities Database](https://simplemaps.com/data/us-cities) (version 1.90) lookup table created with the custom function `build_zip_city_lookup()`\ [@simplemaps]). These results were then joined to city geocoordinates from the `tigris` package\ [@walker_tigris_package]. Results showing missing `address_line_1` and the presence of PO Boxes were written separately to `"./Data/Results/From Clean Raw Data/Step 2_2026 Format/ABI with NA Addresses by City_08.07.2026.csv"` and \linebreak `"~/ABI with PO Boxes by City_08.07.2026.csv"`.
 
 \vspace{2ex}
 
 \begingroup
 \captionof{table}{Codebook for Evaluation Summary Output Fields (Missing \texttt{address\_line\_1} and PO Box Datasets)}
-\label{tab:codebook-4}
+\label{tab:codebook-5}
 \begin{tabular}{l p{0.5\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1102,15 +1128,15 @@ For the implementation, refer to **SUBSECTION A2: Distribution of Characteristic
 
 \newpage
 
-## GEOID Prebuild Shapefiles {#code-results-source-5}
+## GEOID Prebuild Shapefiles {#code-results-source-6}
 
-For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line GeoPackages** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). As described in the methods for [LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information](#method-step-2-loop-part-d), pulling in shapefiles using the `tigris` package was computationally prohibitive. Instead, relevant state-level shapefiles at the block and block-group level were manually downloaded from the Census Bureau TIGER/Line Shapefiles database (see [Directory Specific Notes](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Raw) in the project GitHub repository for direct links to sources)\ [@census_tigerline]. These were then compiled into standardized shapefiles with layers for each decennial period (2000, 2010, and 2020) and written to the `"./Data/Results/Census Bureau TIGER Line Shapefiles"` directory.
+For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line GeoPackages** in ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). As described in the methods for [LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information](#method-step-2-loop-part-d), pulling in shapefiles using the `tigris` package was computationally prohibitive. Instead, relevant state-level shapefiles at the block and block-group level were manually downloaded from the Census Bureau TIGER/Line Shapefiles database (see [Directory Specific Notes](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Raw) in the project GitHub repository for direct links to sources)\ [@census_tigerline]. These were then compiled into standardized shapefiles with layers for each decennial period (2000, 2010, and 2020) and written to the `"./Data/Results/Census Bureau TIGER Line Shapefiles"` directory.
 
 \vspace{2ex}
 
 \begingroup
 \captionof{table}{Codebook for State Block and Block-Group Shapefile Layers (2000/2010/2020)}
-\label{tab:codebook-5}
+\label{tab:codebook-6}
 \begin{tabular}{l p{0.76\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1130,17 +1156,15 @@ For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line G
 \end{tabular}
 \endgroup
 
-\newpage
+## Core Area CBSA/CSA Prebuild Shapefiles {#code-results-source-7}
 
-## Core Area CBSA/CSA Prebuild Shapefiles {#code-results-source-6}
-
-For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line GeoPackages** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). As described in the methods for [LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information](#method-step-2-loop-part-d), pulling in shapefiles using the `tigris` package was computationally prohibitive. Instead, relevant state-level shapefiles for the Metropolitan and Micropolitan Statistical Areas (CBSA) and Combined Statistical Areas (CSA) were manually downloaded from the Census Bureau TIGER/Line Shapefiles database (see [Directory Specific Notes](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Raw) in the project GitHub repository for direct links to sources)\ [@census_tigerline]. These were then compiled into standardized shapefiles with layers for each decennial period (2000, 2010, and 2020) and written to the `"./Data/Results/Census Bureau TIGER Line Shapefiles"` directory.
+For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line GeoPackages** in ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). As described in the methods for [LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information](#method-step-2-loop-part-d), pulling in shapefiles using the `tigris` package was computationally prohibitive. Instead, relevant state-level shapefiles for the Metropolitan and Micropolitan Statistical Areas (CBSA) and Combined Statistical Areas (CSA) were manually downloaded from the Census Bureau TIGER/Line Shapefiles database (see [Directory Specific Notes](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Raw) in the project GitHub repository for direct links to sources)\ [@census_tigerline]. These were then compiled into standardized shapefiles with layers for each decennial period (2000, 2010, and 2020) and written to the `"./Data/Results/Census Bureau TIGER Line Shapefiles"` directory.
 
 \vspace{2ex}
 
 \begingroup
 \captionof{table}{Codebook for Core Area Shapefiles (CBSA/CSA; 2007/2010/2020 Layers)}
-\label{tab:codebook-6}
+\label{tab:codebook-7}
 \begin{tabular}{l p{0.78\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1160,17 +1184,15 @@ For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line G
 \end{tabular}
 \endgroup
 
-\newpage
+## Core Area ZCTA Prebuild Shapefiles {#code-results-source-8}
 
-## Core Area ZCTA Prebuild Shapefiles {#code-results-source-7}
-
-For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line GeoPackages** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). As described in the methods for [LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information](#method-step-2-loop-part-d), pulling in shapefiles using the `tigris` package was computationally prohibitive. Instead, relevant state-level shapefiles for the ZIP Code Tabulation Areas (ZCTA) were manually downloaded from the Census Bureau TIGER/Line Shapefiles database (see [Directory Specific Notes](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Raw) in the project GitHub repository for direct links to sources)\ [@census_tigerline]. These were then compiled into standardized shapefiles with layers for each decennial period (2000, 2010, and 2020) and written to the `"./Data/Results/Census Bureau TIGER Line Shapefiles"` directory.
+For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line GeoPackages** in ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). As described in the methods for [LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information](#method-step-2-loop-part-d), pulling in shapefiles using the `tigris` package was computationally prohibitive. Instead, relevant state-level shapefiles for the ZIP Code Tabulation Areas (ZCTA) were manually downloaded from the Census Bureau TIGER/Line Shapefiles database (see [Directory Specific Notes](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Raw) in the project GitHub repository for direct links to sources)\ [@census_tigerline]. These were then compiled into standardized shapefiles with layers for each decennial period (2000, 2010, and 2020) and written to the `"./Data/Results/Census Bureau TIGER Line Shapefiles"` directory.
 
 \vspace{2ex}
 
 \begingroup
 \captionof{table}{Codebook for ZCTA Shapefiles (2000/2010/2020 Layers)}
-\label{tab:codebook-7}
+\label{tab:codebook-8}
 \begin{tabular}{l p{0.78\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1186,5 +1208,704 @@ For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line G
 \end{tabular}
 \endgroup
 
+## Step 2 Final Result {#code-results-source-9}
+
+For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). The standardized records generated in **Step 1** were run through the sequential cleaning and validation steps outlined in **Step 2**. Results were compiled across a batch's array outputs and aggregated between batches into a single complete file in **PART C: Recompile Results from the HPC**, then written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Compiled by Batches/church_2026_form_validated_08.03.2026.db`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for new output fields produced by the evaluation.}
+\label{tab:codebook-9}
+\begin{tabular}{l p{0.59\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+
+\texttt{address} &
+Best-available address: \texttt{verified\_address} (trimmed; excluding ``No address match found''), else \texttt{matched\_address}, else \texttt{combined\_address}. \\
+\addlinespace[6pt]
+
+\texttt{address\_verified} &
+USPS-verified address result when available; \texttt{NA} if no match is found or verification did not succeed. \\
+\addlinespace[6pt]
+
+\texttt{address\_matched} &
+Result from agnostic address matching when performed (e.g., exact or fuzzy match). ``Only one address'' indicates matching was attempted but only one address was reported. \\
+\addlinespace[6pt]
+
+\texttt{reported\_address} &
+Original address as reported, prior to cleaning or verification. \\
+\addlinespace[6pt]
+
+\texttt{longitude}/\texttt{latitude} &
+Best-available coordinates: verified coordinates when available, otherwise averaged raw coordinates (stored as numeric). \\
+\addlinespace[6pt]
+
+\texttt{geolocation\_verified} &
+Indicator that geocoordinates were verified (definition depends on the verification step used). \\
+\addlinespace[6pt]
+
+\texttt{geoid\_[2000|2010|2020]} &
+Full census GEOID assigned via point-in-polygon spatial join with block-group TIGER/Line boundaries for the corresponding decennial year. \\
+\addlinespace[6pt]
+
+\texttt{geoid\_match} &
+Summary of GEOID assignment across years: ``Matched'' (all years), ``Some matches not found'' (partial), ``Matches not found'' (none), or ``Not enough info'' (insufficient coordinate data). \\
+\addlinespace[6pt]
+
+\texttt{cbsa\_code\_[2007|2010|2020]} &
+CBSA numeric code assigned via point-in-polygon spatial join for the corresponding vintage year. \\
+\addlinespace[6pt]
+
+\texttt{cbsa\_level\_[2007|2010|2020]} &
+CBSA level (Metropolitan vs.\ Micropolitan) for the corresponding vintage year. \\
+\addlinespace[6pt]
+
+\texttt{csa\_code\_[2007|2010|2020]} &
+CSA numeric code assigned via point-in-polygon spatial join for the corresponding vintage year. \\
+\addlinespace[6pt]
+
+\texttt{zcta\_[2000|2010|2020]} &
+Five-digit ZCTA assigned via point-in-polygon spatial join with ZCTA TIGER/Line boundaries for the corresponding decennial year. \\
+
+\end{tabular}
+\endgroup
+
+## Step 2 Final Result - Import Quality Checks {#code-results-source-10}
+
+For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). The standardized records generated in **Step 1** were run through the sequential cleaning and validation steps outlined in **Step 2**. Results were compiled across a batch's array outputs and aggregated between batches into a single complete file in **PART C: Recompile Results from the HPC**.
+
+Selected outcomes and characteristics of these within-batch imports were generated to enable rapid confirmation of expected coverage and completeness. These were written with the main results to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Compiled by Batches/church_2026_form_validated_08.03.2026.db`. Each batch's results are annotated with the first two digits of the batch number (`<XX>`).
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for \texttt{import\_qc\_<XX>\$abi\_check}}
+\label{tab:codebook-10a}
+\begin{tabular}{l p{0.71\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+
+\texttt{array} &
+Batch array number from which the results were generated. \\
+\addlinespace[6pt]
+
+\texttt{file} &
+Source file name for the batch results. \\
+\addlinespace[6pt]
+
+\texttt{from}/\texttt{to} &
+ABI search-space index range defined under ``SUBSECTION B1: Index Queue'' in \texttt{Clean Raw Data\_Step 2 HPC v2\_2026 Format.R}. \\
+\addlinespace[6pt]
+
+\texttt{n\_expected\_unique} &
+Number of unique ABIs expected from the Step 1 data for the given index range. \\
+\addlinespace[6pt]
+
+\texttt{n\_actual\_unique} &
+Number of unique ABIs present in the batch results for the given index range. \\
+\addlinespace[6pt]
+
+\texttt{n\_missing} &
+Number of ABIs absent from the batch results, computed as $\left|\texttt{setdiff}(\texttt{expected},\,\texttt{actual})\right|$. \\
+\addlinespace[6pt]
+
+\texttt{qc\_pass} &
+Boolean: \texttt{TRUE} if $n\_missing = 0$, otherwise \texttt{FALSE}. \\
+
+\end{tabular}
+\endgroup
+
+\newpage
+
+\begingroup
+\captionof{table}{Codebook for \texttt{import\_qc\_<XX>\$[address\_matched|\linebreak address\_verified|geoid\_match|geolocation\_verified]}}
+\label{tab:codebook-10b}
+\begin{tabular}{l p{0.58\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+
+\texttt{array} &
+Batch array number from which the results were generated. \\
+\addlinespace[6pt]
+
+\texttt{value} &
+Unique outcome observed for the QC column (e.g., \texttt{"Exact match"}). \\
+\addlinespace[6pt]
+
+\texttt{n} &
+Number of records with the given outcome. \\
+\addlinespace[6pt]
+
+\texttt{n\_addr} &
+Total number of addresses in the array. \\
+\addlinespace[6pt]
+
+\texttt{pct} &
+Percentage of addresses with the given outcome. \\
+
+\end{tabular}
+\endgroup
+
+\vspace{4ex}
+
+\begingroup
+\captionof{table}{Codebook for \texttt{import\_qc\_<XX>\$na\_census\_boundaries}}
+\label{tab:codebook-10c}
+\begin{tabular}{l p{0.58\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+
+\texttt{array} &
+Batch array number from which the results were generated. \\
+\addlinespace[6pt]
+
+\texttt{column} &
+Variable checked for \texttt{NA} values. \\
+\addlinespace[6pt]
+
+\texttt{n\_addr} &
+Total number of addresses in the array. \\
+\addlinespace[6pt]
+
+\texttt{n\_na} &
+Number of \texttt{NA} entries observed for the column. \\
+\addlinespace[6pt]
+
+\texttt{pct\_na} &
+Percentage of addresses with an \texttt{NA} for that census boundary column. \\
+
+\end{tabular}
+\endgroup
+
+## Step 2 Algorithm Quality Check Datasets - Import Quality Checks {#code-results-source-11}
+
+For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R).  The three quality control datasets — `address_qc`, `census_qc`, `geo_qc` — collected at the time of import were compiled from multiple HPC batches. A series of quality checks were run to confirm ABI coverage against the **Step 1** data. Each batch's results are annotated with the first two digits of the batch number (`<XX>`). These were written with the main results to the `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Compiled by Batches/` directory.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for \texttt{import\_qc\_<XX>}}
+\label{tab:codebook-11}
+\begin{tabular}{l p{0.72\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+
+\texttt{array} &
+Batch array number from which the results were generated. \\
+\addlinespace[6pt]
+
+\texttt{file} &
+Source file name for the batch results. \\
+\addlinespace[6pt]
+
+\texttt{key} &
+Quality-check list (e.g., \texttt{qc1}, \texttt{qc2}) within the file from which the results were generated. \\
+\addlinespace[6pt]
+
+\texttt{from}/\texttt{to} &
+ABI search-space index range defined under ``SUBSECTION B1: Index Queue'' in \texttt{Clean Raw Data\_Step 2 HPC v2\_2026 Format.R}. \\
+\addlinespace[6pt]
+
+\texttt{n\_expected\_unique} &
+Number of unique ABIs expected from the Step 1 data for the given index range. \\
+\addlinespace[6pt]
+
+\texttt{n\_actual\_unique} &
+Number of unique ABIs present in the batch results for the given index range. \\
+\addlinespace[6pt]
+
+\texttt{n\_missing} &
+Number of ABIs absent from the batch results, computed as
+$\left|\texttt{setdiff}(\texttt{expected},\,\texttt{actual})\right|.$ \\
+\addlinespace[6pt]
+
+\texttt{qc\_pass} &
+Boolean: \texttt{TRUE} if $n\_missing = 0$, otherwise \texttt{FALSE}. \\
+
+\end{tabular}
+\endgroup
+
+## Step 2 Algorithm Quality Check Datasets - Addresses {#code-results-source-12}
+
+For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R).  The three quality control (QC) datasets — `address_qc`, `census_qc`, `geo_qc` — collected at the time of import were compiled from multiple HPC batches. The address QC dataset included three checks covering the address validation and matching process:
+
+- **QC1:** A general indicator of whether API verification was allowed, which ABIs were verified, whether any addresses were matched, and two checks for duplications or other introductions and losses of results.
+
+- **QC2:** Summarizes all quality check outcomes from address validation using the USPS API over unique ABIs and addresses.
+
+- **QC3:** Summarizes all quality check outcomes from address matching over unique ABIs and addresses.
+
+These were written with the main results to the `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Compiled by Batches/address_qc_08.05.2026.db` directory.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for \texttt{qc1}}
+\label{tab:codebook-12a}
+\begin{tabular}{l p{0.66\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+
+\texttt{i} &
+Index of the \texttt{for} loop iteration (results are stored as lists). \\
+\addlinespace[6pt]
+
+\texttt{abi} &
+Business ID to which the QC results pertain. \\
+\addlinespace[6pt]
+
+\texttt{allow\_usps\_api} &
+Boolean: \texttt{TRUE} if USPS API usage was permitted during that array run via \texttt{verify\_addresses}; otherwise \texttt{FALSE}. \\
+\addlinespace[6pt]
+
+\texttt{api\_used} &
+Boolean: \texttt{TRUE} if the ABI entries are configured for USPS API usage via \texttt{do\_api}; otherwise \texttt{FALSE}. \\
+\addlinespace[6pt]
+
+\texttt{verification\_attempted} &
+Boolean: \texttt{TRUE} if \texttt{verified\_address} is present. This reiterates \texttt{do\_api} and should match it. \\
+\addlinespace[6pt]
+
+\texttt{match\_attempted} &
+Boolean: \texttt{TRUE} if agnostic matching was attempted for any addresses for that ABI, indicated by the presence of \texttt{matched\_address}. \\
+\addlinespace[6pt]
+
+\texttt{duplicates\_induced} &
+Boolean: \texttt{TRUE} if any duplicates over \texttt{combined\_address}, \texttt{anchor\_year\_min}, and \texttt{anchor\_year\_max} are detected; otherwise \texttt{FALSE}. \\
+\addlinespace[6pt]
+
+\texttt{any\_addresses\_line1\_na} &
+Boolean: \texttt{TRUE} if any \texttt{address\_line\_1} for that ABI is \texttt{NA}; otherwise \texttt{FALSE}. \\
+\addlinespace[6pt]
+
+\texttt{new\_not\_in\_old\_addr\_yr} &
+From \texttt{compare\_tabs()}: indicates whether the cleaned data contains any unique \texttt{combined\_address} and \texttt{archive\_version\_year} outcomes not present in the Step 1 standardized data. \\
+\addlinespace[6pt]
+
+\texttt{old\_not\_in\_new\_addr\_yr} &
+Inverse of \texttt{new\_not\_in\_old\_addr\_yr}: indicates whether the Step 1 standardized data contains any outcomes not present in the cleaned data. \\
+\addlinespace[6pt]
+
+\texttt{new\_vs\_old\_differ} &
+Boolean: \texttt{TRUE} if the processed data differs in any way from the Step 1 standardized form; otherwise \texttt{FALSE}. \\
+
+\end{tabular}
+\endgroup
+
+\newpage
+
+\begingroup
+\captionof{table}{Codebook for \texttt{qc2}}
+\label{tab:codebook-12b}
+\begin{tabular}{l p{0.63\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+
+\texttt{i} &
+Index of the \texttt{for} loop iteration (results are stored as lists). \\
+\addlinespace[6pt]
+
+\texttt{abi} &
+Business ID to which the QC results pertain. \\
+\addlinespace[6pt]
+
+\texttt{address} &
+Best-available address: \texttt{verified\_address} (trimmed; excluding ``No address match found''), else \texttt{matched\_address}, else \texttt{combined\_address}. \\
+\addlinespace[6pt]
+
+\texttt{archive\_versions\_present} &
+String listing all years in which the address was observed. \\
+\addlinespace[6pt]
+
+\texttt{reported\_address} &
+Original reported address, prior to any cleaning or verification. \\
+\addlinespace[6pt]
+
+\texttt{address\_verified} &
+If the address was verified against the USPS API, this field is \texttt{TRUE}. If unverified but a match is found, the value indicates the string-matching mode (\texttt{"Override"} or \texttt{"Exact"}). If no \texttt{address\_line\_1} was present for matching, this is indicated with \texttt{"No address\_line\_1"}. \\
+\addlinespace[6pt]
+
+\texttt{ver\_geolocation\_test} &
+Geolocation test for matching attempts to verified addresses: \texttt{"Override"} if \texttt{"Exact"} matched; \texttt{TRUE}/\texttt{FALSE} if \texttt{"Fuzzy"} matched; \texttt{NA} if no match was attempted. \\
+\addlinespace[6pt]
+
+\texttt{usps\_status} &
+Numeric status code summarizing the USPS API query interaction (e.g., \texttt{200}, \texttt{400}). \\
+\addlinespace[6pt]
+
+\texttt{usps\_status\_detail} &
+Status description corresponding to \texttt{usps\_status} (e.g., \texttt{"200 Successful operation"}). \\
+\addlinespace[6pt]
+
+\texttt{attempt\_succeeded} &
+Indicates whether verification succeeded on the first try, succeeded via fallback, or failed entirely. \\
+\addlinespace[6pt]
+
+\texttt{verified\_address} &
+Verified address returned by the USPS API query. \\
+
+\end{tabular}
+\endgroup
+
+\newpage
+
+\begingroup
+\captionof{table}{Codebook for \texttt{qc3}}
+\label{tab:codebook-12c}
+\begin{tabular}{l p{0.62\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+
+\texttt{i} &
+Index of the \texttt{for} loop iteration (results are stored as lists). \\
+\addlinespace[6pt]
+
+\texttt{abi} &
+Business ID to which the QC results pertain. \\
+\addlinespace[6pt]
+
+\texttt{address} &
+Best-available address: \texttt{verified\_address} (trimmed; excluding ``No address match found''), else \texttt{matched\_address}, else \texttt{combined\_address}. \\
+\addlinespace[6pt]
+
+\texttt{archive\_versions\_present} &
+String listing all years in which the address was observed. \\
+\addlinespace[6pt]
+
+\texttt{reported\_address} &
+Original reported address, prior to any cleaning or verification. \\
+\addlinespace[6pt]
+
+\texttt{address\_matched} &
+If agnostic address matching was performed, this field records the outcome when matching succeeded via \texttt{"Exact matching"} or \texttt{"Fuzzy matching"}. \texttt{"Only one address"} indicates matching was attempted but only one address was reported. \\
+\addlinespace[6pt]
+
+\texttt{match\_geolocation\_test} &
+Geolocation test for agnostic matching attempts: \texttt{"Override"} if \texttt{"Exact"} matched; \texttt{PASS}/\texttt{FAIL} if \texttt{"Fuzzy"} matched. If \texttt{PASS} includes \texttt{"no Lon"}, \texttt{"no Lat"}, or \texttt{"no Lon/Lat"}, one record was missing that coordinate pair. \texttt{NA} if no match was attempted. \\
+\addlinespace[6pt]
+
+\texttt{matched\_address} &
+Matched address result. \\
+
+\end{tabular}
+\endgroup
+
+## Step 2 Algorithm Quality Check Datasets - Census {#code-results-source-13}
+
+For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R).  The three quality control (QC) datasets — `address_qc`, `census_qc`, `geo_qc` — collected at the time of import were compiled from multiple HPC batches. **QC1** and **QC2** apply the same tests over different columns, verifying whether the reported census boundaries correspond with any of the spatial join results, and whether the matched vintages align with the dates the address was filed.
+
+These were written with the main results to the `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Compiled by Batches/census_qc_08.06.2026.db` directory.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for \texttt{qc1}}
+\label{tab:codebook-13a}
+\begin{tabular}{p{0.34\linewidth} p{0.60\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+
+\texttt{i} &
+Index of the \texttt{for} loop iteration (results are stored as lists). \\
+\addlinespace[6pt]
+
+\texttt{abi} &
+Business ID to which the QC results pertain. \\
+\addlinespace[6pt]
+
+\texttt{address} &
+Best-available address: \texttt{verified\_address} (trimmed; excluding ``No address match found''), else \texttt{matched\_address}, else \texttt{combined\_address}. \\
+\addlinespace[6pt]
+
+\texttt{archive\_versions\_present} &
+String listing all years in which the address was observed. \\
+\addlinespace[6pt]
+
+\texttt{census\_[block|tract]/}\newline\texttt{[county|fips]\_code} &
+Original reported census boundaries recorded for the address (block/tract and county/FIPS codes, as available). \\
+\addlinespace[6pt]
+
+\texttt{n\_address} &
+Number of times the \texttt{abi}--address combination was recorded. \\
+\addlinespace[6pt]
+
+\texttt{geoid\_[2000|2010|2020]} &
+Full concatenated census GEOID assigned via point-in-polygon spatial join with block-group TIGER/Line boundaries for the corresponding decennial year. \\
+\addlinespace[6pt]
+
+\texttt{[fips|county|tract|block]}\newline\texttt{\_code\_any\_match} &
+Whether any original reported value matches any decennial value annotated via spatial joining: \texttt{"Matched"} if any do; \texttt{"Uncheckable"} if no original value was available; \texttt{"None"} if no matches. \\
+\addlinespace[6pt]
+
+\texttt{[fips|county|tract|block]}\newline\texttt{\_vintages} &
+Which decennial vintages matched: \texttt{"None"} if none matched, or \texttt{"Not reported"} if no original value was reported. \\
+\addlinespace[6pt]
+
+\texttt{[fips|county|tract|block]}\newline\texttt{\_vintages\_aligned} &
+From \texttt{check\_alignment()}: \texttt{TRUE} if matched vintages align with the years the address was reported; \texttt{FALSE} otherwise; \texttt{NA} if no comparison was available. \\
+\addlinespace[6pt]
+
+\texttt{block\_type} &
+Level of the reported block boundary: \texttt{"None reported"} if missing; \texttt{"Blocks"} if four digits; \texttt{"Block groups"} if one digit; or \texttt{"Not the expected dimensions"} otherwise. \\
+
+\end{tabular}
+\endgroup
+
+\vspace{4ex}
+
+\begingroup
+\captionof{table}{Codebook for \texttt{qc2}}
+\label{tab:codebook-13b}
+\begin{tabular}{p{0.34\linewidth} p{0.6\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+
+\texttt{i} &
+Index of the \texttt{for} loop iteration (results are stored as lists). \\
+\addlinespace[6pt]
+
+\texttt{abi} &
+Business ID to which the QC results pertain. \\
+\addlinespace[6pt]
+
+\texttt{address} &
+Best-available address: \texttt{verified\_address} (trimmed; excluding ``No address match found''), else \texttt{matched\_address}, else \texttt{combined\_address}. \\
+\addlinespace[6pt]
+
+\texttt{archive\_versions\_present} &
+String listing all years in which the address was observed. \\
+\addlinespace[6pt]
+
+\texttt{n\_address} &
+Number of times the \texttt{abi}--address combination was recorded. \\
+\addlinespace[6pt]
+
+\texttt{cbsa\_[level|code]/csa\_code} &
+Original reported CBSA/CSA boundaries for the address (CBSA level and/or CBSA code, and CSA code, as available). \\
+\addlinespace[6pt]
+
+\texttt{cbsa\_code\_[2007|2010|2020]} &
+Official Census Bureau CBSA numeric code assigned via point-in-polygon spatial join for the corresponding vintage year. \\
+\addlinespace[6pt]
+
+\texttt{cbsa\_level\_[2007|2010|2020]} &
+CBSA classification (Metropolitan vs.\ Micropolitan) for the corresponding vintage year. \\
+\addlinespace[6pt]
+
+\texttt{csa\_code\_[2007|2010|2020]} &
+Official Census Bureau CSA numeric code assigned via point-in-polygon spatial join for the corresponding vintage year. \\
+\addlinespace[6pt]
+
+\texttt{cbsa\_[level|code]}\newline\texttt{\_code\_any\_match}\newline\texttt{/csa\_code\_code\_any\_match} &
+Whether any original reported value matches any vintage value annotated via spatial joining: \texttt{"Matched"} if any do; \texttt{"Uncheckable"} if no original value was available; \texttt{"None"} if no matches. \\
+\addlinespace[6pt]
+
+\texttt{cbsa\_[level|code]\_vintages/}\newline\texttt{csa\_code\_vintages} &
+Which vintages matched: \texttt{"None"} if none matched, or \texttt{"Not reported"} if no original value was reported. \\
+\addlinespace[6pt]
+
+\texttt{cbsa\_[level|code]\_vintages}\newline\texttt{\_aligned/}\newline\texttt{csa\_code\_vintages\_aligned} &
+From \texttt{check\_alignment()}: \texttt{TRUE} if matched vintages align with the years the address was reported; \texttt{FALSE} otherwise; \texttt{NA} if no comparison was available. \\
+
+\end{tabular}
+\endgroup
+
+## Step 2 Algorithm Quality Check Datasets - Geocoordinates {#code-results-source-14}
+
+For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R).  The three quality control (QC) datasets — `address_qc`, `census_qc`, `geo_qc` — collected at the time of import were compiled from multiple HPC batches. Three quality checks were conducted over the geocoordinate verification process:
+
+- **QC1:** Summarizes all quality check outcomes from address-based geocoding validation using the US Census Bureau over unique ABIs and addresses.
+
+- **QC2:** Assesses the difference between the reported and validated geocoordinates.
+
+- **QC3:** Examines the spread of geocoordinates among all records sharing the same ABI and address, and indicates whether this summary includes records where the address was verified or agnostically matched.
+
+These were written with the main results to the `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Compiled by Batches/geo_qc_08.06.2026.db` directory.
+
+\vspace{2ex}
+
+\begingroup
+\setlength{\tabcolsep}{6pt}
+\renewcommand{\arraystretch}{1.15}
+
+\begin{longtable}{p{0.32\linewidth} p{0.62\linewidth}}
+\caption{Codebook for \texttt{qc1}}\label{tab:codebook-14a}\\
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\endfirsthead
+
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\endhead
+
+\midrule
+\endfoot
+
+\endlastfoot
+
+\texttt{i} &
+Index of the \texttt{for} loop iteration (results are stored as lists). \\
+
+\addlinespace[4pt]
+\texttt{abi} &
+Business ID to which the QC results pertain. \\
+
+\addlinespace[4pt]
+\texttt{address} &
+Best-available address: \texttt{verified\_address} (trimmed; excluding ``No address match found''), else \texttt{matched\_address}, else \texttt{combined\_address}. \\
+
+\addlinespace[4pt]
+\texttt{archive\_versions\_present} &
+String listing all years in which the address was observed. \\
+
+\addlinespace[4pt]
+\texttt{n\_address} &
+Number of times the \texttt{abi}--address combination was recorded. \\
+
+\addlinespace[4pt]
+\texttt{enough\_geo} &
+Boolean: \texttt{TRUE} if both longitude and latitude were reported; otherwise \texttt{FALSE}. \\
+
+\addlinespace[4pt]
+\texttt{geolocation\_verified} &
+Boolean: \texttt{TRUE} if an address-based geocoding match was retrieved from the US Census Bureau Geocoder API; otherwise \texttt{FALSE}. \\
+
+\addlinespace[4pt]
+\texttt{n\_attempts} &
+Number of API query attempts made; each attempt uses a different benchmark and vintage in the query URL. \\
+
+\addlinespace[4pt]
+\texttt{query\_statuses} &
+Summary of returned query statuses. \texttt{200} indicates a successful interaction even if no match was found. Attempts are separated by a vertical bar. \\
+
+\addlinespace[4pt]
+\texttt{all\_200} &
+Boolean: \texttt{TRUE} if all benchmark/vintage pairs returned status \texttt{200} (interaction succeeded but no match found); otherwise \texttt{FALSE}. \\
+
+\addlinespace[4pt]
+\texttt{geo\_matched\_address} &
+Matched address returned by the geocoding database. \\
+
+\addlinespace[4pt]
+\texttt{matched\_address\_same} &
+Uses \texttt{find\_similar\_addresses(threshold = 0)} to check whether the addresses are exactly the same. \\
+
+\addlinespace[4pt]
+\texttt{matched\_address\_similar} &
+Uses \texttt{find\_similar\_addresses(threshold = 0.15)} to check whether the addresses are similar. \\
+
+\addlinespace[4pt]
+\texttt{benchmark/}\newline\texttt{vintage\_input} &
+Specific reference database (benchmark and vintage) used to search for an address match during geocoding. \\
+
+\addlinespace[4pt]
+\texttt{address\_verified} &
+If the address was verified against the USPS API, this field is \texttt{TRUE}. If unverified but a match is found, the value indicates the string-matching mode (\texttt{"Override"} or \texttt{"Exact"}). If no \texttt{address\_line\_1} was present for matching, this is indicated with \texttt{"No address\_line\_1"}. \\
+
+\addlinespace[4pt]
+\texttt{ver\_geolocation\_test} &
+Geolocation test for matching attempts to verified addresses: \texttt{"Override"} if \texttt{"Exact"} matched; \texttt{TRUE}/\texttt{FALSE} if \texttt{"Fuzzy"} matched; \texttt{NA} if no match was attempted. \\
+
+\addlinespace[4pt]
+\texttt{address\_matched} &
+If agnostic address matching was performed, this field records the outcome when matching succeeded via \texttt{"Exact matching"} or \texttt{"Fuzzy matching"}. \texttt{"Only one address"} indicates matching was attempted but only one address was reported. \\
+
+\addlinespace[4pt]
+\texttt{match\_geolocation\_test} &
+Geolocation test for agnostic matching attempts: \texttt{"Override"} if \texttt{"Exact"} matched; \texttt{PASS}/\texttt{FAIL} if \texttt{"Fuzzy"} matched. If \texttt{PASS} includes \texttt{"no Lon"}, \texttt{"no Lat"}, or \texttt{"no Lon/Lat"}, one record was missing that coordinate pair. \texttt{NA} if no match was attempted. \\
+
+\end{longtable}
+\endgroup
+
+\vspace{4ex}
+
+\begingroup
+\captionof{table}{Codebook for \texttt{qc2}}
+\label{tab:codebook-14b}
+\begin{tabular}{p{0.34\linewidth} p{0.6\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+
+\texttt{i} &
+Index of the \texttt{for} loop iteration (results are stored as lists). \\
+\addlinespace[6pt]
+
+\texttt{abi} &
+Business ID to which the QC results pertain. \\
+\addlinespace[6pt]
+
+\texttt{address} &
+Best-available address: \texttt{verified\_address} (trimmed; excluding ``No address match found''), else \texttt{matched\_address}, else \texttt{combined\_address}. \\
+\addlinespace[6pt]
+
+\texttt{archive\_versions\_present} &
+String listing all years in which the address was observed. \\
+\addlinespace[6pt]
+
+\texttt{[lat|lon]\_abs\_diff} &
+The absolute difference between the reported geocoordinate and the validated one. \\
+\addlinespace[6pt]
+
+\texttt{[lat|lon]\_gt\_002} &
+Boolean: \texttt{TRUE} if the absolute difference exceeds \texttt{0.002} degrees; otherwise \texttt{FALSE}. \texttt{NA} if there were no geocoordinates to compare. \\
+
+\end{tabular}
+\endgroup
+
+\vspace{4ex}
+
+\begingroup
+\setlength{\tabcolsep}{6pt}
+\renewcommand{\arraystretch}{1.15}
+
+\begin{longtable}{p{0.34\linewidth} p{0.6\linewidth}}
+\caption{Codebook for \texttt{qc3}}\label{tab:codebook-14c}\\
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\endfirsthead
+
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\endhead
+
+\midrule
+\endfoot
+
+\endlastfoot
+
+\texttt{i} &
+Index of the \texttt{for} loop iteration (results are stored as lists). \\
+
+\addlinespace[6pt]
+\texttt{abi} &
+Business ID to which the QC results pertain. \\
+
+\addlinespace[6pt]
+\texttt{address} &
+Best-available address: \texttt{verified\_address} (trimmed; excluding ``No address match found''), else \texttt{matched\_address}, else \texttt{combined\_address}. \\
+
+\addlinespace[6pt]
+\texttt{n\_address} &
+Number of times the \texttt{abi}--address combination was recorded. \\
+
+\addlinespace[6pt]
+\texttt{[lat|lon]\_}\newline\texttt{[min|q1|median|mean|q3|max]} &
+Summary statistics describing the spread of geocoordinates reported for a unique address. \\
+
+\addlinespace[6pt]
+\texttt{[lat|lon]\_spread\_gt\_02} &
+Boolean: \texttt{TRUE} if the spread of geocoordinates exceeds \texttt{0.02} degrees; otherwise \texttt{FALSE}. \texttt{NA} if there were no geocoordinates to compare. \\
+
+\addlinespace[6pt]
+\texttt{any\_address\_verified} &
+Boolean: \texttt{TRUE} if any address in these results came from a verified address; \texttt{NA} if no validation was used. \\
+
+\addlinespace[6pt]
+\texttt{any\_address\_matched} &
+Boolean: \texttt{TRUE} if any address in these results came from an agnostically matched address; \texttt{NA} if no validation was used. \\
+
+\end{longtable}
+\endgroup
 
 # References

@@ -384,7 +384,7 @@ church_2026_form <- church_2026_form %>%
 #'                            These are proprietary encodings added by Data Axle;
 #'                            no data dictionary was provided.
 
-write_parquet(church_2026_form, "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2026 Format/church_2026_form_standardized_06.10.2026.parquet")
+write_parquet(church_2026_form, "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2026 Format/church_2026_form_standardized_06.10.2026.parquet")
 
 
 
