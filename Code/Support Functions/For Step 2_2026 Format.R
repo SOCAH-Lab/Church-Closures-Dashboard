@@ -3695,7 +3695,10 @@ compile_parquet_folder <- function(subset_dir,
 compile_duckdb_folder <- function(subset_dir,
                                   pattern = "\\.db$",
                                   recursive = TRUE,
-                                  abi_ref = NULL) {
+                                  abi_ref = NULL,
+                                  church_dt = NULL,
+                                  filter_states = FALSE,
+                                  us_states = c(state.abb, "DC")) {
   #' Compile DuckDB QC outputs from a folder (with progress, header cleanup, and ABI QC).
   #' Reads all DuckDB \code{.db} files in a directory (optionally recursively), loads each
   #' file via \code{read_list_from_duckdb()}, normalizes column names (including dotted
@@ -3711,30 +3714,49 @@ compile_duckdb_folder <- function(subset_dir,
   #' }
   #'
   #' ABI QC (optional):
-  #' When \code{abi_ref} is provided, the function checks every list element (table/data.frame)
-  #' that contains an ABI column (case-insensitive match to \code{"abi"}). For each file and
-  #' each ABI-bearing table, it compares the unique ABIs present to the expected ABIs from
-  #' \code{abi_ref[from:to]}, where \code{from/to} are parsed from the filename pattern
-  #' \code{"QC_<from> to <to>"}.
+  #' When \code{abi_ref} is provided (or derivable from \code{church_dt}), the function checks
+  #' every list element (table/data.frame) that contains an ABI column (case-insensitive match
+  #' to \code{"abi"}). For each file and each ABI-bearing table, it compares the unique ABIs
+  #' present to the expected ABIs from \code{abi_ref[from:to]}, where \code{from/to} are
+  #' parsed from the filename pattern \code{"QC_<from> to <to>"}.
   #' Unexpected ABIs cause an error; missing ABIs are summarized in \code{out$qc_import}.
+  #'
+  #' ## ABI QC with optional state filtering
+  #' If \code{filter_states = TRUE}, ABI QC restricts *both* expected and actual ABIs to
+  #' an "allowed ABI universe" defined by:
+  #' $$\text{abi is OK if all its rows satisfy state \%in\% us\_states}$$
+  #'
+  #' This makes the QC comparison reflect your external filtering logic (i.e., it
+  #' does not penalize missing ABIs that are intentionally excluded by the state rule).
   #'
   #' @param subset_dir Directory containing DuckDB files.
   #' @param pattern Regex pattern passed to \code{list.files()} to identify DB files.
   #'   Defaults to \code{"\\\\.db$"}.
   #' @param recursive Logical; whether to search \code{subset_dir} recursively.
   #' @param abi_ref Optional reference vector of ABIs in the intended global order. If
-  #'   provided, ABI integrity QC is enabled. If \code{NULL}, ABI QC is skipped.
+  #'   provided, ABI integrity QC is enabled. If \code{NULL} and \code{church_dt} is
+  #'   provided, \code{abi_ref} is derived internally as
+  #'   \eqn{\text{unique(church\_dt\$abi)}}.
+  #' @param church_dt Optional data.frame/tibble/data.table containing at least columns
+  #'   \code{abi} and (if \code{filter_states = TRUE}) \code{state}. Used to (a) derive
+  #'   \code{abi_ref} when missing, and (b) compute the allowed ABI universe.
+  #' @param filter_states Logical. If \code{TRUE}, restrict ABI QC to ABIs whose rows in
+  #'   \code{church_dt} all satisfy \eqn{\text{state \%in\% us\_states}}.
+  #' @param us_states Character vector of allowed US postal abbreviations. Defaults to
+  #'   \code{c(state.abb, "DC")}.
   #'
   #' @return A named list. Each element corresponds to a table name returned by
   #'   \code{read_list_from_duckdb()}, with rows bound across all DB files. An additional
-  #'   element \code{$qc_import} contains a tibble summarizing ABI QC results (or \code{NULL} if
-  #'   ABI QC is disabled or no results are produced).
+  #'   element \code{$qc_import} contains a tibble summarizing ABI QC results (or \code{NULL}
+  #'   if ABI QC is disabled or no results are produced).
   #'
   #' @examples
   #' \dontrun{
   #' qc_address <- compile_duckdb_folder(
-  #'   subset_dir = file.path(getwd(), data_root, "batch_array_18850425/Results/Address QC/"),
-  #'   abi_ref    = unique(church_2026_form_dt$abi)
+  #'   subset_dir    = file.path(getwd(), data_root, "batch_array_18850425/Results/Address QC/"),
+  #'   abi_ref       = unique(church_2026_form_dt$abi),
+  #'   church_dt     = church_2026_form_dt,
+  #'   filter_states = TRUE
   #' )
   #'
   #' # View ABI QC summary
@@ -3746,17 +3768,28 @@ compile_duckdb_folder <- function(subset_dir,
   #'
   #' @export
   
+  # ---- 0) Validate inputs ---------------------------------------------------
+  if (isTRUE(filter_states)) {
+    if (is.null(church_dt)) {
+      stop("filter_states=TRUE requires `church_dt` (e.g., church_2026_form_dt).")
+    }
+    if (!all(c("abi", "state") %in% names(church_dt))) {
+      stop("`church_dt` must contain columns: abi, state when filter_states=TRUE.")
+    }
+  }
+  
+  # ---- 1) Discover .db files ------------------------------------------------
   files <- list.files(
     subset_dir,
-    pattern = pattern,
+    pattern   = pattern,
     full.names = TRUE,
-    recursive = recursive
+    recursive  = recursive
   )
   if (length(files) == 0) stop("No .db files found in: ", subset_dir)
   
   file_index <- tibble::tibble(file = files) %>%
     dplyr::mutate(
-      base = basename(file),
+      base    = basename(file),
       qc_from = as.integer(stringr::str_match(base, "QC_(\\d+)\\s*to\\s*(\\d+)")[, 2]),
       qc_to   = as.integer(stringr::str_match(base, "QC_(\\d+)\\s*to\\s*(\\d+)")[, 3]),
       arr_id  = suppressWarnings(as.integer(stringr::str_match(base, "_slurmArray_(\\d+)")[, 2]))
@@ -3768,73 +3801,132 @@ compile_duckdb_folder <- function(subset_dir,
     stop("Could not parse QC range from:\n", paste(bad, collapse = "\n"))
   }
   
-  # Progress bar (number of .db files)
+  # ---- 2) Progress bar ------------------------------------------------------
   pb <- utils::txtProgressBar(min = 0, max = nrow(file_index), style = 3)
   on.exit(close(pb), add = TRUE)
   
-  # Helper: recursively normalize column names across tibbles/data.frames inside a list
-  # - Fixes the known odd header "Allow.USPS.API." -> "Allow USPS API"
-  # - ONLY treats periods: converts one-or-more periods to single spaces
-  # - Collapses repeated whitespace and trims
-  # - Leaves underscores untouched
+  # ---- 3) Column-name normalization helper ----------------------------------
   fix_column_names <- function(x) {
     if (is.data.frame(x)) {
       nms <- names(x)
-      
-      # 1) Specific one-off fix first (exact match)
       nms[nms == "Allow.USPS.API."] <- "Allow USPS API"
-      
-      # 2) General cleanup for dotted headers ONLY
-      nms <- gsub("\\.+", " ", nms)   # one-or-more periods -> single space
-      nms <- gsub("\\s+", " ", nms)  # collapse multiple spaces
-      nms <- trimws(nms)             # trim leading/trailing spaces
-      
+      nms <- gsub("\\.+", " ", nms)
+      nms <- gsub("\\s+", " ", nms)
+      nms <- trimws(nms)
       names(x) <- nms
       return(x)
     }
-    
     if (is.list(x)) return(lapply(x, fix_column_names))
     x
   }
   
-  # Helper: find ALL list elements that are data.frames and have an ABI column
-  # (ABI may appear as "abi", "ABI", "Abi", etc.)
+  # ---- 4) Find all ABI-bearing tables in a chunk list ----------------------
   find_abi_tables <- function(chunk_list) {
     if (is.null(chunk_list) || !is.list(chunk_list)) return(list())
-    
     out <- list()
     for (nm in names(chunk_list)) {
       obj <- chunk_list[[nm]]
       if (!is.data.frame(obj)) next
-      
       nms <- names(obj)
       if (is.null(nms)) next
-      
       if (any(tolower(nms) == "abi")) out[[nm]] <- obj
     }
     out
   }
   
-  # ---- QC: ABI integrity check (case-insensitive ABI column) ----------------
-  qc_abi_results <- list()
-  
-  qc_abi <- function(chunk, key, from, to, arr_id, file, abi_ref) {
+  # ---- 5) ABI QC helper (with optional state filtering) --------------------
+  #'
+  #' @param chunk       A data.frame/tibble with (at minimum) an ABI column.
+  #' @param key         Name of the list element within the DuckDB chunk (for labeling).
+  #' @param from        Integer. Start index parsed from filename.
+  #' @param to          Integer. End index parsed from filename.
+  #' @param arr_id      Integer-ish. Slurm array identifier (for labeling).
+  #' @param file        Character. File path (for error messages).
+  #' @param abi_ref     Optional master ABI vector; expected ABIs =
+  #'                    \eqn{\text{unique(abi\_ref[from:to])}}. Derived from
+  #'                    \code{church_dt\$abi} if \code{NULL} and \code{church_dt} is supplied.
+  #' @param church_dt   Optional data.frame with \code{abi} and \code{state} columns.
+  #' @param filter_states Logical. Toggle state-based filtering of ABIs.
+  #' @param us_states   Character vector of allowed state abbreviations.
+  #' @param debug       Logical. If \code{TRUE}, emits diagnostic messages.
+  #'
+  #' @return A 1-row tibble summarizing ABI QC, or \code{NULL} if ABI QC is disabled.
+  qc_abi <- function(chunk, key, from, to, arr_id, file,
+                     abi_ref       = NULL,
+                     church_dt     = NULL,
+                     filter_states = FALSE,
+                     us_states     = c(state.abb, "DC"),
+                     debug         = FALSE) {
     
-    if (is.null(abi_ref)) return(NULL)  # ABI QC disabled if no reference provided
+    # Derive abi_ref from church_dt if not supplied directly
+    if (is.null(abi_ref)) {
+      if (!is.null(church_dt)) {
+        if (!("abi" %in% names(church_dt))) stop("`church_dt` must have an `abi` column.")
+        abi_ref <- unique(church_dt$abi)
+      } else {
+        return(NULL)   # ABI QC disabled
+      }
+    }
+    
     if (is.null(chunk)) stop("ABI QC requested, but NULL chunk encountered in:\n  ", file)
     
     abi_col_idx <- which(tolower(names(chunk)) == "abi")
     if (length(abi_col_idx) == 0) {
-      stop("ABI QC requested, but selected table has no ABI column (any case) in:\n  ", file,
-           "\nList element: ", key)
+      stop(
+        "ABI QC requested, but selected table has no ABI column (any case) in:\n  ", file,
+        "\nList element: ", key
+      )
     }
-    # If multiple matches (rare), take the first deterministically
-    abi_col <- names(chunk)[abi_col_idx[[1]]]
+    abi_col <- names(chunk)[abi_col_idx[[1]]]   # first match, deterministic
     
     expected_abis <- unique(abi_ref[from:to])
     actual_abis   <- unique(chunk[[abi_col]])
-    unexpected    <- setdiff(actual_abis, expected_abis)
-    missing       <- setdiff(expected_abis, actual_abis)
+    
+    # Optional: restrict both sets to the "allowed" ABI universe so that ABIs
+    # intentionally excluded by the state rule are not counted as missing.
+    abi_ok <- NULL
+    if (isTRUE(filter_states)) {
+      if (is.null(church_dt)) stop("qc_abi: filter_states=TRUE requires `church_dt`.")
+      if (!all(c("abi", "state") %in% names(church_dt))) {
+        stop("qc_abi: `church_dt` must contain columns: abi, state")
+      }
+      
+      universe <- unique(c(expected_abis, actual_abis))
+      
+      if (inherits(church_dt, "data.table")) {
+        abi_ok <- church_dt[
+          abi %in% universe,
+          .(ok = all(state %in% us_states)),
+          by = abi
+        ][ok == TRUE, abi]
+      } else {
+        abi_ok <- church_dt |>
+          dplyr::filter(.data$abi %in% universe) |>
+          dplyr::group_by(.data$abi) |>
+          dplyr::summarise(ok = all(.data$state %in% us_states), .groups = "drop") |>
+          dplyr::filter(.data$ok) |>
+          dplyr::pull(.data$abi)
+      }
+      
+      expected_abis <- intersect(expected_abis, abi_ok)
+      actual_abis   <- intersect(actual_abis,   abi_ok)
+    }
+    
+    unexpected <- setdiff(actual_abis, expected_abis)
+    missing    <- setdiff(expected_abis, actual_abis)
+    
+    if (isTRUE(debug)) {
+      message(
+        "DEBUG qc_abi: file=", basename(file),
+        " key=", key,
+        " filter_states=", filter_states,
+        " expected=", length(expected_abis),
+        " actual=", length(actual_abis),
+        " abi_ok=", if (is.null(abi_ok)) NA_integer_ else length(abi_ok),
+        " missing=", length(missing),
+        " unexpected=", length(unexpected)
+      )
+    }
     
     if (length(unexpected) > 0) {
       stop(
@@ -3864,8 +3956,10 @@ compile_duckdb_folder <- function(subset_dir,
     )
   }
   
-  # ---- Read each .db and compute ABI QC per file ----------------------------
-  chunks <- vector("list", nrow(file_index))
+  # ---- 6) Read each .db, run QC, accumulate --------------------------------
+  qc_abi_results <- list()
+  chunks         <- vector("list", nrow(file_index))
+  
   for (i in seq_len(nrow(file_index))) {
     f      <- file_index$file[[i]]
     from   <- file_index$qc_from[[i]]
@@ -3873,21 +3967,29 @@ compile_duckdb_folder <- function(subset_dir,
     arr_id <- file_index$arr_id[[i]]
     
     chunk_list <- suppressMessages(
-      suppressWarnings(
-        read_list_from_duckdb(f)
-      )
+      suppressWarnings(read_list_from_duckdb(f))
     ) |>
       fix_column_names()
     
-    # ABI QC over ALL ABI-bearing list elements (optional)
-    if (!is.null(abi_ref)) {
+    # ABI QC over ALL ABI-bearing list elements
+    # Triggered when abi_ref is supplied directly OR derivable from church_dt
+    if (!is.null(abi_ref) || !is.null(church_dt)) {
       abi_tables <- find_abi_tables(chunk_list)
       if (length(abi_tables) == 0) {
-        stop("ABI QC requested, but no list element with an ABI column (any case) was found in:\n  ", f)
+        stop(
+          "ABI QC requested, but no list element with an ABI column (any case) was found in:\n  ", f
+        )
       }
       
       for (key in names(abi_tables)) {
-        r1 <- qc_abi(abi_tables[[key]], key, from, to, arr_id, f, abi_ref)
+        r1 <- qc_abi(
+          abi_tables[[key]], key, from, to, arr_id, f,
+          abi_ref       = abi_ref,
+          church_dt     = church_dt,
+          filter_states = filter_states,
+          us_states     = us_states
+          # debug = TRUE  # uncomment for per-file diagnostics
+        )
         if (!is.null(r1)) qc_abi_results[[length(qc_abi_results) + 1]] <- r1
       }
     }
@@ -3896,20 +3998,18 @@ compile_duckdb_folder <- function(subset_dir,
     utils::setTxtProgressBar(pb, i)
   }
   
-  # ---- Combine lists-of-tibbles across DBs by key name ----------------------
+  # ---- 7) Combine lists-of-tibbles across DBs by key name ------------------
   keys <- Reduce(union, lapply(chunks, names))
   out  <- stats::setNames(vector("list", length(keys)), keys)
   
   for (k in keys) {
-    pieces <- purrr::map(chunks, \(x) x[[k]]) |>
-      purrr::compact()
+    pieces <- purrr::map(chunks, \(x) x[[k]]) |> purrr::compact()
     out[[k]] <- dplyr::bind_rows(pieces)
   }
   
-  # Name fix again (belt-and-suspenders)
-  out <- fix_column_names(out)
+  out <- fix_column_names(out)   # belt-and-suspenders
   
-  # Attach QC output directly (tibble / NULL; not nested in a list)
+  # ---- 8) Attach QC summary ------------------------------------------------
   out$qc_import <- if (length(qc_abi_results) > 0) dplyr::bind_rows(qc_abi_results) else NULL
   
   out
@@ -4144,6 +4244,15 @@ flag_boxplot <- function(df, title, x_levels = NULL) {
   #'
   #' @return A `ggplot2` object.
   
+  # ---- global (consistent) font sizing / theme controls ----
+  base_size          <- 18
+  plot_title_size    <- 20
+  legend_title_size  <- 18
+  legend_text_size   <- 16
+  axis_title_size    <- 18
+  axis_text_x_size   <- 16
+  axis_text_y_size   <- 16
+  
   # Convert to data.table for fast in-place mutation (does not modify `df` in caller)
   d <- data.table::as.data.table(df)
   
@@ -4168,11 +4277,16 @@ flag_boxplot <- function(df, title, x_levels = NULL) {
       x     = "Verification Status",
       y     = "% of Unique Addresses"
     ) +
-    ggplot2::theme_minimal(base_size = 13) +
+    ggplot2::theme_minimal(base_size = base_size) +
     ggplot2::theme(
       legend.position = "none",
-      plot.title      = ggplot2::element_text(face = "bold", size = 11),
-      axis.text.x     = ggplot2::element_text(angle = 25, hjust = 1)
+      plot.title      = ggplot2::element_text(face = "bold", size = plot_title_size),
+      legend.title    = ggplot2::element_text(size = legend_title_size),
+      legend.text     = ggplot2::element_text(size = legend_text_size),
+      axis.title      = ggplot2::element_text(size = axis_title_size),
+      axis.text.x     = ggplot2::element_text(angle = 25, hjust = 1, size = axis_text_x_size),
+      axis.text.y     = ggplot2::element_text(size = axis_text_y_size),
+      plot.margin     = ggplot2::margin(t = 30, r = 10, b = 10, l = 10)
     )
 }
 

@@ -821,7 +821,7 @@ if (exists("verify_addresses", inherits = FALSE) == FALSE) {
 # After confirming these files exist, upload the full set to the HPC from:
 # "./Data/Results/Census Bureau TIGER Line Shapefiles/"
 
-# Define the geography level = c("blocks", "block group")
+# Define the geography level = c("blocks", "block groups")
 block_geography <- "block groups"
 
 # Identify the unique states represented in the data.
@@ -3616,7 +3616,7 @@ for (i in 1:length(search_space)) {
       fips_match_2010 = fips_ok & substr(geoid_2010, 1, 5) == fips_code_chr,
       fips_match_2020 = fips_ok & substr(geoid_2020, 1, 5) == fips_code_chr,
       
-      fips_code_any_match = dplyr::case_when(
+      fips_any_match = dplyr::case_when(
         is.na(fips_code_chr) ~ "Uncheckable",
         !fips_ok             ~ "Not the expected dimensions",
         (fips_match_2000 | fips_match_2010 | fips_match_2020) ~ "Matched",
@@ -3632,7 +3632,7 @@ for (i in 1:length(search_space)) {
       fips_vintages = dplyr::case_when(
         is.na(fips_code_chr) ~ "Not reported",
         !fips_ok             ~ "Not the expected dimensions",
-        fips_code_any_match != "Matched" ~ "None",
+        fips_any_match != "Matched" ~ "None",
         TRUE ~ stringr::str_remove(fips_vintages_raw, ", $")
       ),
       
@@ -3641,7 +3641,7 @@ for (i in 1:length(search_space)) {
       county_match_2010 = county_ok & substr(geoid_2010, 3, 5) == county_code_chr,
       county_match_2020 = county_ok & substr(geoid_2020, 3, 5) == county_code_chr,
       
-      county_code_any_match = dplyr::case_when(
+      county_any_match = dplyr::case_when(
         is.na(county_code_chr) ~ "Not reported",
         !county_ok             ~ "Not the expected dimensions",
         (county_match_2000 | county_match_2010 | county_match_2020) ~ "Matched",
@@ -3656,7 +3656,7 @@ for (i in 1:length(search_space)) {
       county_vintages = dplyr::case_when(
         is.na(county_code_chr) ~ "Not reported",
         !county_ok             ~ "Not the expected dimensions",
-        county_code_any_match != "Matched" ~ "None",
+        county_any_match != "Matched" ~ "None",
         TRUE ~ stringr::str_remove(county_vintages_raw, ", $")
       ),
       
@@ -3665,7 +3665,7 @@ for (i in 1:length(search_space)) {
       tract_match_2010 = tract_ok & substr(geoid_2010, 6, 11) == census_tract_chr,
       tract_match_2020 = tract_ok & substr(geoid_2020, 6, 11) == census_tract_chr,
       
-      census_tract_any_match = dplyr::case_when(
+      tract_any_match = dplyr::case_when(
         is.na(census_tract_chr) ~ "Uncheckable",
         !tract_ok               ~ "Not the expected dimensions",
         (tract_match_2000 | tract_match_2010 | tract_match_2020) ~ "Matched",
@@ -3680,7 +3680,7 @@ for (i in 1:length(search_space)) {
       tract_vintages = dplyr::case_when(
         is.na(census_tract_chr) ~ "Uncheckable",
         !tract_ok               ~ "Not the expected dimensions",
-        census_tract_any_match != "Matched" ~ "None",
+        tract_any_match != "Matched" ~ "None",
         TRUE ~ stringr::str_remove(tract_vintages_raw, ", $")
       ),
       
@@ -3706,7 +3706,14 @@ for (i in 1:length(search_space)) {
       block_match_2020 = block_type %in% c("Blocks", "Block groups") &
         substr(geoid_2020, 12, block_substr_end) == census_block_chr,
       
-      census_block_any_match = block_match_2000 | block_match_2010 | block_match_2020,
+      block_any_match = dplyr::case_when(
+        is.na(census_block)                                        ~ "Uncheckable",
+        str_to_lower(block_geography) != str_to_lower(block_type)  ~ "Not the expected dimensions",
+        (block_match_2000 | block_match_2010 | block_match_2020)   ~ "Matched",
+        TRUE                                                       ~ "None"
+      ),
+      
+      block_any_match = block_match_2000 | block_match_2010 | block_match_2020,
       
       block_vintages_raw = paste0(
         dplyr::if_else(block_match_2000, "2000, ", "", missing = ""),
@@ -3715,17 +3722,17 @@ for (i in 1:length(search_space)) {
       ),
       block_vintages = dplyr::case_when(
         block_type %in% c("None reported", "Not the expected dimensions") ~ "Uncheckable",
-        !census_block_any_match ~ "None",
+        !block_any_match ~ "None",
         TRUE ~ stringr::str_remove(block_vintages_raw, ", $")
       )
     ) %>%
     dplyr::select(
       abi, archive_version_year, address, census_block, census_tract,
       county_code, fips_code, n_address, geoid_2000, geoid_2010, geoid_2020,
-      fips_code_any_match, fips_vintages,
-      county_code_any_match, county_vintages,
-      census_tract_any_match, tract_vintages,
-      block_type, census_block_any_match, block_vintages
+      fips_any_match, fips_vintages,
+      county_any_match, county_vintages,
+      tract_any_match, tract_vintages,
+      block_type, block_any_match, block_vintages
     ) %>%
     dplyr::group_by(dplyr::across(-archive_version_year)) %>%
     dplyr::summarise(
@@ -3872,23 +3879,23 @@ for (i in 1:length(search_space)) {
       csa_code_match_2010 = csa_code_ok & csa_code_chr == csa_code_2010_chr,
       csa_code_match_2020 = csa_code_ok & csa_code_chr == csa_code_2020_chr,
       
-      csa_code_any_match = dplyr::case_when(
+      csa_any_match = dplyr::case_when(
         is.na(csa_code_chr) ~ "Uncheckable",
         !csa_code_ok        ~ "Not the expected dimensions",
         (csa_code_match_2007 | csa_code_match_2010 | csa_code_match_2020) ~ "Matched",
         TRUE ~ "None"
       ),
       
-      csa_code_vintages_raw = paste0(
+      csa_vintages_raw = paste0(
         dplyr::if_else(csa_code_match_2007, "2007, ", "", missing = ""),
         dplyr::if_else(csa_code_match_2010, "2010, ", "", missing = ""),
         dplyr::if_else(csa_code_match_2020, "2020, ", "", missing = "")
       ),
-      csa_code_vintages = dplyr::case_when(
+      csa_vintages = dplyr::case_when(
         is.na(csa_code_chr)           ~ "Uncheckable",
         !csa_code_ok                  ~ "Not the expected dimensions",
-        csa_code_any_match != "Matched" ~ "None",
-        TRUE ~ stringr::str_remove(csa_code_vintages_raw, ", $")
+        csa_any_match != "Matched" ~ "None",
+        TRUE ~ stringr::str_remove(csa_vintages_raw, ", $")
       )
     ) %>%
     select(
@@ -3899,7 +3906,7 @@ for (i in 1:length(search_space)) {
       cbsa_level_2020, cbsa_code_2020, csa_code_2020,
       cbsa_code_any_match, cbsa_code_vintages,
       cbsa_level_any_match, cbsa_level_vintages,
-      csa_code_any_match, csa_code_vintages
+      csa_any_match, csa_vintages
     ) %>%
     group_by(across(-archive_version_year)) %>%
     summarise(
@@ -3926,19 +3933,19 @@ for (i in 1:length(search_space)) {
         },
         archive_versions_present, cbsa_level_vintages
       ),
-      csa_code_vintages_aligned = mapply(
+      csa_vintages_aligned = mapply(
         function(present, vint) {
           if (is.na(vint) || vint %in% c("None", "Uncheckable", "Not the expected dimensions")) return(NA)
           out <- suppressWarnings(check_alignment_cbsa(present, vint))
           if (length(out) == 0L || is.na(out)) return(NA)
           out
         },
-        archive_versions_present, csa_code_vintages
+        archive_versions_present, csa_vintages
       )
     ) %>%
     relocate(cbsa_code_vintages_aligned,  .after = cbsa_code_vintages) %>%
     relocate(cbsa_level_vintages_aligned, .after = cbsa_level_vintages) %>%
-    relocate(csa_code_vintages_aligned,   .after = csa_code_vintages) %>%
+    relocate(csa_vintages_aligned,   .after = csa_vintages) %>%
     (\(x) { data.table::setDT(x) })()
   
   

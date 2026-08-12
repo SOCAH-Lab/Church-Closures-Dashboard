@@ -112,6 +112,8 @@
 ##    - PART D: Assess Overall Performance
 ##        * SUBSECTION D1: Load Combined Batch Results
 ##        * SUBSECTION D2: Confirm Complete ABI Coverage
+##        * SUBSECTION D3: Plot the Distribution of Quality Check Outcomes
+##        * SUBSECTION D4: At-Point-of-Evaluation Quality Checks
 
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
@@ -232,6 +234,32 @@ violations <- dup_check[n != n_distinct]
 # Result is empty, validating that no duplicate year entries exist.
 nrow(violations)
 violations
+
+# It is interesting to see how many ABIs filed at multiple addresses, which
+# may translate into moves outside a community of impact.
+num_addresses <- church_2026_form_dt[
+  ,
+  .(n_unique_addresses = data.table::uniqueN(combined_address)),
+  by = abi
+]
+
+# The vast majority of entries did not have any change of address (70%), with
+# 20% changing address only once. The remaining 10% moved more than twice,
+# with less than 1% moving more than five times.
+result <- table(num_addresses$n_unique_addresses, useNA = "ifany") %>%
+  (\(x) {
+    data.frame(
+      n_unique_addresses = names(x),
+      count              = as.integer(x),
+      row.names          = NULL
+    ) %>%
+      mutate(percent = round(100 * count / sum(count), 2))
+  })() %>%
+  mutate(n_unique_addresses = as.character(n_unique_addresses)) %>%
+  pivot_longer(c(count, percent), names_to = "metric", values_to = "value") %>%
+  pivot_wider(names_from = n_unique_addresses, values_from = value) %>%
+  mutate(across(-metric, ~ ifelse(metric == "count", as.character(as.integer(.x)), .x)))
+
 
 # Some characteristics are neither verifiable nor reconcilable for subsequent
 # analyses, including PO Boxes, missing address_line_1, and missing
@@ -953,19 +981,32 @@ qc_df_18$data <- qc_df_18$data %>% select(-usps_status, -usps_status_detail)
 
 # As shown in the qc_address_18 table assessment below, NA address_verified
 # outcomes are attributed to missing address_line_1 entries. This case can
-# be clarified accordingly.
+# be clarified for both address_verified and address_matched accordingly.
 qc_df_18$data <- qc_df_18$data %>%
+  collect() %>%
   mutate(
-    address_verified = case_when(
-      is.na(address_verified) ~ "No address_line_1",
-      TRUE                    ~ address_verified
+    address_prefix = str_extract(address, "^[^,]+"),
+    address_matched = if_else(
+      address_prefix == "NA",
+      "No address_line_1",
+      address_matched
+    ),
+    address_verified = if_else(
+      address_prefix == "NA",
+      "No address_line_1",
+      address_verified
     )
-  )
+  ) %>%
+  select(-address_prefix) %>% 
+  arrow_table()
 
 
 qc_address_18 <- compile_duckdb_folder(
-  subset_dir = file.path(getwd(), data_root, "batch_array_18850425/Results/Address QC/"),
-  abi_ref    = unique(church_2026_form_dt$abi)
+  subset_dir    = file.path(getwd(), data_root, "batch_array_18850425/Results/Address QC/"),
+  abi_ref       = unique(church_2026_form_dt$abi),
+  church_dt     = church_2026_form_dt,
+  filter_states = FALSE,
+  us_states     = c(state.abb, "DC")
 )
 
 # Unique reported address and year combinations are checked for correspondence
@@ -1042,27 +1083,71 @@ qc_address_18$qc2 <- qc_address_18$qc2 %>%
     )
   )
 
+# Revise nomenclature and clarify vague NA cases.
+qc_address_18$qc3 <- qc_address_18$qc3 %>%
+  collect() %>%
+  mutate(
+    address_prefix = str_extract(address, "^[^,]+"),
+    address_matched = if_else(
+      address_prefix == "NA",
+      "No address_line_1",
+      address_matched
+    )
+  ) %>%
+  select(-address_prefix)
+
+
 # Remove the column indicating which ABI column was used for evaluation, as
 # this is redundant.
 qc_address_18$qc_import <- qc_address_18$qc_import %>% select(-abi_col)
 
 
 qc_census_18 <- compile_duckdb_folder(
-  subset_dir = file.path(getwd(), data_root, "batch_array_18850425/Results/Census QC/"),
-  abi_ref    = unique(church_2026_form_dt$abi)
+  subset_dir    = file.path(getwd(), data_root, "batch_array_18850425/Results/Census QC/"),
+  abi_ref       = unique(church_2026_form_dt$abi),
+  church_dt     = church_2026_form_dt,
+  filter_states = FALSE,
+  us_states     = c(state.abb, "DC")
 )
 
-# Some column names erroneously included "census". Remove for clarity.
+# Some column names erroneously included "census" or "code". Remove for clarity.
+# Additionally, the same categorizations of the "_any_match" column were not
+# applied at the time of data generation. Apply them here.
 qc_census_18$qc1 <- qc_census_18$qc1 %>%
   rename(
     tract_any_match = census_tract_any_match,
-    block_any_match = census_block_any_match
+    block_any_match = census_block_any_match,
+    fips_any_match = fips_code_any_match,
+    county_any_match = county_code_any_match
+  ) %>%
+  mutate(
+    block_match_2000 = str_detect(block_vintages, "2000"),
+    block_match_2010 = str_detect(block_vintages, "2010"),
+    block_match_2020 = str_detect(block_vintages, "2020"),
+    block_any_match = dplyr::case_when(
+      is.na(census_block)                                        ~ "Uncheckable",
+      str_to_lower("block groups") != str_to_lower(block_type)   ~ "Not the expected dimensions",
+      (block_match_2000 | block_match_2010 | block_match_2020)   ~ "Matched",
+      TRUE                                                       ~ "None"
+    )
+  ) %>%
+  select(-block_match_2000, -block_match_2010, -block_match_2020)
+
+# Some column names erroneously included "code". Remove for clarity.
+qc_census_18$qc2 <- qc_census_18$qc2 %>%
+  rename(
+    csa_any_match = csa_code_any_match,
+    csa_vintages = csa_code_vintages,
+    csa_vintages_aligned = csa_code_vintages_aligned
   )
 
 
 qc_geo_18 <- compile_duckdb_folder(
-  subset_dir = file.path(getwd(), data_root, "batch_array_18850425/Results/Geo QC/"),
-  abi_ref    = unique(church_2026_form_dt$abi)
+  subset_dir    = file.path(getwd(), data_root, "batch_array_18850425/Results/Geo QC/"),
+  abi_ref       = unique(church_2026_form_dt$abi),
+  church_dt     = church_2026_form_dt,
+  filter_states = FALSE,
+  us_states     = c(state.abb, "DC")
 )
 
 # Move query QC columns into their correct position — missed in initial ordering.
@@ -1095,6 +1180,19 @@ qc_geo_18$qc1 <- qc_geo_18$qc1 %>%
       TRUE                    ~ address_verified
     )
   )
+
+# Revise nomenclature and clarify vague NA cases.
+qc_geo_18$qc1 <- qc_geo_18$qc1 %>%
+  collect() %>%
+  mutate(
+    address_prefix = str_extract(address, "^[^,]+"),
+    address_matched = if_else(
+      address_prefix == "NA",
+      "No address_line_1",
+      address_matched
+    )
+  ) %>%
+  select(-address_prefix)
 
 # The actual test compared max - min > 0.02. Update the column name to reflect
 # this.
@@ -1180,11 +1278,27 @@ table(qc_df_20$qc$abi_check$qc_pass, useNA = "ifany")
 # As shown in the qc_address_18 assessment above, NA address_verified outcomes
 # are caused by missing address_line_1 entries. In this batch, however, no
 # addresses were verified via the USPS API, so this correction is not needed.
+# Only the address_matched needs to be updated accordingly.
+qc_df_20$data <- qc_df_20$data %>%
+  collect() %>%
+  mutate(
+    address_prefix = str_extract(address, "^[^,]+"),
+    address_matched = if_else(
+      address_prefix == "NA",
+      "No address_line_1",
+      address_matched
+    )
+  ) %>%
+  select(-address_prefix) %>% 
+  arrow_table()
 
 
 qc_address_20 <- compile_duckdb_folder(
-  subset_dir = file.path(getwd(), data_root, "batch_array_20823868/Results/Address QC/"),
-  abi_ref    = unique(church_2026_form_dt$abi)
+  subset_dir    = file.path(getwd(), data_root, "batch_array_20823868/Results/Address QC/"),
+  abi_ref       = unique(church_2026_form_dt$abi),
+  church_dt     = church_2026_form_dt,
+  filter_states = TRUE,
+  us_states     = c(state.abb, "DC")
 )
 
 # Column names with capitalization and spaces are not easily read by DuckDB.
@@ -1215,23 +1329,66 @@ qc_address_20$qc1 <- qc_address_20$qc1 %>%
 qc_address_20$qc1 <- qc_address_20$qc1 %>%
   mutate(match_attempted = abi %in% unique(qc_address_20$qc3$abi))
 
+# Revise nomenclature and clarify vague NA cases.
+qc_address_20$qc3 <- qc_address_20$qc3 %>%
+  collect() %>%
+  mutate(
+    address_prefix = str_extract(address, "^[^,]+"),
+    address_matched = if_else(
+      address_prefix == "NA",
+      "No address_line_1",
+      address_matched
+    )
+  ) %>%
+  select(-address_prefix)
+
 
 qc_census_20 <- compile_duckdb_folder(
-  subset_dir = file.path(getwd(), data_root, "batch_array_20823868/Results/Census QC/"),
-  abi_ref    = unique(church_2026_form_dt$abi)
+  subset_dir    = file.path(getwd(), data_root, "batch_array_20823868/Results/Census QC/"),
+  abi_ref       = unique(church_2026_form_dt$abi),
+  church_dt     = church_2026_form_dt,
+  filter_states = TRUE,
+  us_states     = c(state.abb, "DC")
 )
 
-# Some column names erroneously included "census". Remove for clarity.
+# Some column names erroneously included "census" or "code". Remove for clarity.
+# Additionally, the same categorizations of the "_any_match" column were not
+# applied at the time of data generation. Apply them here.
 qc_census_20$qc1 <- qc_census_20$qc1 %>%
   rename(
     tract_any_match = census_tract_any_match,
-    block_any_match = census_block_any_match
+    block_any_match = census_block_any_match,
+    fips_any_match = fips_code_any_match,
+    county_any_match = county_code_any_match
+  ) %>%
+  mutate(
+    block_match_2000 = str_detect(block_vintages, "2000"),
+    block_match_2010 = str_detect(block_vintages, "2010"),
+    block_match_2020 = str_detect(block_vintages, "2020"),
+    block_any_match = dplyr::case_when(
+      is.na(census_block)                                        ~ "Uncheckable",
+      str_to_lower("block groups") != str_to_lower(block_type)   ~ "Not the expected dimensions",
+      (block_match_2000 | block_match_2010 | block_match_2020)   ~ "Matched",
+      TRUE                                                       ~ "None"
+    )
+  ) %>%
+  select(-block_match_2000, -block_match_2010, -block_match_2020)
+
+# Some column names erroneously included "code". Remove for clarity.
+qc_census_20$qc2 <- qc_census_20$qc2 %>%
+  rename(
+    csa_any_match = csa_code_any_match,
+    csa_vintages = csa_code_vintages,
+    csa_vintages_aligned = csa_code_vintages_aligned
   )
 
 
 qc_geo_20 <- compile_duckdb_folder(
-  subset_dir = file.path(getwd(), data_root, "batch_array_20823868/Results/Geo QC/"),
-  abi_ref    = unique(church_2026_form_dt$abi)
+  subset_dir    = file.path(getwd(), data_root, "batch_array_20823868/Results/Geo QC/"),
+  abi_ref       = unique(church_2026_form_dt$abi),
+  church_dt     = church_2026_form_dt,
+  filter_states = TRUE,
+  us_states     = c(state.abb, "DC")
 )
 
 # Move query QC columns into their correct position — missed in initial ordering.
@@ -1253,6 +1410,20 @@ qc_geo_20$qc1$query_statuses <- qc_geo_20$qc1$query_statuses %>%
   str_replace_all("vintage_lookup_network_error", "network_error") %>%
   str_replace_all("vintage_lookup_html_response", "html_not_json") %>%
   str_replace_all("vintage_lookup_timeout", "request_timed_out")
+
+# Revise nomenclature and clarify vague NA cases.
+qc_geo_20$qc1 <- qc_geo_20$qc1 %>%
+  collect() %>%
+  mutate(
+    address_prefix = str_extract(address, "^[^,]+"),
+    address_matched = if_else(
+      address_prefix == "NA",
+      "No address_line_1",
+      address_matched
+    )
+  ) %>%
+  select(-address_prefix)
+
 
 # The actual test compared max - min > 0.02. Update the column name to reflect
 # this.
@@ -1538,7 +1709,9 @@ data_root <- "Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format"
 #'                        field contains the result if the match succeeded via 
 #'                        either "Exact matching" or "Fuzzy matching". "Only
 #'                        one address" represents cases where matching was 
-#'                        attempted but only one address was reported.
+#'                        attempted but only one address was reported. "No
+#'                        address_line_1" represents cases where matching was
+#'                        not possible, otherwise NA.
 #'
 #' @field reported_address The original reported address, prior to any cleaning 
 #'                         or verification.
@@ -1584,8 +1757,6 @@ church_2026_form_validated <- import_church_db(
   db_path = file.path(data_root, "Compiled by Batches", "church_2026_form_validated_08.03.2026.db"),
   import_data = "data"
 )
-#church_2026_form_validated_dt <- as.data.table(church_2026_form_validated$data)  # Convert for efficient data manipulation
-#setorder(church_2026_form_validated_dt, abi)  # Organize the table by abi
 
 
 # Otherwise, import the QC results, which cover algorithm cleaning and
@@ -1795,7 +1966,9 @@ church_2026_form_validated_import_qc <- import_church_db(
 #'                        field contains the result if the match succeeded via 
 #'                        either "Exact matching" or "Fuzzy matching". "Only
 #'                        one address" represents cases where matching was 
-#'                        attempted but only one address was reported.
+#'                        attempted but only one address was reported. "No
+#'                        address_line_1" represents cases where matching was
+#'                        not possible, otherwise NA.
 #'                        
 #' @field match_geolocation_test Geolocation test for agnostic matching attempts.
 #'                               \code{"Override"} if \code{"Exact"} matched,
@@ -1930,13 +2103,13 @@ census_qc <- read_list_from_duckdb(file.path(data_root, "Compiled by Batches", "
 
 
 #' @description
-#' Three quality checks were conducted over the geocoordinates verification
-#' process.
-#' 
-#' QC1 and QC2 apply the same test over different columns, verifying
-#' whether the reported census boundaries correspond with any of the spatial
-#' join results, and whether the matched vintages align with the dates that
-#' address was filed.
+#' Three quality checks were conducted over the geocoordinate verification 
+#' process: QC1: Summarizes all quality check outcomes from address-based 
+#' geocoding validation using the US Census Bureau over unique ABIs and 
+#' addresses. QC2: Assesses the difference between the reported and validated 
+#' geocoordinates. QC3: Examines the spread of geocoordinates among all records 
+#' sharing the same ABI and address, and indicates whether this summary includes 
+#' records where the address was verified or agnostically matched.
 #'
 #' @name qc1
 #'
@@ -2001,7 +2174,9 @@ census_qc <- read_list_from_duckdb(file.path(data_root, "Compiled by Batches", "
 #'                        field contains the result if the match succeeded via 
 #'                        either "Exact matching" or "Fuzzy matching". "Only
 #'                        one address" represents cases where matching was 
-#'                        attempted but only one address was reported.
+#'                        attempted but only one address was reported. "No
+#'                        address_line_1" represents cases where matching was
+#'                        not possible, otherwise NA.
 #'                        
 #' @field match_geolocation_test Geolocation test for agnostic matching attempts.
 #'                               \code{"Override"} if \code{"Exact"} matched,
@@ -2062,7 +2237,7 @@ census_qc <- read_list_from_duckdb(file.path(data_root, "Compiled by Batches", "
 #'                             
 #' @field any_address_matched Boolean. TRUE if any of the addresses reflected
 #'                            in these results came from an agnostically matched
-#'                            address. NA if no validation was used.
+#'                            address. NA if no matching was applied.
 
 geo_qc <- read_list_from_duckdb(file.path(data_root, "Compiled by Batches", "geo_qc_08.06.2026.db"))
 
@@ -2099,8 +2274,38 @@ church_2026_form_dt[!(abi %chin% missing_abi),
 ][, table(ok, useNA = "ifany")]  # all TRUE
 
 
+# Earlier it was identified that missing geocoordinates might be recovered
+# through address-based geocoding or aggregation or matching to an address 
+# with valid geocoordinates. This quantifies the proportion of results that 
+# still have NAs for both geocoordinates.
+
+# Need to make compute space to generate a table form of the validated dataset.
+rm(church_2026_form)
+rm(church_2026_form_dt)
+
+church_2026_form_validated_dt <- as.data.table(church_2026_form_validated$data)  # Convert for efficient data manipulation
+setorder(church_2026_form_validated_dt, abi)  # Organize the table by abi
+
+# Quantify the proportion of missing geocoordinates. 0.03% were identified as
+# missing. This is a reduction from 0.39% before completing the data cleaning
+# and validation.
+church_2026_form_validated_dt[
+  ,
+  .(
+    n = .N,
+    na_lon               = any(is.na(longitude)),
+    na_lat               = any(is.na(latitude))
+  ),
+  by = abi
+][, round(prop.table(table(na_lon, na_lat, useNA = "ifany"))*100, digits = 2)]
+
+
 ## --------------------
-## SUBSECTION D3: 
+## SUBSECTION D3: Plot the Distribution of Quality Check Outcomes
+
+# A limited set of quality check columns reflecting the salient results from
+# each stage of the algorithm were saved in the main dataset and summarized
+# into results by batch array at import.
 
 import_qc_18 <- church_2026_form_validated_import_qc$import_qc_18
 import_qc_20 <- church_2026_form_validated_import_qc$import_qc_20
@@ -2145,6 +2350,7 @@ if (!is.null(x_levels)) {
   d[, value := factor(value, levels = c(x_levels, "NA"))]
 }
 
+# Scatterplots summarizing missingness across all census boundaries and batch arrays.
 d %>%
   filter(column %!in% "address") %>%
   ggplot(aes(x = value, y = pct, fill = value)) +
@@ -2234,56 +2440,569 @@ d %>%
     )
 
 
-
-
 ## --------------------
-## SUBSECTION D3: 
+## SUBSECTION D4: At-Point-of-Evaluation Quality Checks
+
+# In this section, the at-point-of-evaluation quality check datasets, which
+# store the comprehensive results at each macro stage of the algorithm, are
+# assessed. Their coverage at import is also reviewed.
 
 
+# -- Address QC --------------------------------------
 
-df1 <- qc_df_18$data %>% collect()
-df2 <- qc_df_20$data %>% collect()
+# The most comprehensive quality check (QC1) contains all ABIs; the remaining
+# checks may show missing ABIs due to records being skipped during validation
+# or matching. Common reasons include NA values for address_line_1 or no
+# addresses remaining after USPS API validation. Additionally, approximately
+# 70% of ABIs are expected to be ineligible for agnostic matching; without
+# prior validation, these ABIs will not be captured by this metric.
+table(address_qc$import_qc_18$key, "Pass Missingness Test" = address_qc$import_qc_18$qc_pass, useNA = "ifany")
+table(address_qc$import_qc_20$key, "Pass Missingness Test" = address_qc$import_qc_20$qc_pass, useNA = "ifany")
+
+# At most 12% of ABIs did not qualify for either QC2 or QC3 evaluation, though
+# the average disqualification between arrays was 1.6%.
+address_qc$import_qc_18 %>%
+  group_by(key) %>%
+  summarize(
+    "Min" = round((min(n_missing)/5000)*100, digits = 2),
+    "Mean" = round((mean(n_missing)/5000)*100, digits = 2),
+    "Max" = round((max(n_missing)/5000)*100, digits = 2)
+  )
+
+# A little more ABIs did not qualify for QC3, where QC2 is completely not
+# represented in this batch. This is because address validation was not
+# allowed. Similar to the previous batch, on average 1.7% of ABIs were
+# disqualified.
+address_qc$import_qc_18 %>%
+  group_by(key) %>%
+  summarize(
+    "Min" = round((min(n_missing)/1000)*100, digits = 2),
+    "Mean" = round((mean(n_missing)/1000)*100, digits = 2),
+    "Max" = round((max(n_missing)/1000)*100, digits = 2)
+  )
 
 
-c(unique(df1$abi), unique(df2$abi))
+# 87% of addresses were eligible for the API, and all eligible addresses used
+# the API validation algorithm as expected.
+round(prop.table(table(address_qc$qc1$allow_usps_api, useNA = "ifany"))*100, digits = 2)
+round(prop.table(table("Allow" = address_qc$qc1$allow_usps_api, "Used" = address_qc$qc1$api_used, useNA = "ifany"))*100, digits = 2)
+
+# Of the records that underwent API validation, approximately 1.5% did not
+# attempt verification — verified_address is absent from the dataset for
+# these records. All such cases correspond to a NA value in address_line_1,
+# indicating that no valid address was available for the business and the
+# validation step was therefore skipped.
+round(prop.table(table("Allow Verification" = address_qc$qc1$allow_usps_api, "Attempted" = address_qc$qc1$verification_attempted, useNA = "ifany"))*100, digits = 2)
+round(prop.table(table("Any NA Addresses" = address_qc$qc1$any_addresses_line1_na, "Attempted" = address_qc$qc1$verification_attempted, "Allow Verification" = address_qc$qc1$allow_usps_api, useNA = "ifany"))*100, digits = 2)
+
+# We can verify this directly by isolating the ABIs suspected of filing
+# exclusively with NA values in address_line_1.
+test_abi <- address_qc$qc1 %>%
+  filter(allow_usps_api == TRUE &
+           verification_attempted == FALSE & 
+           any_addresses_line1_na == TRUE) %>%
+  pull(abi)
+
+# As expected, all of these ABIs correspond to records where no addresses
+# were valid — i.e., all address_line_1 values are NA.
+church_2026_form_dt[
+  abi %in% test_abi,
+  .(all_unique_address_line_1_na = all(is.na(unique(address_line_1)))),
+  by = abi
+][
+  , .N, by = all_unique_address_line_1_na
+]
+
+# Almost all ABIs (~98%) were processed through agnostic matching. No duplicates
+# were detected following this step, and no address-year combinations differed
+# between the raw and validated forms of the data, confirming that no data loss
+# occurred.
+round(prop.table(table(address_qc$qc1$match_attempted, useNA = "ifany"))*100, digits = 2)
+round(prop.table(table(address_qc$qc1$duplicates_induced, useNA = "ifany"))*100, digits = 2)
+round(prop.table(table(address_qc$qc1$new_vs_old_differ, useNA = "ifany"))*100, digits = 2)
 
 
+# Set categorical outcome ordering for easier reading.
+address_ver_order <- c(TRUE, "Exact match", "Fuzzy match", FALSE, "No address_line_1")
+address_geo_order <- c(TRUE, FALSE, "Override")
+address_attempt_order <- c("First try", "With city correction by zip5", "None")
+
+# The only values that failed the geolocation test occurred when verification
+# failed and no match was found.
+round(prop.table(table(
+  "Geolocation Test" = factor(address_qc$qc2$ver_geolocation_test, levels = address_geo_order, ordered = TRUE),
+  "Verified Address" = factor(address_qc$qc2$address_verified, levels = address_ver_order, ordered = TRUE), 
+  useNA = "ifany"
+), margin = 2)*100, digits = 2)
+
+# Some matching attempts coincided with API query errors such as "400 Bad Request".
+# Most failures to verify an address were associated with rate limit errors.
+round(prop.table(table(
+  "USPS Status Detail" = address_qc$qc2$usps_status_detail,
+  "Verified Address" = factor(address_qc$qc2$address_verified, levels = address_ver_order, ordered = TRUE), 
+  useNA = "ifany"
+), margin = 2)*100, digits = 2)
+
+# The vast majority of successful verification attempts happened on the first try,
+# with less than 1% verified using the secondary fallback strategy. NOTE: All
+# NAs correspond to outcomes where `attempt_succeeded == "No address_line_1"`.
+round(prop.table(table(
+  "Geolocation Test" = address_qc$qc2$usps_status_detail, 
+  "Attempt Succeeded" = factor(address_qc$qc2$attempt_succeeded, levels = address_attempt_order, ordered = TRUE)
+), margin = 1)*100, digits = 2)
 
 
-align_cols <- c(
+# Set categorical outcome ordering for easier reading.
+address_match_order <- c("Exact match", "Fuzzy match", "Only one address", "No address_line_1")
+address_geo_order <- c("PASS", 'PASS; no Lon/Lat', "FAIL", "Override")
+
+# Most fuzzy-matched attempts (86%) passed the geolocation test; less than 1%
+# passed with an incomplete comparison due to one record missing geocoordinates.
+round(prop.table(table(
+  "Matched Address" = factor(address_qc$qc3$address_matched, levels = address_match_order, ordered = TRUE), 
+  "Geolocation Test" = factor(address_qc$qc3$match_geolocation_test, levels = address_geo_order, ordered = TRUE),
+  useNA = "ifany"
+), margin = 1)*100, digits = 2)
+
+
+# -- Geo QC ------------------------------------------
+
+# The vast majority of arrays contained ABIs that were not processed through
+# the geolocation tests. This is expected, since QC1 and QC2 restricted their
+# assessments to only those ABI records where an address was available for
+# address-based geocoding. QC2 additionally filtered by non-missing verified
+# geocoordinates. QC3 focused only on ABI records where more than one valid
+# pair of geocoordinates was available for generating the summary tables.
+table(geo_qc$import_qc_18$key, "Pass Missingness Test" = geo_qc$import_qc_18$qc_pass, useNA = "ifany")
+table(geo_qc$import_qc_20$key, "Pass Missingness Test" = geo_qc$import_qc_20$qc_pass, useNA = "ifany")
+
+# As many as 45% of ABIs are not reported in QC2, with QC1 showing the most
+# coverage (average 1.6%). However, arrays present with as many as 12% ABI
+# not represented on average.
+geo_qc$import_qc_18 %>%
+  group_by(key) %>%
+  summarize(
+    "Min" = round((min(n_missing)/5000)*100, digits = 2),
+    "Mean" = round((mean(n_missing)/5000)*100, digits = 2),
+    "Max" = round((max(n_missing)/5000)*100, digits = 2)
+  )
+
+# Lack of representation is even higher for the second batch run, with maxima
+# as high as 98% for QC2. However, the averages excluded still tend to be
+# comparable with the previous batch. This is consistent with the results seen
+# in earlier plots, where it was shown that this batch resulted in some arrays
+# with high degrees of no validation.
+geo_qc$import_qc_20 %>%
+  group_by(key) %>%
+  summarize(
+    "Min" = round((min(n_missing)/1000)*100, digits = 2),
+    "Mean" = round((mean(n_missing)/1000)*100, digits = 2),
+    "Max" = round((max(n_missing)/1000)*100, digits = 2)
+  )
+
+
+# Set categorical outcome ordering for easier reading.
+geolocation_verified_order <- c("TRUE", "FALSE", "No address_line_1")
+
+# A higher proportion of addresses with valid geocoordinates (non-NA) were
+# verified through address-based geocoding. ~80% of entries without valid
+# geocoordinates failed to verify in comparison to ~22% of those with valid
+# geocoordinates.
+round(prop.table(table(
+  "Geo Verified" = factor(geo_qc$qc1$geolocation_verified, levels = geolocation_verified_order, ordered = TRUE), 
+  "Enough Valid Geo" = geo_qc$qc1$enough_geo, 
+  useNA = "ifany"
+), margin = 2)*100, digits = 2)
+
+# "N Addresses" counts the number of unique addresses were aggregated and had 
+# valid geocoordinates geocoordinates. In general, we see an increase in success 
+# as more records are included, but this drops down again with more than 7 
+# records, with 8 having a 50/50 match rate.
+round(prop.table(table(
+  "Geo Verified" = factor(geo_qc$qc1$geolocation_verified, levels = geolocation_verified_order, ordered = TRUE), 
+  "N Address" = geo_qc$qc1$n_address, 
+  useNA = "ifany"
+), margin = 2)*100, digits = 2)
+
+# As would be expected, any query where the number of attempts falls below the
+# max number of benchmark/vintage tries listed successfully verified
+# geocoordinates. ~98% of queries were successful with the first try. The next
+# query tries with some successes was the third set, with very little verifying
+# using the fourth set.
+round(prop.table(table(
+  "# Attempts" = geo_qc$qc1$n_attempts,
+  "Geo Verified" = factor(geo_qc$qc1$geolocation_verified, levels = geolocation_verified_order, ordered = TRUE), 
+  useNA = "ifany"
+), margin = 2)*100, digits = 2)
+
+# Recall the benchmark and vintage pairing tries listed under
+# "SUBSECTION A3: Set Geocoder Search Priorities". "[Public_AR|Current]_Current" 
+# at this time are expected to be the same as "[Public_AR|Census2020]_Census2020".
+spec
+
+# Of outcomes that reached four tries, 45 different combinations of API query
+# responses were received, with 99.5% having all 200 status codes, indicating
+# a successful query interaction. This confirms that failures to match largely
+# were a result of no match being available in the respective benchmark/vintage
+# try pairings databases used.
+geo_qc$qc1 %>% 
+  filter(n_attempts == 4) %>%
+  (\(x) {
+    round(prop.table(table(
+      "All Statuses 200" = x$query_statuses, 
+      "# Attempts" = x$n_attempts,
+      useNA = "ifany"
+    ), margin = 2)*100, digits = 2)
+  })() %>%
+  length()
+
+
+# A string comparison was done between the queried address and the matched
+# address in the US Census Bureau database. The algorithm processing JSON
+# responses handled multiple possible matches through best match triaging.
+# This assessment quickly identifies if the given address and best match
+# chosen from the JSON response are exactly the same or similar (delta = 0.15).
+#
+# Results show most JSON results were the exact same (78%). Almost 19% of
+# responses that were not exactly the same were similar. Only 3% were neither
+# similar nor the exact same.
+round(prop.table(table(
+  "Address Similar" = geo_qc$qc1$matched_address_similar, 
+  "Address Same" = geo_qc$qc1$matched_address_same
+))*100, digits = 2)
+
+
+# It is important to assess if verifying addresses or agnostically matching
+# them results in any changes with address-based geocoding.
+#
+# If results where a verification was retained (directly or through matching)
+# are considered, then we see no obvious differences between those that had
+# geocoordinates verified and those that did not.
+geo_qc$qc1 %>%
+  mutate(
+    address_verified = case_when(
+      address_verified %in% c(TRUE, "Exact match", "Fuzzy match") ~ "TRUE",
+      address_verified %in% c(FALSE) ~ "FALSE",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  count(geolocation_verified, address_verified, .drop = FALSE) %>%
+  pivot_wider(names_from = address_verified, values_from = n, values_fill = 0) %>%
+  mutate(
+    across(c(`FALSE`, Other, `TRUE`), \(x) round(100 * x / (`FALSE` + Other + `TRUE`), 2))
+  )
+
+# Similarly, reducing matching outcomes together indicates agnostic matching
+# may have negatively impacted matching with the geocoding database.
+geo_qc$qc1 %>%
+  mutate(
+    address_matched = case_when(
+      address_matched %in% c("Exact match", "Fuzzy match") ~ "TRUE",
+      address_matched %in% c(NA) ~ "FALSE",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  count(geolocation_verified, address_matched, .drop = FALSE) %>%
+  pivot_wider(names_from = address_matched, values_from = n, values_fill = 0) %>%
+  mutate(
+    across(c(`FALSE`, Other, `TRUE`), \(x) round(100 * x / (`FALSE` + Other + `TRUE`), 2))
+  )
+
+# For both verified addresses and agnostic matching, those compressed via
+# fuzzy matching saw an attenuation in getting a geocode match, whereas exact
+# matching did not seem to change results when matched to a directly verified
+# address or in comparison to results with one address (no matches attempted).
+round(prop.table(table(
+  "Address Verified" = factor(geo_qc$qc1$address_verified, levels = address_ver_order, ordered = TRUE), 
+  "Geo Verified" = factor(geo_qc$qc1$geolocation_verified, levels = geolocation_verified_order, ordered = TRUE), 
+  useNA = "ifany"
+), margin = 1)*100, digits = 2)
+
+round(prop.table(table(
+  "Address Matched" = factor(geo_qc$qc1$address_matched, levels = address_match_order, ordered = TRUE), 
+  "Geo Verified" = factor(geo_qc$qc1$geolocation_verified, levels = geolocation_verified_order, ordered = TRUE), 
+  useNA = "ifany"
+), margin = 1)*100, digits = 2)
+
+
+# It would be interesting to assess how well the reported values aligned to
+# the verified match from the Census Bureau Geocoder database. It was observed
+# that 21% had a difference between the respective geocoordinates of more
+# than 0.002 degrees (about 2 city blocks). 12% had a difference between
+# both.
+round(prop.table(table(
+  "Lat Diff > 0.002" = geo_qc$qc2$lat_gt_002, 
+  "Lon Diff > 0.002" = geo_qc$qc2$lon_gt_002, 
+  useNA = "ifany"
+))*100, digits = 2)
+
+# When looking only at those where the differences exceeded 0.002 degrees,
+# the mean difference is 0.0197 degrees and the max is 22.54 degrees
+# in latitude.
+geo_qc$qc2 %>%
+  filter(lat_gt_002 == TRUE) %>%
+  summarize(
+    "Min" = round(min(lat_abs_diff), digits = 4),
+    "Mean" = round(mean(lat_abs_diff), digits = 4),
+    "Max" = round(max(lat_abs_diff), digits = 4)
+  )
+
+# When looking only at those where the differences exceeded 0.002 degrees,
+# the mean difference is 0.0233 degrees and the max is 75.72 degrees
+# in longitude.
+geo_qc$qc2 %>%
+  filter(lon_gt_002 == TRUE) %>%
+  summarize(
+    "Min" = round(min(lon_abs_diff), digits = 4),
+    "Mean" = round(mean(lon_abs_diff), digits = 4),
+    "Max" = round(max(lon_abs_diff), digits = 4)
+  )
+
+
+# It would be interesting to assess how well the reported values aligned within
+# the same reported address. Based on limited manual assessment, it was noted
+# that these varied. Most addresses were within 0.02 degrees longitude or
+# latitude, about 2 kilometers or 1.4 miles. About 5%, however, had some
+# variation, either in longitude, latitude, or both.
+round(prop.table(table(
+  "Lat Spread > 0.02" = geo_qc$qc3$lat_spread_gt_02, 
+  "Lon Spread > 0.02" = geo_qc$qc3$lon_spread_gt_02, 
+  useNA = "ifany"
+))*100, digits = 2)
+
+# One concern is that address validation or matching increased the amount of
+# geolocation variation. However, based on the results from the previous
+# quality check, this may be moot since the given coordinates have a large
+# margin of error.
+# 
+# Looking at the latitude for verified addresses, there does not appear to be 
+# any strong effect on the max or average difference of geolocation amongst the 
+# same address. For context, the number of results represented for each stratum 
+# is included. These run a little on the high end.
+geo_qc$qc3 %>%
+  filter(lat_spread_gt_02 == TRUE) %>%
+  group_by(any_address_verified, .drop = FALSE) %>%
+  summarise(
+    n = n(),
+    "Max Diff"  = round(max(lat_max, na.rm = TRUE) - min(lat_min, na.rm = TRUE), 4),
+    "Mean Diff" = round(mean(lat_max, na.rm = TRUE) - mean(lat_min, na.rm = TRUE), 4),
+    "Avg N Geo"     = round(mean(n_geo, na.rm = TRUE), 0),
+    .groups = "drop"
+  )
+
+# Similarly, for agnostically matched addresses, there does not appear to be a
+# strong discernible influence on the max or average difference of geolocation
+# amongst the same address.
+geo_qc$qc3 %>%
+  filter(lat_spread_gt_02 == TRUE) %>%
+  group_by(any_address_matched, .drop = FALSE) %>%
+  summarise(
+    n = n(),
+    "Max Diff"  = round(max(lat_max, na.rm = TRUE) - min(lat_min, na.rm = TRUE), 4),
+    "Mean Diff" = round(mean(lat_max, na.rm = TRUE) - mean(lat_min, na.rm = TRUE), 4),
+    "Avg N Geo"     = round(mean(n_geo, na.rm = TRUE), 0),
+    .groups = "drop"
+  )
+
+# Looking again but for longitude, there also does not appear to be a strong
+# influence caused by verifying the address or agnostically matching them.
+geo_qc$qc3 %>%
+  filter(lon_spread_gt_02 == TRUE) %>%
+  group_by(any_address_verified, .drop = FALSE) %>%
+  summarise(
+    n = n(),
+    "Max Diff"  = round(max(lon_max, na.rm = TRUE) - min(lon_min, na.rm = TRUE), 4),
+    "Mean Diff" = round(mean(lon_max, na.rm = TRUE) - mean(lon_min, na.rm = TRUE), 4),
+    "Avg N Geo"     = round(mean(n_geo, na.rm = TRUE), 0),
+    .groups = "drop"
+  )
+
+geo_qc$qc3 %>%
+  filter(lon_spread_gt_02 == TRUE) %>%
+  group_by(any_address_matched, .drop = FALSE) %>%
+  summarise(
+    n = n(),
+    "Max Diff"  = round(max(lon_max, na.rm = TRUE) - min(lon_min, na.rm = TRUE), 4),
+    "Mean Diff" = round(mean(lon_max, na.rm = TRUE) - mean(lon_min, na.rm = TRUE), 4),
+    "Avg N Geo"     = round(mean(n_geo, na.rm = TRUE), 0),
+    .groups = "drop"
+  )
+
+
+# -- Census QC ---------------------------------------
+
+# The vast majority of arrays contained ABIs that were not processed through
+# the QC1 census tests assessing GEOIDs, where a higher proportion of arrays
+# completely represented ABIs when assessing the CBSA/CSA/ZCTA boundaries.
+# This is expected, since QC1 restricted its assessments to only ABI records
+# where enough geocoordinates were available for spatial joining. QC1 also
+# filters by entries where a GEOID match was made after joining.
+table(census_qc$import_qc_18$key, "Pass Missingness Test" = census_qc$import_qc_18$qc_pass, useNA = "ifany")
+table(census_qc$import_qc_20$key, "Pass Missingness Test" = census_qc$import_qc_20$qc_pass, useNA = "ifany")
+
+# As many as 16% of ABIs were not represented in QC1, with the average
+# exclusion sitting under 3%.
+census_qc$import_qc_18 %>%
+  group_by(key) %>%
+  summarize(
+    "Min" = round((min(n_missing)/5000)*100, digits = 2),
+    "Mean" = round((mean(n_missing)/5000)*100, digits = 2),
+    "Max" = round((max(n_missing)/5000)*100, digits = 2)
+  )
+
+# Lack of representation is slightly higher for the second batch run, with maxima
+# as high as 19% for QC1. However, the averages excluded still tend to be
+# comparable with the previous batch. This is consistent with the results seen
+# in earlier plots, where it was shown that this batch resulted in some arrays
+# with high degrees of NA after spatial joining.
+census_qc$import_qc_20 %>%
+  group_by(key) %>%
+  summarize(
+    "Min" = round((min(n_missing)/1000)*100, digits = 2),
+    "Mean" = round((mean(n_missing)/1000)*100, digits = 2),
+    "Max" = round((max(n_missing)/1000)*100, digits = 2)
+  )
+
+
+# The big questions we want to answer are these: was the raw data annotated
+# with the correct census boundaries, and if not, what is the extent of the
+# error; do the matched boundaries by decennial year correspond to the years
+# the address was filed under.
+#
+# The following function helps to construct generalized tables showing this
+# information over multiple columns for different boundaries and over multiple
+# alignment checks for these. Percentages are then calculated over the outcomes
+# for a given census boundary.
+
+make_pct_table <- function(data, cols, levels = NULL, row_labels = NULL) {
+  data <- as.data.frame(data)
+  
+  tab <- sapply(cols, \(nm) {
+    x <- data[[nm]]
+    if (!is.null(levels)) {
+      x <- factor(x, levels = levels)
+    } else {
+      x <- factor(x)
+    }
+    round(prop.table(table(x, useNA = "ifany")) * 100, digits = 2)
+  }, simplify = "matrix")
+  
+  result <- t(tab)
+  
+  if (!is.null(row_labels)) {
+    rownames(result) <- row_labels
+  }
+  
+  result
+}
+
+# Order the possible combinations of decennial years observed.
+vintage_levels <- c(
+  "2000", "2010", "2020", "2000, 2010", "2000, 2020", "2010, 2020",
+  "2000, 2010, 2020", "None", "Not reported", "Uncheckable"
+)
+
+# A quick check can be run to see if each unique address is consistently
+# associated with the same census metadata. This could be skewed due to the
+# matching processes done. In general, we have reason to believe the same
+# census boundaries were not applied to the same address over the years.
+n_distinct(census_qc$qc1$address) == nrow(distinct(census_qc$qc1, address, census_block))
+n_distinct(census_qc$qc1$address) == nrow(distinct(census_qc$qc1, address, census_tract))
+n_distinct(census_qc$qc1$address) == nrow(distinct(census_qc$qc1, address, county_code))
+n_distinct(census_qc$qc1$address) == nrow(distinct(census_qc$qc1, address, fips_code))
+
+# Generate the tables over GEOID boundaries and three alignment checks.
+any_match <- c( # Set 1: Confirms if any vintages matched the raw values
+  fips   = "fips_any_match",
+  county = "county_any_match",
+  tract  = "tract_any_match",
+  block  = "block_any_match"
+)
+listed_vintages <- c( # Set 2: Vintages matched
+  fips   = "fips_vintages",
+  county = "county_vintages",
+  tract  = "tract_vintages",
+  block  = "block_vintages"
+)
+any_aligned <- c( # Set 3: Boolean if the matched vintages correspond to the years open
   fips   = "fips_vintages_aligned",
   county = "county_vintages_aligned",
   tract  = "tract_vintages_aligned",
   block  = "block_vintages_aligned"
 )
 
-tab <- sapply(align_cols, \(nm) round(table(qc_census$qc1[[nm]], useNA = "ifany")/nrow(qc_census$qc1) * 100, digits = 2))
-out <- as.data.frame.matrix(t(tab))
-out
+# Generate all three tables
+make_pct_table(census_qc$qc1, any_match)
+make_pct_table(census_qc$qc1, listed_vintages, levels = vintage_levels) %>% t()
+make_pct_table(census_qc$qc1, any_aligned)
 
-tab <- table(
-  "Address Verified" = qc_geo$qc1$address_verified,
-  "Geo Verified"     = qc_geo$qc1$geolocation_verified,
-  useNA = "ifany"
+
+# A quick check can be run to see if each unique address is consistently
+# associated with the same census metadata. This could be skewed due to the
+# matching processes done. In general, we have reason to believe the same
+# census boundaries were not applied to the same address over the years.
+n_distinct(census_qc$qc2$address) == nrow(distinct(census_qc$qc2, address, cbsa_level))
+n_distinct(census_qc$qc2$address) == nrow(distinct(census_qc$qc2, address, cbsa_code))
+n_distinct(census_qc$qc2$address) == nrow(distinct(census_qc$qc2, address, csa_code))
+
+# Generate the tables over GEOID boundaries and three alignment checks.
+any_match <- c( # Set 1: Confirms if any vintages matched the raw values
+  cbsa_code  = "cbsa_code_any_match",
+  cbsa_level = "cbsa_level_any_match",
+  csa        = "csa_any_match"
+)
+listed_vintages <- c( # Set 2: Vintages matched
+  cbsa_code  = "cbsa_code_vintages",
+  cbsa_level = "cbsa_level_vintages",
+  csa        = "csa_vintages"
+)
+any_aligned <- c( # Set 3: Boolean if the matched vintages correspond to the years open
+  cbsa_code  = "cbsa_code_vintages_aligned",
+  cbsa_level = "cbsa_level_vintages_aligned",
+  csa        = "csa_vintages_aligned"
 )
 
-row_pct <- round(prop.table(tab, margin = 1) * 100, 2)
-row_pct[,-c(2)]
+# Generate all three tables
+make_pct_table(census_qc$qc2, any_match)
+make_pct_table(census_qc$qc2, listed_vintages, levels = vintage_levels) %>% t()
+make_pct_table(census_qc$qc2, any_aligned)
 
-# NOTE: Sometimes one or both geolocation was missing. During the matching,
-# this is overriden unless one geolocation test fails. Also, the census
-# annotation was missing from pair matches with missing geolocation, but
-# this was reconciled through address matching.
+
+# Assess matching
+# An attenuation of matching is observed as the boundary becomes smaller, with
+# near perfect matching for FIPS and county. Only 0.01% of tract and block
+# entries were reported as NA, and are consequentially uncheckable. CBSA code 
+# yielded a high match rate at 85%, CSA at 65%, and CBSA level at the lowest, 
+# with matches at 3%. Many CBSA level results were uncheckable too, at 12%.
 # 
-# Want to see how many were.
-
-
-
-
-
-
-
-
-
+# Assess vintages
+# As would be expected, FIPS and county generally matched with GEOIDs across
+# decennial periods (over 97%). Tract and block saw 44% and 35%, respectively.
+# The next big category of matching was the 2000 decennial period, but nearly
+# the same proportion of records match over the 2000, 2010 and 2010, 2020
+# decennial periods. This indicates that the given GEOID boundaries do not
+# clearly follow a pattern of annotating information from any one decennial
+# period.
+# 
+# Most CBSA code, CBSA level, and CSA records did not match a decennial year,
+# with a high level reporting as NA. The NA values arise from entries failing
+# to annotate with that boundary during spatial joining, which is expected since
+# these represent urban areas and will not cover the whole contiguous US. The
+# vintage with the most matches was the 2020 vintage (as high as 14%), with all
+# other vintages ranking well below 1%.
+# 
+# Assess align with years-open
+# The variability in census boundaries indicated earlier may legitimately be
+# a manifestation of census boundaries getting correctly applied when that
+# address was filed. However, we see that this assumption only holds for the
+# most macro-level boundaries, FIPS and county. High adherence is also observed for
+# CBSA codes, despite most matching with the 2020 decennial year.
+#
+# Granular boundaries like tract and block showed progressively increasing
+# lack of alignment, with as high as 15% being unable to assess. CSA had
+# just more than half align, but users should note that this proportion may be
+# misleading. We would expect that there is a high degree of failed comparisons
+# since CSA is not applied for all parts of the US. Therefore, the real
+# proportion of candidates is expected to be higher.
 
 
