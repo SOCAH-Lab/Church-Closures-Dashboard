@@ -4,7 +4,7 @@ bibliography: references.bib
 csl: ../Scripts/nature.csl
 ---
 
-<small>Last Updated: July 30<sup>th</sup>, 2026</small>
+<small>Last Updated: August 11<sup>th</sup>, 2026</small>
 
 # Overview
 
