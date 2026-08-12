@@ -39,6 +39,10 @@ suppressPackageStartupMessages({
 # Set up the plan for parallel processing
 plan(multisession, workers = 4)
 
+# Load in the functions
+source("../../Code/Support Functions/General.R")
+source("../../Code/Support Functions/For Step 2_2026 Format.R")
+
 # Define the "not in" operation
 "%!in%" <- function(x,y)!("%in%"(x,y))
 
@@ -170,8 +174,6 @@ First-time users should initialize the environment to install all required packa
 If you experience any trouble with this step, you might want to confirm that you are using R (v4.5.2) in the RStudio (v2026.01.1+403) and Quarto (v1.8.27). You can also read more about `renv` in their [vignette](https://rstudio.github.io/renv/articles/renv.html)\ [@renv_intro].
 :::
 
-\newpage
-
 # Methods
 
 ## Approach and Methodological Objectives
@@ -194,7 +196,7 @@ It is important that simplifying the data cleaning and validation process does n
 
 Specific workarounds are described in each relevant methods section, with brief assessments of algorithmic performance reported in the respective [Results](#results) section. The scope of **Step 2** was extensive enough that its findings have been compiled in a separate document dedicated solely to reporting these results. Only key insights and conclusions are presented here.
 
-## Special Considerations for PO Boxes and Missing `address_line_1` Entries
+## Special Considerations for PO Boxes and Missing `address_line_1` Entries {#methods-na-po}
 
 The raw data review of the 2023 and 2026 Formats revealed several notable special cases requiring specific handling. These are described in the respective sections of [Step 2: Clean and Validate Addresses and Geolocation, and Annotate Records with Census Boundaries](#method-step-2). Notably, approximately 14\% of businesses had at some point filed under a PO Box, and approximately 3\% had at some point submitted a record with no `address_line_1` value (`address_line_1 == NA`; no blank strings were observed). For context, each entry in the dataset represents a unique combination of address and year over 1,080,764 unique ABI, with no year repeated within a given business.
 
@@ -204,7 +206,7 @@ Addresses filed under a PO Box or missing an `address_line_1` value present chal
 
 For these reasons, under the following three conditions, all entries associated with a business are removed:
 
-- Geocoordinates are absent and could not be recovered through address-based validation, preventing spatial joining (____).
+- Geocoordinates are absent and could not be recovered through address-based validation, preventing spatial joining (0.39\% missing before **Step 2** and 0.03\% missing after validation/cleaning).
 
 - `address_line_1` is missing, preventing verification that the geocoordinates correspond to the institution itself rather than a general location within that ZIP code (3\% ABI).
 
@@ -423,7 +425,7 @@ If `address_line_1` is missing, the entry cannot be processed for address valida
 While entries lacking an `address_line_1` but have a valid geocoordinates are annotated with census boundaries, this does not imply that the geocoordinates accurately reflect the physical location of the business. This measure is intended solely to allow the algorithm to run without error, and affords users the opportunity to adjudicate these entries at a later stage if desired.
 :::
 
-### LOOP PART B: Consolidate and Verify the Addresses
+### LOOP PART B: Consolidate and Verify the Addresses {#methods-loop-b}
 
 Address heterogeneity arising from typographical errors was observed in the 2023 Format and is assumed to exist in the 2026 Format. In the 2023 version of this stepwise process, addresses were first compressed based on similarity before validation. This ordering was necessary because the workflow was run locally, and reducing the number of unique addresses to validate helped expedite the USPS API step.
 
@@ -640,7 +642,7 @@ A Depth-First Search (DFS) algorithm in the custom function `find_components()` 
 
 One candidate address is selected from each cluster using the triage rules described above to serve as the best match and anchor for associating the other addresses in the pool. Because the reliability of string-based matching can vary with string length, an additional geographic validation step is applied: for each matched set, the absolute range in reported longitude and latitude is computed as the difference between the maximum and minimum values.
 
-For reference, one degree of longitude is approximately 69 miles (111 kilometers), while one degree of latitude varies with proximity to the equator, averaging approximately 54 miles (87 kilometers) across the contiguous United States\ [@geological_survey_degree; @noaa_latitudelongitude]. The length of a typical U.S. city block similarly varies, with common estimates ranging from 100 to 200 meters\ [@wikipedia_city_block; @wikipedia_city_area]. Based on these benchmarks, address sets in which both the longitudinal and latitudinal differences exceeded 0.02 degrees (approximately 2 kilometers or $\approx$ 1.4 miles) were flagged as invalid matches and retained as distinct addresses in the final dataset.
+For reference, one degree of longitude is approximately 69 miles (111 kilometers), while one degree of latitude varies with proximity to the equator, averaging approximately 54 miles (87 kilometers) across the contiguous United States\ [@geological_survey_degree; @noaa_latitudelongitude]. The length of a typical U.S. city block similarly varies, with common estimates ranging from 100 to 200 meters\ [@wikipedia_city_block; @wikipedia_city_area]. Based on these benchmarks, address sets in which both the longitudinal and latitudinal differences exceeded 0.02 degrees ($\approx$ 2 kilometers or $\approx$ 1.4 miles) were flagged as invalid matches and retained as distinct addresses in the final dataset.
 
 This approach assumes that reported geolocations for each address are accurate to within the specified range with sufficient consistency to be reliable. As the primary objective of this method is to reduce address reduplication and improve downstream algorithmic performance, variations that may undermine this validation step are not considered to meaningfully impact the final results. When uncertain, the method is designed to err on the side of caution by retaining addresses as distinct rather than risk consolidating genuinely separate addresses that share strong surface-level similarities.
 
@@ -655,8 +657,6 @@ To mitigate these errors, addresses are geocoded using the [U.S. Census Bureau's
 Raw address fields are submitted to the Census Geocoder API, and the response JSON is parsed to extract validated address components into discrete columns via the custom function `validate_geocoordinates_geoCoder()`. This function internally calls `call_census_geocoder()`, which relies on the `httr` and `jsonlite` packages for API interaction\ [@httr; @jasonlite]. The geocoding process first builds an ordered list of benchmark/vintage candidates, then iterates through them in priority order until a successful match is found. 
 
 In **SUBSECTION B2: Set Geocoder Search Priorities**, users specify the ordered list of benchmark/vintage pairs the geocoder should try. If users prefer not to use the default triage list, **SUBSECTION A2: Set Geocoder Search Priorities** in "Clean Raw Data_Step 2_2026 Format.R" provides the custom function `census_geo_show_options()`, which retrieves all available benchmark and vintage options that can be used for configuration.
-
-\newpage
 
 \begin{list}{}{\setlength\leftmargin{0em}}
   \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
@@ -707,13 +707,15 @@ httr\op{::}modify\_url(
     \end{Verbatim}
   \end{codebox}
 
-  \vspace{-4ex}
+  \vspace{-2ex}
   \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
 \end{list}
 
 The API sometimes returns multiple possible matches. If there are multiple candidates, the custom function `select_best_match()` first tries to resolve the choice using the ZIP code by preferring a candidate whose ZIP uniquely matches the input ZIP (treating ZIP+4 as the 5-digit ZIP). If ZIP does not identify a single candidate, it compares the input address text to the candidates’ matched-address text using `find_similar_addresses()`, progressively tightening $\delta = 0.2$ until one candidate is most clearly paired with the input. If that still does not produce a clear winner, it defaults to the first candidate in the remaining list.
 
 ### LOOP PART D: Point-in-Polygon Spatial Assignment of Census Information {#method-step-2-loop-part-d}
+
+Refer to Appendix - [GEOID Prebuild Shapefiles](#code-results-source-6), [Core Area CBSA/CSA Prebuild Shapefiles](#code-results-source-7), [Core Area ZCTA Prebuild Shapefiles](#code-results-source-8) for information on where to find the code that generates these results, as well as the results codebook.
 
 The data spans three decennial years: 2000, 2010, and 2020. Because users can select varying date ranges and may expect temporally accurate census boundary mappings, each address must be annotated with the census boundaries associated with all three. Once annotated, entries can be aggregated to the census boundary identifier from a given decennial US Census Bureau's [TIGER/Line Shapefile](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) release\ [@census_tigerline]. This enables results to be spatially projected onto maps via the decennially accurate demarcations of census boundaries.
 
@@ -864,7 +866,7 @@ For each array run, the dataset is organized by state then ABI to mitigate the n
 
 The core areas shapefile contains national-level layers for all three areas (CBSA, CSA, and ZCTA) census boundaries across the three decennial periods. Prior to spatial joining, these files are filtered by the `area_states` column, which is extracted from `area_name` during the shapefile building process.
 
-Spatial joining was conducted using the `sf` package via the custom functions `add_decennial_geoid_block()`, `decode_zcta()`, and `decode_cbsa_csa()`\ [@edzer_sf]. Geocoordinates were converted to the standard World Geodetic System 1984 (WGS84) and projected into the coordinate reference system (CRS) of the census boundary polygons. A generalized outline of the algorithm executed by each function is outlined below.
+Spatial joining was conducted using the `sf` package via the custom functions \linebreak `add_decennial_geoid_block()`, `decode_zcta()`, and `decode_cbsa_csa()`\ [@edzer_sf]. Geocoordinates were converted to the standard World Geodetic System 1984 (WGS84) and projected into the coordinate reference system (CRS) of the census boundary polygons. A generalized outline of the algorithm executed by each function is outlined below.
 
 \begin{algorithm}[H]
 \caption{High-Level Procedure: Spatial Join for Census/Area Identifier Assignment (CRS alignment; optional state partitioning)}
@@ -898,17 +900,15 @@ Up to this point, only a subset of the available columns had been evaluated in t
 
 These quality control tables also serve as the location where all raw values are presented alongside their relevant validation outcomes and quality control variables. Finally, all excess columns are consolidated into the final dataset form, prioritizing validated results over unvalidated versions and retaining a limited set of quality control columns to facilitate quick adjudication and back-tracking.
 
-A separate report has been created to complement this one, specifically assessing the outcomes of the three quality control assessments. Refer to "Preparation Step 2 QC_2026 Format.pdf" for these results and further descriptions about what was collected for the quality control metrics.
-
-For the implementation of these loop parts, refer to ["Code/Clean Raw Data_Step 2 HPC v2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202%20HPC%20v2_2026%20Format.R). The input data consisted of the standardized and converted dataset generated in **Step 1**: `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2026 Format/church_2026_form_standardized_06.10.2026.parquet"`. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/"`.
+Refer to [Results - Step 2: Clean and Validate Addresses and Geolocation, and Annotate Records with Census Boundaries](#results-2) for results on the three quality control assessment outcomes. For the implementation of these loop parts, refer to ["Code/Clean Raw Data_Step 2 HPC v2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202%20HPC%20v2_2026%20Format.R). The input data consisted of the standardized and converted dataset generated in **Step 1**: `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2026 Format/church_2026_form_standardized_06.10.2026.parquet"`. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/"`.
 
 ### Compiling Results and Evaluating Import Quality
 
 Results were saved in two columnar formats: Parquet and DuckDB\ [@arrow; @duckdb]. Parquet files are easy to handle during importation and exportation, but can only contain one dataframe at a time, much like a `*.csv` file. In contrast, DuckDB supports saving lists of dataframes, much like an `*.xlsx` file. To support the writing and reading of DuckDB files, custom functions were created for this purpose. Directories containing result Parquets, representing subset results from batch arrays, are compiled using `compile_parquet_folder()`. Directories containing result DuckDB lists are compiled using `compile_duckdb_folder()`.
 
-Both functions also include generalized import quality checks, which use the file name to verify that all expected ABIs are present in a defined subset. This check requires precise alignment between the dataset organization in the HPC script and the range defined in the file name, and allows for a quick confirmation that no information was lost across batch array runs. Additionally, `compile_parquet_folder()` generates summaries of the discrete quality check outcomes (address validation and matching, census annotation, and geocoordinates) saved in the main dataset alongside all results and metadata.
+Both functions also include generalized import quality checks (QC), which use the file name to verify that all expected ABIs are present in a defined subset. This check requires precise alignment between the dataset organization in the HPC script and the range defined in the file name, and allows for a quick confirmation that no information was lost across batch array runs. Additionally, `compile_parquet_folder()` generates summaries of the discrete QC outcomes (address validation and matching, census annotation, and geocoordinates) saved in the main dataset alongside all results and metadata.
 
-Two batches were run to complete the process described here. Any subsetting of the ABI search space, which defines which ABIs are processed during a given batch, is described in each respective section in **PART C: Recompile Results from the HPC**. Some quality checks were also revised for conciseness and to account for variations not considered or covered by the HPC script. This was done in preparation for compiling the results across batches into the final result in **SUBSECTION C3: Combining the Batches**.
+Two batches were run to complete the process described here. Any subsetting of the ABI search space, which defines which ABIs are processed during a given batch, is described in each respective section in **PART C: Recompile Results from the HPC**. Some QCs were also revised for conciseness and to account for variations not considered or covered by the HPC script. This was done in preparation for compiling the results across batches into the final result in **SUBSECTION C3: Combining the Batches**.
 
 Primary datasets, comprising the main data with all metadata and quality control data, were compiled across batches, while import quality controls were maintained as separate lists for each batch. Batch-specific results are denoted by the first two digits of the batch number it is from. The main dataset was too large to compile in-memory, necessitating a DuckDB SQL compilation approach (code below). Results were then consolidated using the custom function `write_qc_groups()`, combining the compiled main data with their respective batch import quality control datasets.
 
@@ -966,7 +966,7 @@ The three at-point-of-analysis quality control datasets were smaller and easier 
 
 For the implementation of data variable assessments relevant to the cleaning algorithm, post-evaluation importation, compiling, and checking, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). The input data consisted of the standardized and converted dataset generated in **Step 1**: `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2026 Format/church_2026_form_standardized_06.10.2026.parquet"`. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/"`.
 
-Additional details regarding some of the algorithm's performance outcomes can be found in [Results - Step 1: Clean and Validate Addresses and Geolocation, and Annotate Records with Census Boundaries](#results-2). Most results were compiled in a separate report assessing all quality control outcomes at the time of analysis. Refer to "Preparation Step 2 QC_2026 Format.pdf" for these results.
+Additional details regarding the algorithm's performance outcomes can be found in [Results - Step 2: Clean and Validate Addresses and Geolocation, and Annotate Records with Census Boundaries](#results-2), which includes results specifically assessing the outcomes of the three quality control assessments.
 
 ## Step 3: 
 
@@ -984,9 +984,947 @@ Refer to Appendix - [Primary SIC Codes and Descriptions](#code-results-source-2)
 
 ## Step 2: Clean and Validate Addresses and Geolocation, and Annotate Records with Census Boundaries {#results-2}
 
-Most results were compiled in a separate report assessing all quality control outcomes at the time of analysis. Refer to "Preparation Step 2 QC_2026 Format.pdf" for these results. 
+### Compilation Quality Control Checks
 
-Refer to Appendix - [State-Level Shapefile for Basemap](#code-results-source-4), [Missing Address Lines and PO Boxes By City](#code-results-source-5), [GEOID Prebuild Shapefiles](#code-results-source-6), [Core Area CBSA/CSA Prebuild Shapefiles](#code-results-source-7), [Core Area ZCTA Prebuild Shapefiles](#code-results-source-8) for information on where to find the code that generates these results, as well as the results codebook.
+Refer to Appendix - [Step 2 Final Result - Import Quality Checks](#code-results-source-10), [State-Level Shapefile for Basemap](#code-results-source-4), and [Missing Address Lines and PO Boxes By City](#code-results-source-5) for information on where to find the code that generates these results, as well as the results codebook.
+
+Results were compiled both from arrays within a batch and between batches. To ensure there was no data loss or erroneous introduction of duplications, basic importation QCs were generated. **SUBSECTION D2: Confirm Complete ABI Coverage** confirms that all imported data contains the needed ABIs — those that filed within the US. **SUBSECTION D4: At-Point-of-Evaluation Quality Checks** for the Address QC dataset further confirms that address validation and matching did not create any duplications of records.
+
+@fig-array-qc and @fig-na-census below summarize discrete outcomes for the different cleaning and validation steps conducted by array. Unlike in the respective QC datasets discussed in subsequent sections, these values are pulled from the main dataset where all ABIs are represented.
+
+@fig-na-census shows most entries resulted in a GEOID match (block group, tract, county, and state) averaging over 95\%. On average, 80\% of the geocoordinates used for spatial joining were verified, with less than 10\% not comparable with the database due to missing `address_line_1`. Notably, the second batch array, where no address verification was allowed, yielded some arrays that had close to 100\% unverified geocoordinates.
+
+:::{.callout-note}
+NAs for both verified and matched addresses were further resolved to those caused by addresses missing a valid `address_line_1` after importing. Results are not shown in these import QC tables.
+:::
+
+```{r}
+#| label: fig-array-qc
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-width: 14
+#| fig-height: 16
+
+## --------------------
+## SUBSECTION D1: Load Combined Batch Results
+
+# Directory containing all batch results.
+data_root <- "../../Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format"
+
+church_2026_form_validated_import_qc <- import_church_db(
+  db_path = file.path(data_root, "Compiled by Batches", "church_2026_form_validated_08.03.2026.db"),
+  import_data = "qc"
+)
+
+## --------------------
+## SUBSECTION D3: Plot the Distribution of Quality Check Outcomes
+
+import_qc_18 <- church_2026_form_validated_import_qc$import_qc_18
+import_qc_20 <- church_2026_form_validated_import_qc$import_qc_20
+
+# Scatterplots summarizing outcome distributions across each batch array.
+p_address_18     <- flag_boxplot(import_qc_18$address_verified, "Address Verified", x_levels = c("TRUE", "Exact match", "Fuzzy match", "FALSE"))
+p_match_18       <- flag_boxplot(import_qc_18$address_matched, "Address Matched", x_levels = c("Only one address", "Exact match", "Fuzzy match", "FALSE"))
+p_geolocation_18 <- flag_boxplot(import_qc_18$geolocation_verified, "Geolocation Verified", x_levels = c("TRUE", "FALSE", "No address_line_1"))
+p_geoid_18       <- flag_boxplot(import_qc_18$geoid_match, "GeoID Match", x_levels = c("Matched", "Some matches not found", "Matches not found", "Not enough info"))
+
+p_combined_18 <- (p_address_18 | p_match_18 | p_geolocation_18 | p_geoid_18) +
+  plot_annotation(
+    title    = "QC Flag Distributions Across Arrays",
+    subtitle = "Batch 18850425: 87% ABI coverage (allowed address verification)",
+    theme    = theme(
+      plot.title    = element_text(face = "bold", size = 22),
+      plot.subtitle = element_text(size = 20, colour = "grey40")
+    )
+  )
+
+
+# Scatterplots of outcome distributions across each batch array; no address
+# verification was performed.
+p_match_20       <- flag_boxplot(import_qc_20$address_matched, "Address Matched", x_levels = c("Only one address", "Exact match", "Fuzzy match", "FALSE"))
+p_geolocation_20 <- flag_boxplot(import_qc_20$geolocation_verified, "Geolocation Verified", x_levels = c("TRUE", "FALSE", "No address_line_1"))
+p_geoid_20       <- flag_boxplot(import_qc_20$geoid_match, "GeoID Match", x_levels = c("Matched", "Some matches not found", "Matches not found", "Not enough info"))
+
+p_combined_20 <- (p_match_20 | p_geolocation_20 | p_geoid_20) +
+  patchwork::plot_annotation(
+    title    = "QC Flag Distributions Across Arrays",
+    subtitle = "Batch 20823868: Remaining ABI not covered in batch 18850425 (no address verification)",
+    theme    = theme(
+      plot.title    = element_text(face = "bold", size = 22),
+      plot.subtitle = element_text(size = 20, colour = "grey40")
+    )
+  )
+
+(patchwork::wrap_elements(p_combined_18) / patchwork::wrap_elements(p_combined_20))
+```
+
+
+```{r}
+#| label: fig-na-census
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-width: 14
+#| fig-height: 16
+
+# ---- global (consistent) font sizing / theme controls ----
+base_size          = 18
+plot_title_size    = 24
+plot_subtitle_size = 20
+axis_title_size    = 20
+axis_text_x_size   = 18
+axis_text_y_size   = 18
+legend_title_size  = 18
+legend_text_size   = 16
+
+## --------------------
+## SUBSECTION D3: Plot the Distribution of Quality Check Outcomes
+
+# Convert to data.table for fast in-place mutation (does not modify `df` in caller)
+d <- as.data.table(import_qc_18$na_census_boundaries)
+x_levels = c(
+  "address", "geoid_2000", "geoid_2010", "geoid_2020",
+  "cbsa_code_2007", "cbsa_level_2007", "cbsa_code_2010", "cbsa_level_2010",
+  "cbsa_code_2020", "cbsa_level_2020", "csa_code_2007", "csa_code_2010",
+  "csa_code_2020", "zcta_2000", "zcta_2010", "zcta_2020"
+)
+
+d[, value := column]
+d[, pct   := pct_na]
+d[, value := data.table::fifelse(is.na(value), "NA", as.character(value))]
+
+if (!is.null(x_levels)) {
+  d[, value := factor(value, levels = c(x_levels, "NA"))]
+}
+
+# Scatterplots summarizing missingness across all census boundaries and batch arrays.
+p_census_18 <- d %>%
+  filter(column %!in% "address") %>%
+  ggplot(aes(x = value, y = pct, fill = value)) +
+    geom_boxplot(alpha = 0.6, outlier.shape = NA, na.rm = FALSE) +
+    geom_jitter(aes(colour = value), width = 0.15, size = 2, alpha = 0.8, na.rm = FALSE) +
+    scale_fill_viridis_d(drop = FALSE) +
+    scale_colour_viridis_d(drop = FALSE, guide = "none") +
+    scale_y_continuous(breaks = seq(0, 100, 10)) +
+    coord_cartesian(ylim = c(0, 100)) +
+    labs(
+      title    = "Spatial Joining Matches Across Arrays",
+      subtitle = "Batch 18850425: 87% ABI coverage (allowed address verification)",
+      x        = "Census Boundary and Decennial Period",
+      y        = "% with No Matches"
+    ) +
+    theme_minimal(base_size = base_size) +
+    theme(
+      legend.position = "none",
+      plot.title      = element_text(face = "bold", size = plot_title_size),
+      plot.subtitle   = element_text(size = plot_subtitle_size, colour = "grey40"),
+      axis.title      = element_text(size = axis_title_size),
+      axis.text.x     = element_text(angle = 25, hjust = 1, size = axis_text_x_size),
+      axis.text.y     = element_text(size = axis_text_y_size),
+      plot.margin     = margin(t = 10, r = 10, b = 10, l = 30)
+    )
+
+# Convert to data.table for fast in-place mutation (does not modify `df` in caller)
+d <- as.data.table(import_qc_20$na_census_boundaries)
+x_levels = c(
+  "address", "geoid_2000", "geoid_2010", "geoid_2020", 
+  "cbsa_code_2007", "cbsa_level_2007", "cbsa_code_2010", "cbsa_level_2010", 
+  "cbsa_code_2020", "cbsa_level_2020", "csa_code_2007", "csa_code_2010", 
+  "csa_code_2020", "zcta_2000", "zcta_2010", "zcta_2020"
+)
+
+d[, value := column]
+d[, pct   := pct_na]
+d[, value := data.table::fifelse(is.na(value), "NA", as.character(value))]
+
+if (!is.null(x_levels)) {
+  d[, value := factor(value, levels = c(x_levels, "NA"))]
+}
+
+# Scatterplots summarizing missingness across all census boundaries and batch arrays.
+p_census_20 <- d %>%
+  filter(column %!in% "address") %>%
+  ggplot(aes(x = value, y = pct, fill = value)) +
+    geom_boxplot(alpha = 0.6, outlier.shape = NA, na.rm = FALSE) +
+    geom_jitter(aes(colour = value), width = 0.15, size = 2, alpha = 0.8, na.rm = FALSE) +
+    scale_fill_viridis_d(drop = FALSE) +
+    scale_colour_viridis_d(drop = FALSE, guide = "none") +
+    scale_y_continuous(breaks = seq(0, 100, 10)) +
+    coord_cartesian(ylim = c(0, 100)) +
+    labs(
+      title    = "Spatial Joining Matches Across Arrays",
+      subtitle = "Batch 20823868: Remaining ABI not covered in batch 18850425 (no address verification)",
+      x = "Census Boundary and Decennial Period",
+      y = "% with No Matches"
+    ) +
+    theme_minimal(base_size = base_size) +
+    theme(
+      legend.position = "none",
+      plot.title      = element_text(face = "bold", size = plot_title_size),
+      plot.subtitle   = element_text(size = plot_subtitle_size, colour = "grey40"),
+      axis.title      = element_text(size = axis_title_size),
+      axis.text.x     = element_text(angle = 25, hjust = 1, size = axis_text_x_size),
+      axis.text.y     = element_text(size = axis_text_y_size),
+      plot.margin     = margin(t = 30, r = 10, b = 10, l = 10)
+    )
+
+p_census_18 / p_census_20
+```
+
+Less than 20\% of addresses were verified, likely attributable to the API query limitations imposed. Less than 5\% of addresses were matched either exactly or fuzzy matched, with most matching occurring in the agnostic algorithm and negligible matching resulting from unverified addresses reconciled to verified ones.
+
+@fig-array-qc resolves how many entries did not yield a match to any type of census boundary by decennial year. For some of these columns, such as the CBSA and CSA columns, missingness is expected since these census boundaries are assigned to urban locations. Both batches show very high annotation rates (low missingness) across the GEOID columns, with some limited missingness in the ZCTA columns. CBSA code and level missingness remains similar on average across the decennial years, but CSA code missingness attenuated from the 2000 to 2010 and again to the 2020 decennial period.
+
+### Overview of Address Completeness and ABI Filing Patterns
+
+The cleaning and validation conducted in **Step 2** relied on a few core assumptions. Where possible, missing data or inconsistencies were handled by the algorithm, limiting the number of entries removed at this stage and maximizing the number of records rendered usable for downstream analysis. [Special Considerations for PO Boxes and Missing `address_line_1` Entries](#methods-na-po) examined the biggest factors to consider and outlined when critically missing values justify removing an entry from downstream analysis.
+
+\begin{table}[htbp]
+\centering
+\caption{Distribution of Number of Unique Addresses ABI Filed (counts reported in thousands)}
+\label{tab:num-address}
+\small
+\begin{tabularx}{\textwidth}{l*{12}{>{\raggedleft\arraybackslash}X}}
+ & \textbf{1} & \textbf{2} & \textbf{3} & \textbf{4} & \textbf{5} & \textbf{6} & \textbf{7} & \textbf{8} & \textbf{9} & \textbf{10} & \textbf{11} & \textbf{12} \\
+\midrule
+Count (K)   & 759 & 205 & 74 & 28 & 10 & 3 & 0.900 & 0.300 & 0.050 & 0.010 & 0.002 & 0.002 \\
+Percent & 70.21 & 19.00 & 6.88 & 2.59 & 0.91 & 0.29 & 0.09 & 0.02 & 0.00 & 0.00 & 0.00 & 0.00 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\vspace{1ex}
+
+In addition, a few other variable characteristics were assessed and assumptions about them tested. All years reported are unique within a given ABI, making all ABI and address combinations unique for a given years-open value. 70\% of ABIs filed under one unique address for the entire span of time, with 10\% moving more than twice and less than 1\% moving more than five times (Table \ref{tab:num-address}).
+
+City, state, five-digit ZIP code, and four-digit ZIP code extension are also given with an `address_line_1`. No entries are missing state or city; 0.001\% lack a five-digit ZIP code and $\approx$ 22\% lack the four-digit ZIP extension. These missing values pose minimal geocoding risk, except for the 8 entries without a ZIP code, for which address validation failure would preclude SimpleMaps secondary validation. All entries have consistent formatting, assessed by string character length, for the state two-digit acronym, five-digit ZIP code, and four-digit extension, when reported.
+
+### Address Validation and Consolidation Process
+
+Refer to Appendix - [Step 2 Algorithm Quality Check Datasets - Import Quality Checks](#code-results-source-11) and [Step 2 Algorithm Quality Check Datasets - Addresses](#code-results-source-12) for information on where to find the code that generates these results, as well as the results codebook.
+
+The most comprehensive quality check (QC1) contains all ABIs; the remaining checks may show missing ABIs due to records being skipped during validation or matching (Table \ref{tbl-missingness_by_qc_with_summarycols-add}). Common reasons include `NA` values for `address_line_1` or no addresses remaining after USPS API validation. Additionally, approximately 70\% of ABIs are expected to be ineligible for agnostic matching; without prior validation, these ABIs will not be captured by this metric. Proportions of ABIs that did not qualify for QC2 or QC3 were consistent across batches.
+
+\noindent\begin{minipage}{\linewidth}
+\small
+\captionof{table}{Missingness test outcomes by QC key. \textbf{TRUE}/\textbf{FALSE} are counts of arrays passing/failing; \textbf{Min}/\textbf{Mean}/\textbf{Max} are the min/avg/max \% of ABIs missing in those arrays.}
+\label{tbl-missingness_by_qc_with_summarycols-add}
+
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{\texttt{import\_qc\_18}}
+
+\vspace{1em}
+\begin{tabular}{lrr|rrr}
+\textbf{Key} & \textbf{FALSE} & \textbf{TRUE} & \textbf{Min} & \textbf{Mean} & \textbf{Max} \\
+\midrule
+\texttt{qc1} & 0   & 188 & 0.00 & 0.00 & 0.00 \\
+\texttt{qc2} & 187 & 1   & 0.00 & 1.64 & 11.60 \\
+\texttt{qc3} & 187 & 1   & 0.00 & 1.64 & 11.60 \\
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{\texttt{import\_qc\_20}}
+
+\vspace{1em}
+\begin{tabular}{lrr|rrr}
+\textbf{Key} & \textbf{FALSE} & \textbf{TRUE} & \textbf{Min} & \textbf{Mean} & \textbf{Max} \\
+\midrule
+\texttt{qc1} & 0   & 142 & 0.00 & 0.00 & 0.00 \\
+\texttt{qc3} & 119 & 23  & 0.00 & 1.76 & 14.4 \\
+\end{tabular}
+\end{minipage}
+
+\end{minipage}
+
+\newpage
+
+#### QC1: API Usage, Matching Overview, and Unique Result Consistency
+
+Of the records that underwent API validation, approximately 1.5\% did not attempt verification — `verified_address` is absent from the dataset for these records (Table \ref{tbl-verification_attempt_summary}). All such cases correspond to a `NA` value in `address_line_1`; direct examination of these ABIs confirmed that no valid address was available, causing the validation step to be skipped.
+
+\noindent\begin{minipage}{\linewidth}
+\small
+\captionof{table}{Verification Attempt by NA Address Presence and API Permission (\%)}
+\label{tbl-verification_attempt_summary}
+
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{Allow Verification: \texttt{FALSE}}
+
+\vspace{1em}
+\begin{tabular}{lrr}
+\toprule
+ & \multicolumn{2}{c}{\textbf{Attempted}} \\
+\cmidrule(l){2-3}
+\textbf{Any NA Addresses} & \textbf{FALSE} & \textbf{TRUE} \\
+\midrule
+FALSE & 12.66 & 0.00 \\
+TRUE  &  0.38 & 0.00 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{Allow Verification: \texttt{TRUE}}
+
+\vspace{1em}
+\begin{tabular}{lrr}
+\toprule
+ & \multicolumn{2}{c}{\textbf{Attempted}} \\
+\cmidrule(l){2-3}
+\textbf{Any NA Addresses} & \textbf{FALSE} & \textbf{TRUE} \\
+\midrule
+FALSE &  0.00 & 84.71 \\
+TRUE  &  1.43 &  0.82 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+\end{minipage}
+
+Almost all ABIs (~98\%) were processed through agnostic matching. No duplicates were detected following this step, and no address-year combinations differed between the raw and validated forms of the data, confirming that no data loss occurred.
+
+#### QC2: Address Validation Using the USPS API
+
+As described in [LOOP PART B: Consolidate and Verify the Addresses](#methods-loop-b), unverified addresses were compared against verified ones using either exact or fuzzy matching. Exact matches on `address_line_1` bypassed the geolocation difference test entirely, while fuzzy matches required both coordinate differences to fall below 0.02 degrees (approximately 2 kilometers, or $\approx$ 1.4 miles). Of addresses that failed verification, fewer than 1\% underwent fuzzy matching and subsequently failed the geolocation test (Table \ref{tab:verified-address-geo}).
+
+\begin{table}[htbp]
+\centering
+\caption{Verified Address by Geolocation Test (\% column)}
+\label{tab:verified-address-geo}
+\small
+\begin{tabularx}{\textwidth}{l*{5}{>{\raggedleft\arraybackslash}X}}
+\toprule
+ & \multicolumn{5}{c}{\textbf{Verified Address}} \\
+\cmidrule(lr){2-6}
+\textbf{Geolocation Test} & \textbf{TRUE} & \textbf{Exact Match} & \textbf{Fuzzy Match} & \textbf{FALSE} & \textbf{No \texttt{address\_line\_1}} \\
+\midrule
+TRUE        &   0.00 &   0.00 & 100.00 &  0.00 &   0.00 \\
+FALSE       &   0.00 &   0.00 &   0.00 &  0.11 &   0.00 \\
+Override    &   0.00 & 100.00 &   0.00 &  0.00 &   0.00 \\
+\texttt{NA} & 100.00 &   0.00 &   0.00 & 99.89 & 100.00 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Among addresses that were matched exactly or by fuzzy matching, most failed USPS verification due to bad or access denied requests. Rate limiting accounted for fewer than one in five of these verification failures. In contrast, addresses that failed verification and could not be matched to any verified address were predominantly blocked by rate limits (Table \ref{tab:verified-address}).
+
+\begin{table}[htbp]
+\centering
+\caption{Verified Address by USPS Status Detail (\% column)}
+\label{tab:verified-address}
+\small
+\begin{tabularx}{\textwidth}{l*{5}{>{\raggedleft\arraybackslash}X}}
+\toprule
+ & \multicolumn{5}{c}{\textbf{Verified Address}} \\
+\cmidrule(lr){2-6}
+\textbf{USPS Status Detail} & \textbf{TRUE} & \textbf{Exact Match} & \textbf{Fuzzy Match} & \textbf{FALSE} & \textbf{No \texttt{address\_line\_1}} \\
+\midrule
+200 Successful operation & 100.00 &  0.00 &  0.00 &  0.00 &   0.00 \\
+400 Bad request          &   0.00 & 77.56 & 82.87 &  1.54 &   0.00 \\
+403 Access denied        &   0.00 &  1.55 &  1.77 & 23.07 &   0.00 \\
+429 Rate limit reached   &   0.00 & 20.89 & 15.35 & 75.38 &   0.00 \\
+\texttt{NA}              &   0.00 &  0.00 &  0.00 &  0.00 & 100.00 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The vast majority of successful verification attempts happened on the first try, with less than 1\% verified using the secondary fallback strategy (Table \ref{tab:attempt-succeeded}). NOTE: All NAs correspond to outcomes where `attempt_succeeded == "No address_line_1"`.
+
+\noindent\begin{minipage}{\linewidth}
+\centering
+\captionof{table}{Attempt Succeeded by USPS Status Detail (\% row)}
+\label{tab:attempt-succeeded}
+\small
+\begin{tabular}{llll}
+\toprule
+ & \multicolumn{3}{c}{\textbf{Attempt Succeeded}} \\
+\cmidrule(lr){2-4}
+\textbf{USPS Status Detail} & \textbf{First Try} & \textbf{With City Correction by Zip5} & \textbf{None} \\
+\midrule
+200 Successful operation & 99.92 &  0.08 &   0.00 \\
+400 Bad request          &  0.00 &  0.00 & 100.00 \\
+403 Access denied        &  0.00 &  0.00 & 100.00 \\
+429 Rate limit reached   &  0.00 &  0.00 & 100.00 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+#### QC3: Address Matching Results
+
+Most fuzzy-matched attempts (86\%) passed the geolocation test; fewer than 1\% passed with an incomplete comparison due to one record missing geocoordinates (Table \ref{tab:geolocation-test}). This implies a small number of entries with missing geocoordinates were supplemented through string matching, in addition to any resolved through address-based geocoding.
+
+\noindent\begin{minipage}{\linewidth}
+\centering
+\captionof{table}{Geolocation Test Outcome by Matched Address (\% row)}
+\label{tab:geolocation-test}
+\small
+\begin{tabular}{lllll}
+\toprule
+ & \multicolumn{4}{c}{\textbf{Geolocation Test}} \\
+\cmidrule(lr){2-5}
+\textbf{Matched Address} & \textbf{PASS} & \textbf{PASS; no Lon/Lat} & \textbf{FAIL} & \textbf{Override} \\
+\midrule
+Exact match        &  0.00 & 0.00 &  0.00 & 100.00 \\
+Fuzzy match        & 86.28 & 0.02 & 13.70 &   0.00 \\
+Only one address   &  0.00 & 0.00 &  0.00 &   0.00 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+
+### Address-Based Geocoding
+
+Refer to Appendix - [Step 2 Algorithm Quality Check Datasets - Import Quality Checks](#code-results-source-11) and [Step 2 Algorithm Quality Check Datasets - Geocoordinates](#code-results-source-14) for information on where to find the code that generates these results, as well as the results codebook.
+
+The vast majority of arrays contained ABIs that were not processed through the geolocation tests (Table \ref{tbl-missingness_by_qc_with_summarycols-geo}). This is expected, since QC1 and QC2 restricted their assessments to only those ABI records where an address was available for address-based geocoding. QC2 additionally filtered by non-missing verified geocoordinates. QC3 focused only on ABI records where more than one valid pair of geocoordinates was available for generating the summary tables.
+
+Lack of representation is even higher for the second batch run, with maxima as high as 98\% for QC2. However, the averages excluded still tend to be comparable with the previous batch. This is consistent with the results seen in earlier plots, where it was shown that this batch resulted in some arrays with high degrees of no validation (@fig-array-qc and @fig-na-census).
+
+\noindent\begin{minipage}{\linewidth}
+\small
+\captionof{table}{Missingness test outcomes by QC key. \textbf{TRUE}/\textbf{FALSE} are counts of arrays passing/failing; \textbf{Min}/\textbf{Mean}/\textbf{Max} are the min/avg/max \% of ABIs missing in those arrays.}
+\label{tbl-missingness_by_qc_with_summarycols-geo}
+
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{\texttt{import\_qc\_18}}
+
+\vspace{1em}
+\begin{tabular}{lrr|rrr}
+\textbf{Key} & \textbf{FALSE} & \textbf{TRUE} & \textbf{Min} & \textbf{Mean} & \textbf{Max} \\
+\midrule
+\texttt{qc1} & 187 & 1 & 0.00 & 1.64  & 11.60 \\
+\texttt{qc2} & 188 & 0 & 2.40 & 13.80 & 44.60 \\
+\texttt{qc3} & 188 & 0 & 1.44 & 15.40 & 32.90 \\
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{\texttt{import\_qc\_20}}
+
+\vspace{1em}
+\begin{tabular}{lrr|rrr}
+\textbf{Key} & \textbf{FALSE} & \textbf{TRUE} & \textbf{Min} & \textbf{Mean} & \textbf{Max} \\
+\midrule
+\texttt{qc1} & 119 & 23 & 0.00 & 1.76  & 14.40 \\
+\texttt{qc2} & 142 & 0  & 0.20 & 16.90 & 98.10 \\
+\texttt{qc3} & 141 & 1  & 0.00 & 13.30 & 36.40 \\
+\end{tabular}
+\end{minipage}
+
+\end{minipage}
+
+#### QC1: US Census Bureau Geocoder API Validation
+
+A higher proportion of addresses with valid geocoordinates (non-NA) were verified through address-based geocoding. $\approx$ 80\% of entries without valid geocoordinates failed to verify in comparison to $\approx$ 22\% of those with valid geocoordinates (Table \ref{tbl-enough-valid-geo}).
+
+\noindent\begin{minipage}{\linewidth}
+\centering
+\captionof{table}{Enough Valid Geo by Geo Verified (\% column)}
+\label{tbl-enough-valid-geo}
+\small
+\begin{tabular}{lrr}
+\toprule
+ & \multicolumn{2}{c}{\textbf{Enough Valid Geo}} \\
+\cmidrule(lr){2-3}
+\textbf{Geo Verified} & \textbf{FALSE} & \textbf{TRUE} \\
+\midrule
+TRUE                & 10.30 & 78.12 \\
+FALSE               & 79.13 & 21.18 \\
+No address\_line\_1 & 10.57 & 0.70 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+"N Addresses" counts the number of unique addresses were aggregated and had valid geocoordinates (Table \ref{tab-geo-verified-by-n-address}). In general, we see an increase in success as more records are included, but this drops down again with more than 7 records, with 8 having a 50/50 match rate.
+
+\begin{table}[htbp]
+\centering
+\caption{Geo Verified by Number of Addresses (\% column)}
+\label{tab-geo-verified-by-n-address}
+\small
+\begin{tabularx}{\textwidth}{l*{9}{>{\raggedleft\arraybackslash}X}}
+\toprule
+ & \multicolumn{9}{c}{\textbf{N Address}} \\
+\cmidrule(lr){2-10}
+\textbf{Geo Verified} & \textbf{0} & \textbf{1} & \textbf{2} & \textbf{3} & \textbf{4} & \textbf{5} & \textbf{6} & \textbf{7} & \textbf{8} \\
+\midrule
+TRUE              & 10.30 & 76.04 & 85.52 & 87.58 & 87.00 & 88.21 & 85.86 & 70.83 & 50.00 \\
+FALSE             & 79.13 & 23.08 & 14.48 & 12.42 & 13.00 & 11.79 & 14.14 & 29.17 & 50.00 \\
+No address\_line\_1 & 10.57 &  0.88 &  0.00 &  0.00 &  0.00 &  0.00 &  0.00 &  0.00 &  0.00 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+As would be expected, any query where the number of attempts falls below the max number of benchmark/vintage tries listed successfully verified geocoordinates. $\approx$ 98\% of queries were successful with the first try. The next query tries with some successes was the third set, with only 0.02\% verifying using the fourth set (Table \ref{tbl-geo-verified-by-attempt}). Recall the benchmark and vintage pairing tries listed under **SUBSECTION A3: Set Geocoder Search Priorities**:
+
+\noindent\begin{minipage}{\linewidth}
+\captionof{table}{Benchmark and Vintage Try Pairs}
+\label{tbl-try-pairs}
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{benchmark\_name} & \textbf{vintage\_name} \\
+\midrule
+Public\_AR\_Census2020 & Census2020\_Census2020 \\
+Public\_AR\_Census2020 & Census2010\_Census2020 \\
+Public\_AR\_Current    & Current\_Current \\
+Public\_AR\_ACS2025    & Current\_ACS2025 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+The first in queue, `[Public_AR|Census2020]_Census2020`, is expected to reference the same database as the third, `[Public_AR|Current]_Current`, supporting the higher matches observed using both.
+
+\noindent\begin{minipage}{\linewidth}
+\captionof{table}{Geolocation verification status by try attempt (\% column)}
+\label{tbl-geo-verified-by-attempt}
+\centering
+\begin{tabular}{lrrr}
+\toprule
+ & \multicolumn{3}{c}{\textbf{Geo Verified}} \\
+\cmidrule(lr){2-4}
+\textbf{\# Attempts} & \textbf{TRUE} & \textbf{FALSE} & \textbf{No address\_line\_1} \\
+\midrule
+1            & 97.70 &   0.00 &   0.00 \\
+2            &  0.10 &   0.00 &   0.00 \\
+3            &  2.18 &   0.00 &   0.00 \\
+4            &  0.02 & 100.00 &   0.00 \\
+\texttt{<NA>} &  0.00 &   0.00 & 100.00 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+Of outcomes that reached four tries, 45 different combinations of API query responses were received, with 99.5\% having all 200 status codes, indicating a successful query interaction. This confirms that failures to match largely were a result of no match being available in the respective benchmark/vintage try pairings databases used.
+
+A string comparison was done between the queried address and the matched address in the US Census Bureau database. The algorithm processing JSON responses handled multiple possible matches through best match triaging. This assessment quickly identifies if the given address and best match chosen from the JSON response are exactly the same or similar ($\delta$ = 0.15). Results show most JSON results were the exact same, 78\% (Table \ref{tbl-addresses-matched}). Almost 19\% of responses that were not exactly the same were similar. Only 3\% were neither similar nor the exact same.
+
+\noindent\begin{minipage}{\linewidth}
+\captionof{table}{Query and JSON match address comparison (\% column)}
+\label{tbl-addresses-matched}
+\centering
+\begin{tabular}{lrr}
+\toprule
+ & \multicolumn{2}{c}{\textbf{Address Same}} \\
+\cmidrule(lr){2-3}
+\textbf{Address Similar} & \textbf{FALSE} & \textbf{TRUE} \\
+\midrule
+FALSE &  3.28 &  0.00 \\
+TRUE  & 18.70 & 78.02 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+\noindent\begin{minipage}{\linewidth}
+\centering
+\caption{Address verified and address matched outcomes by geolocation verified (\% row)}
+\label{tbl-geo-address-matched-qc1-v1-v2}
+\small
+\begin{tabular}{lrrr rrr}
+\toprule
+ & \multicolumn{3}{c}{\textbf{Address Verified}} & \multicolumn{3}{c}{\textbf{Address Matched}} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+\textbf{Geocoordinates Verified} & \textbf{FALSE} & \textbf{Other} & \textbf{TRUE} & \textbf{FALSE} & \textbf{Other} & \textbf{TRUE} \\
+\midrule
+FALSE &
+\multicolumn{1}{r}{75.10} & \multicolumn{1}{r}{15.60} & \multicolumn{1}{r|}{ 9.33} &
+\multicolumn{1}{r}{60.90} & \multicolumn{1}{r}{31.20} & \multicolumn{1}{r}{ 7.90} \\
+No address\_line\_1 &
+\multicolumn{1}{r}{ 0.00} & \multicolumn{1}{r}{100.00} & \multicolumn{1}{r|}{ 0.00} &
+\multicolumn{1}{r}{ 0.00} & \multicolumn{1}{r}{100.00} & \multicolumn{1}{r}{ 0.00} \\
+TRUE &
+\multicolumn{1}{r}{74.00} & \multicolumn{1}{r}{12.80} & \multicolumn{1}{r|}{13.10} &
+\multicolumn{1}{r}{41.60} & \multicolumn{1}{r}{46.20} & \multicolumn{1}{r}{12.20} \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+It is important to assess if verifying addresses or agnostically matching them results in any changes with address-based geocoding. Results where a verification was retained (directly or through matching) show no obvious difference between those that had geocoordinates verified and those that did not (Table \ref{tbl-geo-address-matched-qc1-v1-v2}).
+
+For both verified addresses and agnostic matching, those compressed via fuzzy matching saw an attenuation in retrieving a match (Table \ref{tbl-geo-ver-by-address}). Exact matching did not seem to change results, neither compared with those directly verified by address nor with results having only one address (no matches attempted).
+
+\noindent\begin{minipage}{\linewidth}
+\small
+\captionof{table}{Geo Verified by Address Verified/Matched (\% row).}
+\label{tbl-geo-ver-by-address}
+
+\begin{minipage}{0.48\textwidth}
+\centering
+
+\vspace{1em}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Address Verified} & \textbf{TRUE} & \textbf{FALSE} \\
+\midrule
+TRUE        & 83.86 & 16.14 \\
+Exact match & 86.91 & 13.09 \\
+Fuzzy match & 65.43 & 34.57 \\
+FALSE       & 78.41 & 21.59 \\
+\texttt{<NA>} & 74.63 & 24.57 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+
+\vspace{1em}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Address Matched} & \textbf{TRUE} & \textbf{FALSE} \\
+\midrule
+Exact match       & 88.15 & 11.85 \\
+Fuzzy match       & 80.78 & 19.22 \\
+Only one address  & 84.51 & 15.49 \\
+\texttt{<NA>}      & 71.56 & 28.44 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+\end{minipage}
+
+#### QC2: Reported vs. Validated Geocoordinate Comparison
+
+It would be interesting to assess how well the reported geocoordinates aligned to the verified match from the Census Bureau Geocoder database. It was observed that 21\% had a difference between at least one geocoordinate of more than 0.002 degrees (about 2 city blocks). 12\% had a difference between both.
+
+\noindent\begin{minipage}{\linewidth}
+\captionof{table}{Latitude/Longitude difference relative to 0.002 degrees (\%)}
+\label{tbl-geo-verified-by-attempt}
+\centering
+\begin{tabular}{lrrr}
+\toprule
+ & \multicolumn{3}{c}{\textbf{Lon Diff $>$ 0.002}} \\
+\cmidrule(lr){2-4}
+\textbf{Lat Diff $>$ 0.002} & \textbf{FALSE} & \textbf{TRUE} & \textbf{\texttt{<NA>}} \\
+\midrule
+FALSE   & 78.72 &  5.49 & 0.00 \\
+TRUE    &  3.49 & 12.30 & 0.00 \\
+\texttt{<NA>} &  0.00 &  0.00 & 0.00 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+When looking only at those where the differences exceeded 0.002 degrees, the mean difference is 0.0197 degrees and the max is 22.54 degrees in latitude; the mean difference is 0.0233 degrees and the max is 75.72 degrees in longitude. While most of the records were close to 2 kilometers or 1.4 miles difference, some were as many as 22 degrees, about the distance from New Haven, CT to Mexico City, Mexico, or even 75 degrees, about the distance from New Haven to London, England.
+
+#### QC3: Geocoordinate Variation by Address
+
+It would be interesting to assess how well the reported values aligned within the same reported address. Based on limited manual assessment, it was noted that these varied. Most addresses were within 0.02 degrees longitude or latitude, about 2 kilometers or 1.4 miles. About 5\%, however, had some variation, either in longitude, latitude, or both (Table \ref{tbl-geo-verified-by-attempt}).
+
+\noindent\begin{minipage}{\linewidth}
+\captionof{table}{Latitude/Longitude spread relative to 0.02 degrees (\%).}
+\label{tbl-geo-verified-by-attempt}
+\centering
+\begin{tabular}{lrr}
+\toprule
+ & \multicolumn{2}{c}{\textbf{Lon Spread $>$ 0.02}} \\
+\cmidrule(lr){2-3}
+\textbf{Lat Spread $>$ 0.02} & \textbf{FALSE} & \textbf{TRUE} \\
+\midrule
+FALSE & 95.37 & 1.69 \\
+TRUE  &  1.02 & 1.92 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+\vspace{1ex}
+
+One concern is that address validation or matching increased the amount of geolocation variation. However, based on the results from the previous quality check, this may be moot since the given coordinates have a large margin of error.
+
+Looking at the latitude for verified addresses, there does not appear to be any strong effect on the max or average difference of geolocation amongst the same address. Similarly, for agnostically matched addresses, there does not appear to be a strong discernible influence on the max or average difference of geolocation amongst the same address (Table \ref{tbl-spread-verified-matched}).
+
+Looking again but for longitude, there also does not appear to be a strong influence caused by verifying the address or agnostically matching them (Table \ref{tbl-spread-verified-matched}). For context, the number of results represented for each stratum is included. These run a little on the high end (Table \ref{tab-geo-verified-by-n-address}).
+
+
+\noindent\begin{minipage}{\linewidth}
+\captionof{table}{Lat/Lon spread summary ($>$ 0.02) (subset where spread flag is TRUE)}
+\label{tbl-spread-verified-matched}
+\centering
+\small
+
+\textbf{Panel A: By Any Address Verified}
+
+\vspace{0.4em}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrr|rrrr}
+\toprule
+ & \multicolumn{4}{c}{\textbf{Lat Spread $>$ 0.02}} & \multicolumn{4}{c}{\textbf{Lon Spread $>$ 0.02}} \\
+\cmidrule(lr){2-5}\cmidrule(lr){6-9}
+\textbf{Any Verified} &
+\textbf{n} & \textbf{Max Diff} & \textbf{Mean Diff} & \textbf{Avg N Geo} &
+\textbf{n} & \textbf{Max Diff} & \textbf{Mean Diff} & \textbf{Avg N Geo} \\
+\midrule
+FALSE        & 23433 &  51.8 & 0.0538 & 13 & 28926 & 110.0 & 0.0659 & 13 \\
+TRUE         &  3972 &  47.8 & 0.0678 & 14 &  4698 &  96.0 & 0.0835 & 13 \\
+\texttt{<NA>} &  5660 &  47.4 & 0.0502 & 12 &  6997 & 102.0 & 0.0526 & 11 \\
+\bottomrule
+\end{tabular}%
+}
+
+\vspace{1.0em}
+
+\textbf{Panel B: By Any Address Matched}
+
+\vspace{0.4em}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrr|rrrr}
+\toprule
+ & \multicolumn{4}{c}{\textbf{Lat Spread $>$ 0.02}} & \multicolumn{4}{c}{\textbf{Lon Spread $>$ 0.02}} \\
+\cmidrule(lr){2-5}\cmidrule(lr){6-9}
+\textbf{Any Matched} &
+\textbf{n} & \textbf{Max Diff} & \textbf{Mean Diff} & \textbf{Avg N Geo} &
+\textbf{n} & \textbf{Max Diff} & \textbf{Mean Diff} & \textbf{Avg N Geo} \\
+\midrule
+FALSE        &   839 &  46.0 & 0.0646 &  7 &   939 &  98.4 & 0.0813 &  7 \\
+TRUE         & 10741 &  45.7 & 0.0497 & 17 & 13256 &  99.6 & 0.0634 & 17 \\
+\texttt{<NA>} & 21485 &  52.2 & 0.0570 & 11 & 26426 & 110.0 & 0.0662 & 11 \\
+\bottomrule
+\end{tabular}%
+}
+
+\end{minipage}
+
+### Census Boundary Annotation Using Point-in-Polygon Spatial Joins
+
+Refer to Appendix - [Step 2 Algorithm Quality Check Datasets - Import Quality Checks](#code-results-source-11) and [Step 2 Algorithm Quality Check Datasets - Census](#code-results-source-13) for information on where to find the code that generates these results, as well as the results codebook.
+
+The vast majority of arrays contained ABIs that were not processed through the QC1 census tests assessing GEOIDs, where a higher proportion of arrays completely represented ABIs when assessing the CBSA/CSA/ZCTA boundaries (Table \ref{tbl-missingness_by_qc_with_summarycols-census}). This is expected, since QC1 restricted its assessments to only ABI records where enough geocoordinates were available for spatial joining. QC1 also filters by entries where a GEOID match was made after joining.
+
+Lack of representation is slightly higher for the second batch run, with maxima as high as 19\% for QC1 as opposed to 16\%. However, the averages excluded still tend to be comparable with the previous batch. This is consistent with the results seen in earlier plots, where it was shown that this batch resulted in some arrays with high degrees of `NA` after spatial joining (@fig-array-qc and @fig-na-census).
+
+\noindent\begin{minipage}{\linewidth}
+\small
+\captionof{table}{Missingness test outcomes by QC key. \textbf{TRUE}/\textbf{FALSE} are counts of arrays passing/failing; \textbf{Min}/\textbf{Mean}/\textbf{Max} are the min/avg/max \% of ABIs missing in those arrays.}
+\label{tbl-missingness_by_qc_with_summarycols-census}
+
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{\texttt{import\_qc\_18}}
+
+\vspace{1em}
+\begin{tabular}{lrr|rrr}
+\textbf{Key} & \textbf{FALSE} & \textbf{TRUE} & \textbf{Min} & \textbf{Mean} & \textbf{Max} \\
+\midrule
+\texttt{qc1} & 188 & 0   & 0.02 & 2.61 & 16.30  \\
+\texttt{qc2} & 77  & 111 & 0.00 & 0.03 & 0.64 \\
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{\texttt{import\_qc\_20}}
+
+\vspace{1em}
+\begin{tabular}{lrr|rrr}
+\textbf{Key} & \textbf{FALSE} & \textbf{TRUE} & \textbf{Min} & \textbf{Mean} & \textbf{Max} \\
+\midrule
+\texttt{qc1} & 126 & 16  & 0.00 & 2.91 & 19.0 \\
+\texttt{qc2} & 26  & 116 & 0.00 & 0.03 & 0.30 \\
+\end{tabular}
+\end{minipage}
+
+\end{minipage}
+
+#### QC1/2: GEOID and Core Statistics Vintage Alignment
+
+A quick check comparing dimensions of distinct outcomes over address and over address with census boundaries showed each unique address is not consistently associated with the same census metadata for either QC1 or QC2. This result could be skewed due to the matching processes done. In general, we have reason to believe the same census boundaries were not applied to the same address over the years.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{## SUBSECTION D4: At-Point-of-Evaluation Quality Checks"}
+
+\com{# GEOID columns ~ line 2909}
+\func{n\_distinct}(census\_qc\op{\$}qc1\op{\$}address) \op{==} \func{nrow}(\func{distinct}(census\_qc\op{\$}qc1, address, census\_block))
+\func{n\_distinct}(census\_qc\op{\$}qc1\op{\$}address) \op{==} \func{nrow}(\func{distinct}(census\_qc\op{\$}qc1, address, census\_tract))
+\func{n\_distinct}(census\_qc\op{\$}qc1\op{\$}address) \op{==} \func{nrow}(\func{distinct}(census\_qc\op{\$}qc1, address, county\_code))
+\func{n\_distinct}(census\_qc\op{\$}qc1\op{\$}address) \op{==} \func{nrow}(\func{distinct}(census\_qc\op{\$}qc1, address, fips\_code))
+
+\com{# Statistical area columns ~ line 2944}
+\func{n\_distinct}(census\_qc\op{\$}qc1\op{\$}address) \op{==} \func{nrow}(\func{distinct}(census\_qc\op{\$}qc1, address, cbsa\_level))
+\func{n\_distinct}(census\_qc\op{\$}qc1\op{\$}address) \op{==} \func{nrow}(\func{distinct}(census\_qc\op{\$}qc1, address, cbsa\_code))
+\func{n\_distinct}(census\_qc\op{\$}qc1\op{\$}address) \op{==} \func{nrow}(\func{distinct}(census\_qc\op{\$}qc1, address, csa\_code))
+\end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+In this section, the big questions we want to answer are these: was the raw data annotated with the correct census boundaries, and if not, what is the extent of the error; do the matched boundaries by decennial year correspond to the years the address was filed under. Note that the data provider did not include ZCTA columns, which is why these alignments are not checked here.
+
+An attenuation of matching is observed as the boundary becomes smaller, with near perfect matching for FIPS and county. Only 0.01\% of tract and block entries were reported as `NA`, and are consequentially uncheckable. CBSA code yielded a high match rate at 85\%, CSA at 65\%, and CBSA level at the lowest, with matches at 3\%. Many CBSA level results were uncheckable too, at 12\% (Table \ref{tbl-census-anymatch-by-qc}).
+
+\noindent\begin{minipage}{\linewidth}
+\small
+\captionof{table}{Do raw values match any spatially joined decennial year equivalent? (\% column)}
+\label{tbl-census-anymatch-by-qc}
+
+\begin{minipage}{0.49\textwidth}
+\centering
+\textbf{\texttt{census\_qc\$qc1}}
+
+\vspace{1em}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lrrr}
+\toprule
+ & \textbf{Matched} & \textbf{None} & \textbf{Uncheckable} \\
+\midrule
+FIPS   & 98.56 &  1.44 &  0.00 \\
+County & 97.63 &  2.37 &  0.00 \\
+Tract  & 84.64 & 15.35 &  0.01 \\
+Block  & 84.16 & 15.82 &  0.01 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{minipage}
+\hfill
+\begin{minipage}{0.49\textwidth}
+\centering
+\textbf{\texttt{census\_qc\$qc2}}
+
+\vspace{1em}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lrrr}
+\toprule
+ & \textbf{Matched} & \textbf{None} & \textbf{Uncheckable} \\
+\midrule
+CBSA Code  & 85.87 & 14.13 &  0.00 \\
+CBSA Level &  3.14 & 84.50 & 12.36 \\
+CSA         & 65.35 & 34.65 &  0.00 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{minipage}
+
+\end{minipage}
+
+\vspace{1ex}
+
+As would be expected, FIPS and county generally matched with GEOIDs across decennial periods (over 97\%). Tract and block saw 44\% and 35\%, respectively. The next big category of matching was the 2000 decennial period, but nearly the same proportion of records match over the 2000, 2010 and 2010, 2020 decennial periods (Table \ref{tbl-census-vintages-by-qc}). This indicates that the given GEOID boundaries do not clearly follow a pattern of annotating information from any one decennial period.
+
+Most CBSA code, CBSA level, and CSA records did not match a decennial year, with a high level reporting as `NA`. The `NA` values arise from entries failing to annotate with that boundary during spatial joining, which is expected since these represent urban areas and will not cover the whole contiguous US. The vintage with the most matches was the 2020 vintage (as high as 14\%), with all other vintages ranking well below 1\% (Table \ref{tbl-census-vintages-by-qc}).
+
+\noindent\begin{minipage}{\linewidth}
+\small
+\captionof{table}{Records whose matched vintage set equals the given row label (\% rows)}
+\label{tbl-census-vintages-by-qc}
+
+\begin{minipage}{0.49\textwidth}
+\centering
+\textbf{\texttt{census\_qc\$qc1}}
+
+\vspace{1em}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Vintages} & \textbf{FIPS} & \textbf{County} & \textbf{Tract} & \textbf{Block} \\
+\midrule
+2000              &  0.00 &  0.01 & 12.71 & 14.85 \\
+2010              &  0.00 &  0.00 &  2.48 &  4.22 \\
+2020              &  0.02 &  0.02 &  5.01 &  6.09 \\
+2000, 2010        &  0.02 &  0.03 & 10.44 & 10.67 \\
+2000, 2020        &  0.00 &  0.00 &  0.02 &  2.31 \\
+2010, 2020        &  0.03 &  0.02 &  9.56 & 10.61 \\
+2000, 2010, 2020  & 98.48 & 97.54 & 44.42 & 35.42 \\
+None              &  1.44 &  2.37 & 15.35 & 15.82 \\
+Not reported      &  0.00 &  0.00 &  0.00 &  0.00 \\
+Uncheckable       &  0.00 &  0.00 &  0.01 &  0.01 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{minipage}
+\hfill
+\begin{minipage}{0.49\textwidth}
+\centering
+\textbf{\texttt{census\_qc\$qc2}}
+
+\vspace{1em}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Vintages} & \textbf{CBSA Code} & \textbf{CBSA Level} & \textbf{CSA} \\
+\midrule
+2000              &  0.00 &  0.00 &  0.00 \\
+2010              &  0.00 &  0.00 &  0.02 \\
+2020              &  5.40 &  0.47 & 13.53 \\
+2000, 2010        &  0.00 &  0.00 &  0.00 \\
+2000, 2020        &  0.00 &  0.00 &  0.00 \\
+2010, 2020        &  0.33 &  0.01 &  0.01 \\
+2000, 2010, 2020  &  0.00 &  0.00 &  0.00 \\
+None              & 14.13 & 84.50 & 34.65 \\
+Not reported      &  0.00 &  0.00 &  0.00 \\
+Uncheckable       &  0.00 & 12.36 &  0.00 \\
+\texttt{<NA>}      & 80.13 &  2.66 & 51.79 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{minipage}
+
+\end{minipage}
+
+\vspace{1ex}
+
+The variability in census boundaries indicated earlier may legitimately be a manifestation of census boundaries getting correctly applied when that address was filed. However, we see that this assumption only holds for the most macro-level boundaries, FIPS and county. High adherence is also observed for CBSA codes, despite most matching with the 2020 decennial year (Table \ref{tbl-census-vintages-aligned-by-qc}).
+
+Granular boundaries like tract and block showed progressively increasing lack of alignment, with as high as 15\% being unable to assess (Table \ref{tbl-census-vintages-aligned-by-qc}). CSA had just more than half align, but users should note that this proportion may be misleading. We would expect that there is a high degree of failed comparisons since CSA is not applied for all parts of the US. Therefore, the real proportion of candidates is expected to be higher.
+
+
+\noindent\begin{minipage}{\linewidth}
+\small
+\captionof{table}{Vintage-alignment outcomes with years open (\% row)}
+\label{tbl-census-vintages-aligned-by-qc}
+
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{\texttt{census\_qc\$qc1}}
+
+\vspace{1em}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Boundary} & \textbf{FALSE} & \textbf{TRUE} & \textbf{\texttt{<NA>}} \\
+\midrule
+FIPS   &  0.04 & 98.52 &  1.44 \\
+County &  0.02 & 97.60 &  2.37 \\
+Tract  & 17.55 & 67.09 & 15.36 \\
+Block  & 23.26 & 60.90 & 15.84 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{\texttt{census\_qc\$qc2}}
+
+\vspace{1em}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Key} & \textbf{FALSE} & \textbf{TRUE} & \textbf{\texttt{<NA>}} \\
+\midrule
+CBSA Code  &  5.07 & 80.80 & 14.13 \\
+CBSA Level &  1.22 &  1.92 & 96.86 \\
+CSA        & 12.11 & 53.24 & 34.65 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{minipage}
+
+\end{minipage}
+
+\newpage
 
 ## Step 3:  {#results-3}
 
@@ -1002,7 +1940,7 @@ For the implementation, refer to **PART B: Correct the SIC Nomenclature** in ["C
 
 \begingroup
 \captionof{table}{Codebook for Unique SIC Codes, Descriptions, and Column-Presence Flags (Post-Cleaning)}
-\label{tab:codebook-1}
+\label{tbl:codebook-1}
 \begin{tabular}{l p{0.47\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1030,7 +1968,7 @@ For the implementation, refer to **PART B: Correct the SIC Nomenclature** in ["C
 
 \begingroup
 \captionof{table}{Codebook for Unique Primary SIC Codes and Descriptions (Post-Cleaning)}
-\label{tab:codebook-2}
+\label{tbl:codebook-2}
 \begin{tabular}{l p{0.72\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1048,7 +1986,7 @@ For the implementation, refer to ["Code/Clean Raw Data_Step 1_2026 Format.R"](ht
 
 \begingroup
 \captionof{table}{Codebook for new output fields produced by the evaluation.}
-\label{tab:codebook-3}
+\label{tbl:codebook-3}
 \begin{tabular}{l p{0.68\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1075,7 +2013,7 @@ For the implementation, refer to **SUBSECTION A2: Distribution of Characteristic
 
 \begingroup
 \captionof{table}{Codebook for \texttt{us\_states\_sf} 2023 Cartographic Boundaries Basemap}
-\label{tab:codebook-4}
+\label{tbl:codebook-4}
 \begin{tabular}{l p{0.74\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1109,7 +2047,7 @@ For the implementation, refer to **SUBSECTION A2: Distribution of Characteristic
 
 \begingroup
 \captionof{table}{Codebook for Evaluation Summary Output Fields (Missing \texttt{address\_line\_1} and PO Box Datasets)}
-\label{tab:codebook-5}
+\label{tbl:codebook-5}
 \begin{tabular}{l p{0.5\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1164,7 +2102,7 @@ For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line G
 
 \begingroup
 \captionof{table}{Codebook for Core Area Shapefiles (CBSA/CSA; 2007/2010/2020 Layers)}
-\label{tab:codebook-7}
+\label{tbl:codebook-7}
 \begin{tabular}{l p{0.78\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1192,7 +2130,7 @@ For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line G
 
 \begingroup
 \captionof{table}{Codebook for ZCTA Shapefiles (2000/2010/2020 Layers)}
-\label{tab:codebook-8}
+\label{tbl:codebook-8}
 \begin{tabular}{l p{0.78\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1216,7 +2154,7 @@ For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](ht
 
 \begingroup
 \captionof{table}{Codebook for new output fields produced by the evaluation.}
-\label{tab:codebook-9}
+\label{tbl:codebook-9}
 \begin{tabular}{l p{0.59\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1281,7 +2219,7 @@ Selected outcomes and characteristics of these within-batch imports were generat
 
 \begingroup
 \captionof{table}{Codebook for \texttt{import\_qc\_<XX>\$abi\_check}}
-\label{tab:codebook-10a}
+\label{tbl:codebook-10a}
 \begin{tabular}{l p{0.71\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1320,7 +2258,7 @@ Boolean: \texttt{TRUE} if $n\_missing = 0$, otherwise \texttt{FALSE}. \\
 
 \begingroup
 \captionof{table}{Codebook for \texttt{import\_qc\_<XX>\$[address\_matched|\linebreak address\_verified|geoid\_match|geolocation\_verified]}}
-\label{tab:codebook-10b}
+\label{tbl:codebook-10b}
 \begin{tabular}{l p{0.58\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1351,7 +2289,7 @@ Percentage of addresses with the given outcome. \\
 
 \begingroup
 \captionof{table}{Codebook for \texttt{import\_qc\_<XX>\$na\_census\_boundaries}}
-\label{tab:codebook-10c}
+\label{tbl:codebook-10c}
 \begin{tabular}{l p{0.58\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1386,7 +2324,7 @@ For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](ht
 
 \begingroup
 \captionof{table}{Codebook for \texttt{import\_qc\_<XX>}}
-\label{tab:codebook-11}
+\label{tbl:codebook-11}
 \begin{tabular}{l p{0.72\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1442,7 +2380,7 @@ These were written with the main results to the `"./Data/Results/KEEP LOCAL/From
 
 \begingroup
 \captionof{table}{Codebook for \texttt{qc1}}
-\label{tab:codebook-12a}
+\label{tbl:codebook-12a}
 \begin{tabular}{l p{0.66\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1497,7 +2435,7 @@ Boolean: \texttt{TRUE} if the processed data differs in any way from the Step 1 
 
 \begingroup
 \captionof{table}{Codebook for \texttt{qc2}}
-\label{tab:codebook-12b}
+\label{tbl:codebook-12b}
 \begin{tabular}{l p{0.63\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1552,7 +2490,7 @@ Verified address returned by the USPS API query. \\
 
 \begingroup
 \captionof{table}{Codebook for \texttt{qc3}}
-\label{tab:codebook-12c}
+\label{tbl:codebook-12c}
 \begin{tabular}{l p{0.62\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1601,7 +2539,7 @@ These were written with the main results to the `"./Data/Results/KEEP LOCAL/From
 
 \begingroup
 \captionof{table}{Codebook for \texttt{qc1}}
-\label{tab:codebook-13a}
+\label{tbl:codebook-13a}
 \begin{tabular}{p{0.34\linewidth} p{0.60\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1656,7 +2594,7 @@ Level of the reported block boundary: \texttt{"None reported"} if missing; \text
 
 \begingroup
 \captionof{table}{Codebook for \texttt{qc2}}
-\label{tab:codebook-13b}
+\label{tbl:codebook-13b}
 \begin{tabular}{p{0.34\linewidth} p{0.6\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1730,7 +2668,8 @@ These were written with the main results to the `"./Data/Results/KEEP LOCAL/From
 \renewcommand{\arraystretch}{1.15}
 
 \begin{longtable}{p{0.32\linewidth} p{0.62\linewidth}}
-\caption{Codebook for \texttt{qc1}}\label{tab:codebook-14a}\\
+\caption{Codebook for \texttt{qc1}}
+\label{tbl:codebook-14a}\\
 \textbf{Field} & \textbf{Description} \\
 \midrule
 \endfirsthead
@@ -1822,7 +2761,7 @@ Geolocation test for agnostic matching attempts: \texttt{"Override"} if \texttt{
 
 \begingroup
 \captionof{table}{Codebook for \texttt{qc2}}
-\label{tab:codebook-14b}
+\label{tbl:codebook-14b}
 \begin{tabular}{p{0.34\linewidth} p{0.6\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
@@ -1860,7 +2799,8 @@ Boolean: \texttt{TRUE} if the absolute difference exceeds \texttt{0.002} degrees
 \renewcommand{\arraystretch}{1.15}
 
 \begin{longtable}{p{0.34\linewidth} p{0.6\linewidth}}
-\caption{Codebook for \texttt{qc3}}\label{tab:codebook-14c}\\
+\caption{Codebook for \texttt{qc3}}
+\label{tbl:codebook-14c}\\
 \textbf{Field} & \textbf{Description} \\
 \midrule
 \endfirsthead
@@ -1903,7 +2843,7 @@ Boolean: \texttt{TRUE} if any address in these results came from a verified addr
 
 \addlinespace[6pt]
 \texttt{any\_address\_matched} &
-Boolean: \texttt{TRUE} if any address in these results came from an agnostically matched address; \texttt{NA} if no validation was used. \\
+Boolean: \texttt{TRUE} if any address in these results came from an agnostically matched address; \texttt{NA} if no matching was applied. \\
 
 \end{longtable}
 \endgroup
