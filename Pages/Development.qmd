@@ -24,6 +24,16 @@ Note that in May 2026, an updated version of the raw data was provided in a form
 
 Additionally, the project pipeline should be reasonably reproducible for future collaborators and readily adaptable to potential changes in project scope.
 
+# Reports
+
+## 2023 Format
+
+{{< downloadthis "Reports/Review_2023 Format.pdf" dname="Review_2023 Format" label="Raw Data Review" type=light >}} {{< downloadthis "Reports/Preparation_2023 Format.pdf" dname="Preparation_2023 Format" label="Data Preparation" type=light >}}
+
+## 2026 Format
+
+{{< downloadthis "Reports/Review_2026 Format.pdf" dname="Review_2026 Format" label="Raw Data Review" type=light >}} {{< downloadthis "Reports/Preparation_2026 Format.pdf" dname="Preparation_2026 Format" label="Data Preparation" type=light >}}
+
 # Important Links and Locations
 
 In accordance with the Data Use Agreement for this dataset, some repositories may not be publicly accessible or may contain local files that are not tracked by Git and or included on GitHub. Complete copies of the data and summary results can be accessed in the `"SOCAH LAB\Church closing\Raw data"` folder on Yale's OneDrive.
@@ -33,14 +43,3 @@ Summer 2025 dashboard prototype by [Gordon Tu](https://gordontu.com/): [Closed C
 Original GitHub Repo by Dr. Song: [sigmafelix/healthreligion_project](https://github.com/sigmafelix/healthreligion_project)
 
 Current Project GitHub Repo: [SOCAH-Lab/Church-Closures-Dashboard](https://github.com/SOCAH-Lab/Church-Closures-Dashboard)
-
-# Reports
-
-## 2023 Format
-
-{{< downloadthis "Reports/Review_2023 Format.pdf" dname="Review_2023 Format" label="Raw Data Review" type=light >}} {{< downloadthis "Reports/Preparation_2023 Format.pdf" dname="Preparation_2023 Format" label="Data Preparation" type=light >}}
-
-## 2026 Format
-
-{{< downloadthis "Reports/Review_2026 Format.pdf" dname="Review_2026 Format" label="Raw Data Review" type=light >}}
-
