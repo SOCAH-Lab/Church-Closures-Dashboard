@@ -2,7 +2,7 @@
 
 **Date Created:** May 12<sup>th</sup>, 2026
 
-**Date Updated:** July 6<sup>th</sup>, 2026
+**Date Updated:** August 12<sup>th</sup>, 2026
 
 **Purpose:**
 
@@ -10,7 +10,7 @@ Provides an overview of the contents of the `Data/Results` directory and documen
 
 **About:**
 
-During the data cleaning and validation steps (**Step 5** for the 2023 Format and **Step 2.e.** for the 2026 Format) longitude and latitude coordinates were used to assign census boundary designations across the 2000, 2010, and 2020 Decennial Census years. The initial implementation of this spatial assignment method used the `tigris` R package to retrieve decennial-year shapefiles directly from the U.S. Census Bureau's [TIGER/Line Shapefile](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) database. This approach, however, did not scale effectively and introduced processing issues with the 2000 and 2020 decennial years.
+During the data cleaning and validation steps (**Step 5** for the 2023 Format and **Step 2 - LOOP PART D** for the 2026 Format) longitude and latitude coordinates were used to assign census boundary designations across the 2000, 2010, and 2020 Decennial Census years. The initial implementation of this spatial assignment method used the `tigris` R package to retrieve decennial-year shapefiles directly from the U.S. Census Bureau's [TIGER/Line Shapefile](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) database. This approach, however, did not scale effectively and introduced processing issues with the 2000 and 2020 decennial years.
 
 To improve performance and accuracy in preparation for migration to the Yale High Performance Computing (HPC) environment, the relevant TIGER/Line Shapefiles were manually downloaded and preprocessed. Each shapefile was structured to include the desired metadata by decennial year as discrete layers. The pipeline supports both block-level and block group-level shapefiles: both contain polygon boundaries that associate block or block group, tract, county, and state codes with any longitude/latitude coordinate falling within a given polygon. Block group-level shapefiles are preferred for generating summary statistics due to their reduced complexity compared to block-level shapefiles.
 
@@ -36,7 +36,7 @@ A codebook for each output is provided in the associated script, immediately abo
 
 Six types of census boundary shapefiles are used: state block-level, state block group-level, national CBSA, national CSA, national ZCTA, and national states (and equivalents). Each was obtained for the 2000, 2010, and 2020 decennial vintages, except CBSA and CSA, for which the 2007 vintage was substituted for 2000. These shapefiles were processed and compiled as GeoPackage (`*.gpkg`) files in `Data/Results/Census Bureau TIGER Line Shapefiles/`, with state block- and block group-level data organized as layers by decennial year. CBSA, CSA, and ZCTA data (annotated with the state acronym) were compiled into a single file, with one layer per census boundary type and decennial year combination.
 
-All census boundary files, both the downloaded raw shapefiles and the compiled GeoPackage versions, are too large for effective Git tracking and distribution. New users will need to download the source files independently and generate the GeoPackage files locally. Refer to the notes in `Data/Raw/Census Bureau TIGER Line Shapefiles/` for download instructions and links to sources. For the coded implementation, refer to "SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages" in `Clean Raw Data_Step 2_2026 Format.R`.
+All census boundary files, both the downloaded raw shapefiles and the compiled GeoPackage versions, are too large for effective Git tracking and distribution. New users will need to download the source files independently and generate the GeoPackage files locally. Refer to the notes in `Data/Raw/Census Bureau TIGER Line Shapefiles/` for download instructions and links to sources. For the coded implementation, refer to "SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages" in [Code/Clean Raw Data_Step 2_2026 Format.R](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R).
 
 **Directory Specific Notes:**
 
