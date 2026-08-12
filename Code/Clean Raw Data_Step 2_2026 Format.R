@@ -1,14 +1,67 @@
 ## ----------------------------------------------------------------
-## 
+## Clean and Validate Addresses and Geolocation, and Annotate Records with Census Boundaries
 ## 
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 12th, 2026
-## Date Modified: August 3rd, 2026
+## Date Modified: August 12th, 2026
 ## 
-## Description: 
+## Description: "Process Data Update.R" evaluated the differences between the
+##              2023 and 2026 Formatted data. Notably, the 2026 Format contains
+##              numerous additional metadata fields not represented in the 2023
+##              Format. Most are not relevant to the immediate analysis and will
+##              therefore not be processed for cleaning or validation. Variable 
+##              columns directly relevant to the analysis, however, will be 
+##              processed for standardization and, where possible, cleaned and 
+##              validated.
+##
+##              A core project objective is to visualize aggregated religious
+##              organization closures and reopenings at the block group and tract
+##              level. Because the data spans three decennial periods, census
+##              boundaries may change substantially — potentially misrepresenting
+##              results relative to the geographic boundaries in effect during a
+##              user-selected timeframe.
+##              
+##              The 2026 Formatted data includes columns containing GEOIDs for
+##              block groups, tracts, counties, and states, as well as
+##              Metropolitan/Micropolitan Statistical Areas (CBSA code and CBSA
+##              level) and Combined Statistical Areas (CSA). It is unclear
+##              whether these reflect changes across three decennial periods, nor
+##              which decennial year they represent. Preliminary evaluation of
+##              the raw data revealed possible erroneous variation in geographic
+##              identifiers within the same unique ABI and address combinations.
+##
+##              As a result, it was determined that longitude and latitude
+##              coordinates associated with each address should be assigned to
+##              census boundaries via point-in-polygon spatial joins using
+##              authoritative TIGER/Line Shapefiles for all relevant decennial
+##              periods. This approach depends on the accuracy of the provided
+##              geocoordinates, which, based on assessments of the 2023
+##              Formatted data, may carry a degree of error. Geocoordinate
+##              accuracy is especially critical when assigning records to
+##              granular census boundaries such as block groups and tracts.
+##              
+##              This section outlines a stepwise procedure for validating
+##              address-level geocoordinates and estimating error in the raw
+##              data using the Census Bureau Geocoder API. To improve database
+##              matching, addresses may first be validated against the USPS
+##              Address 3.0 API prior to geocoding. Validated geocoordinates, or
+##              raw geocoordinates where no match was found, are then spatially
+##              joined with TIGER/Line Shapefiles containing all desired census
+##              boundaries. This produces temporally accurate boundary
+##              assignments across the 2000, 2010, and 2020 decennial periods
+##              for use in dynamic dashboard visualizations.
+##
+##              Users should be aware that this process is involved and requires
+##              proper configuration of the associated algorithm and High
+##              Performance Computing (HPC) shell scripts. Final results are
+##              accompanied by quality checks verifying complete raw data
+##              coverage — confirming no data loss or introduction of unexpected
+##              records — as well as targeted checks evaluating algorithm
+##              performance and raw data accuracy at each step.
 ## 
-# "SUBSECTION D1: Load Combined Batch Results",
-#       demonstrating the read-in for these complex DuckDB results.
+##              Refer to "SUBSECTION D1: Load Combined Batch Results" for DuckDB
+##              import instructions and "Preparation_2026 Format.pdf" for
+##              methodological details and additional configuration requirements.
 ## 
 ## NOTE: Under the Data Use Agreements (DUAs) with Data Axle and the USPS API 
 ##       license, raw data cannot be publicly distributed and is stored locally 
