@@ -2,7 +2,7 @@
 
 **Date Created:** May 19<sup>th</sup>, 2026
 
-**Date Updated:** July 6<sup>th</sup>, 2026
+**Date Updated:** August 12<sup>th</sup>, 2026
 
 **Purpose:**
 
@@ -26,7 +26,7 @@ Raw data are loaded in their respective scripts. Reference the "LOAD IN THE DATA
 
 Six types of census boundary shapefiles are used: state block-level, state block group-level, national CBSA, national CSA, national ZCTA, and national states (and equivalents). Each was obtained for the 2000, 2010, and 2020 decennial vintages, except CBSA and CSA, for which the 2007 vintage was substituted for 2000. These shapefiles were processed and compiled as GeoPackage (`*.gpkg`) files in `Data/Results/Census Bureau TIGER Line Shapefiles/`, with state block- and block group-level data organized as layers by decennial year. CBSA, CSA, and ZCTA data (annotated with the state acronym) were compiled into a single file, with one layer per census boundary type and decennial year combination.
 
-All census boundary files, both the downloaded raw shapefiles and the compiled GeoPackage versions, are too large for effective Git tracking and distribution. New users will need to download the source files independently and generate the GeoPackage files locally. Refer to the notes below for download instructions and links to sources. For the coded implementation, refer to "SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages" in `Clean Raw Data_Step 2_2026 Format.R`.
+All census boundary files, both the downloaded raw shapefiles and the compiled GeoPackage versions, are too large for effective Git tracking and distribution. New users will need to download the source files independently and generate the GeoPackage files locally. Refer to the notes below for download instructions and links to sources. For the coded implementation, refer to "SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages" in [Code/Clean Raw Data_Step 2_2026 Format.R](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R).
 
 **Directory Specific Notes:**
 
