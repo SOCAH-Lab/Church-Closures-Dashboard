@@ -196,8 +196,8 @@ sic_results$presence_tabs
 # 
 # Only a small subset of possible SIC codes is utilized in the primary column,
 # suggesting that the available selection may be more restricted at the point
-# of data collection. We want to check if any of the 43 outcomes in the primary SIC are
-# unique or used in overflow SIC.
+# of data collection. We want to check if any of the 43 outcomes in the primary 
+# SIC are unique or used in overflow SIC.
 
 # Pull columns that are logical TRUE/FALSE “sic presence” columns
 sic_cols <- sic_results$presence_wide |>

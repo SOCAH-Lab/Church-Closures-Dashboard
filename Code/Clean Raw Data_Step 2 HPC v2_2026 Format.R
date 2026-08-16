@@ -3075,7 +3075,7 @@ for (i in 1:length(search_space)) {
     "address_line_1", "city", "state", "zipcode", "zip4", "combined_address",
     "do_api", "address_verified", "ver_geolocation_test", "attempt_succeeded",  # validation cols
     "usps_status", "usps_status_detail", "verified_address", "address_matched", # validation cols
-    "match_geolocation_test", "matched_address", "best_address",                # validation cols         # validation cols
+    "match_geolocation_test", "matched_address", "best_address",                # validation cols
     
     # ---- industry codes / descriptions ----
     "primary_sic_code", "sic6_descriptions",
