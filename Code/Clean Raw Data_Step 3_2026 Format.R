@@ -53,10 +53,10 @@
 ## 
 ##    - PART A: Exclude Metadata Not Conducive to the Analysis
 ## 
-##    - PART B: Exclude Metadata Not Conducive to the Analysis
-##        * SUBSECTION B1: Primary SIC Codes Across Unique ABI/Address Combinations
-##        * SUBSECTION B2: Overflow SIC Codes Across Unique ABI/Address Combinations
-##        * SUBSECTION B3: 
+##    - PART B: Normalize SIC Codes and Annotate with Classifiers
+##        * SUBSECTION B1: Normalize Primary SIC Codes
+##        * SUBSECTION B2: Normalize Overflow SIC Codes
+##        * SUBSECTION B3: Assign Religious Classifiers
 ##        * SUBSECTION B4: Compile the Final SIC Wide Columns
 ## 
 ##    - PART C: Generate the Years-Open Binary Columns
@@ -238,7 +238,7 @@ rm(church_2026_form_validated)  # Clear up RAM by removing the complete dataset
 
 
 ## ----------------------------------------------------------------
-## PART B: Normalize SIC Codes Across Unique ABI/Address Combinations
+## PART B: Normalize SIC Codes and Annotate with Classifiers
 
 # "SUBSECTION B2: Primary and Additional SIC Encodings" in "Process Data
 # Update.R" evaluated the dimensionality, nomenclature consistency, and
@@ -260,7 +260,7 @@ rm(church_2026_form_validated)  # Clear up RAM by removing the complete dataset
 
 
 ## --------------------
-## SUBSECTION B1: Primary SIC Codes Across Unique ABI/Address Combinations
+## SUBSECTION B1: Normalize Primary SIC Codes
 
 # Because the codes in the primary column are restricted, but are also
 # represented across the SIC overflow columns, these will be handled
@@ -364,7 +364,7 @@ primary_long <- keep_primary
 
 
 ## --------------------
-## SUBSECTION B2: Overflow SIC Codes Across Unique ABI/Address Combinations
+## SUBSECTION B2: Normalize Overflow SIC Codes
 
 # Isolate unique overflow SIC outcomes by ABI/address.
 overflow_long <- rbindlist(list(
@@ -475,9 +475,32 @@ setnames(
   new = paste0("overflow_sic_desc_", setdiff(names(overflow_wide_desc), c("abi","address")))
 )
 
+# Cast the SIC code and description columns as wide.
+final_sic_wide <- Reduce(function(x, y) merge(x, y, by = c("abi","address"), all = TRUE), list(
+  primary_by_key[, .(abi, address,
+                     primary_sic = code,
+                     primary_sic_desc = desc)],
+  overflow_wide_code,
+  overflow_wide_desc
+))
+
+# Reorder columns so each overflow_sic_i is immediately followed by 
+# overflow_sic_desc_i
+setcolorder(
+  final_sic_wide,
+  c(
+    "abi", "address",
+    "primary_sic", "primary_sic_desc",
+    as.vector(rbind(
+      paste0("overflow_sic_", 1:11),
+      paste0("overflow_sic_desc_", 1:11)
+    ))
+  )
+)
+
 
 ## --------------------
-## SUBSECTION B3: 
+## SUBSECTION B3: Assign Religious Classifiers
 
 # As noted earlier, each ABI and address entry has at least one primary SIC code 
 # and, in some cases, one or more overflow SIC codes. All relevant descriptions 
@@ -596,46 +619,33 @@ write_xlsx(sheets, path = "./Data/Results/From Clean Raw Data/Step 3_2026 Format
 
 
 # One key finding is that "Churches" appear across all religions and should 
-# therefore be labeled as "Interfaith". Additionally, while classifications
-# will be generated over primary SIC codes only, they will be generated over
-# overflow as well.
+# therefore be labeled as "Interfaith". Classifiers will be assigned based on 
+# outcomes across both the primary and overflow SIC codes.
 
-# Isolate the SIC codes that are overflow only.
-in_primary    <- sic_classifications[sic_classifications$sic_desc %!in% c("SYNAGOGUES MESSIANIC", "TEMPLES BUDDHIST EDUCATIONAL INSTITUTION"), ]
-overflow_only <- sic_classifications[sic_classifications$sic_desc %in% c("SYNAGOGUES MESSIANIC", "TEMPLES BUDDHIST EDUCATIONAL INSTITUTION"), ]
+# Convert to a data table.
+primary_dt   <- as.data.table(primary_long)
+overflow_dt  <- as.data.table(overflow_long)
+sic_classifications_dt <- as.data.table(sic_classifications)
 
-
-
-
-# If your description column in primary_dt is named something else, change desc_col
-code_col <- "code"   # e.g., set to "sic_desc" or whatever primary_long uses
-
-primary_dt  <- as.data.table(primary_long)
-primary_sic <- as.data.table(in_primary)
-
+# Ensure codes are stored as characters.
 primary_dt[,  code_chr := as.character(code)]
-primary_sic[, sic_code_chr := as.character(sic_code)]
+overflow_dt[,  code_chr := as.character(code)]
+sic_classifications_dt[, sic_code_chr := as.character(sic_code)]
 
-# Join by sic_desc (primary_dt desc -> primary_sic sic_desc)
+# Join the primary SIC table with the classifiers.
 dtj <- merge(
   primary_dt[, .(abi, address, code = code_chr)],
-  primary_sic,
+  sic_classifications_dt,
   by.x = "code", by.y = "sic_code_chr",
   all.x = TRUE,
   allow.cartesian = TRUE
 ) %>%
   select(-code)
 
-
-overflow_dt  <- as.data.table(overflow_long)
-overflow_sic <- as.data.table(overflow_only)
-
-overflow_dt[,  code_chr := as.character(code)]
-overflow_sic[, sic_code_chr := as.character(sic_code)]
-
+# Join the overflow SIC table with the classifiers and remove unmatched records.
 dtk <- merge(
   overflow_dt[, .(abi, address, code = code_chr)],
-  overflow_sic,
+  sic_classifications_dt,
   by.x = "code", by.y = "sic_code_chr",
   all.x = TRUE,
   allow.cartesian = TRUE
@@ -643,22 +653,22 @@ dtk <- merge(
   filter(!is.na(classification)) %>%
   select(-code)
 
-
+# Combine the primary and overflow results.
 dt <- bind_rows(dtj, dtk)
 
 
-# 3) Collapse to ABI+address “any” flags
+# Collapse to ABI+address with “any” flags.
 classify_long <- dt[!is.na(classification),
             .(present = TRUE),
             by = .(abi, address, classification)]
 
+# Cast the classifiers column to wide as boolean.
 classify_wide <- dcast(
   classify_long,
   abi + address ~ classification,
   value.var = "present",
   fill = FALSE
 )
-
 
 # Replace NA with FALSE in classification columns
 cls_cols <- setdiff(names(classify_wide), c("abi", "address"))
@@ -668,26 +678,13 @@ for (cc in cls_cols) set(classify_wide, which(is.na(classify_wide[[cc]])), cc, F
 ## --------------------
 ## SUBSECTION B4: Compile the Final SIC Wide Columns
 
-final_sic_wide <- Reduce(function(x, y) merge(x, y, by = c("abi","address"), all = TRUE), list(
-  primary_by_key[, .(abi, address,
-                     primary_sic = code,
-                     primary_sic_desc = desc)],
-  overflow_wide_code,
-  overflow_wide_desc
-))
-
-# Reorder columns so each overflow_sic_i is immediately followed by 
-# overflow_sic_desc_i
-setcolorder(
+# Combine the SIC code, description, and classifier columns.
+sic_classified_wide <- merge(
   final_sic_wide,
-  c(
-    "abi", "address",
-    "primary_sic", "primary_sic_desc",
-    as.vector(rbind(
-      paste0("overflow_sic_", 1:11),
-      paste0("overflow_sic_desc_", 1:11)
-    ))
-  )
+  classify_wide,
+  by = c("abi", "address"),
+  all.x = TRUE,
+  allow.cartesian = TRUE
 )
 
 
@@ -845,7 +842,7 @@ church_2026_form_analysis_dt[
 ]
 
 
-final_sic_wide
+sic_classified_wide
 final_yr_wide
 
 
