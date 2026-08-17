@@ -66,7 +66,7 @@ source("../../Code/Support Functions/For Step 2_2026 Format.R")
 
 **Date Created:** August 7<sup>th</sup>, 2026
 
-**Date Updated:** August 11<sup>th</sup>, 2026
+**Date Updated:** August 17<sup>th</sup>, 2026
 
 # Overview
 
@@ -994,13 +994,13 @@ This means some ABI and address entries may be associated with more than one rel
 
 Consistencies by classifiers defined in ["Results/From Clean Raw Data/Step 3_2026 Format/SIC Code Classifications_08.15.2026.csv"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Data/Results/From%20Clean%20Raw%20Data/Step%203_2026%20Format/SIC%20Code%20Classifications_08.15.2026.csv) were matched across all primary and overflow SIC columns separately. Any SIC classifiers associated with an ABI matching this criteria were then reported to show how many additional religious or interfaith classifications were present. This was done using the custom `function sic_desc_split_summary_dt()`.
 
-Classifiers were assigned based on clear attribution to a specific religion. However, a few descriptions showed a surprising degree of overlap across religions. The most notable example is the SIC description "CHURCHES". Others, such as "RELIGIOUS ORGANIZATIONS", "PLACES OF WORSHIP", and "CONVENTS & MONASTERIES", were too vague to attribute to a single religion and were therefore labeled "Interfaith".
+Classifiers were assigned based on clear attribution to a specific religion. However, a few descriptions showed a surprising degree of overlap across religions, the most notable example being the SIC description "CHURCHES". Others, such as "RELIGIOUS ORGANIZATIONS", "PLACES OF WORSHIP", and "CONVENTS & MONASTERIES", were too vague to attribute to a single religion and were therefore labeled "Interfaith" to reflect their use across different religious contexts.
 
 Classifiers are assigned based on the primary and overflow SIC codes. If, at the ABI level, only one religious classifier appears alongside "Interfaith" entries, all entries for that ABI are assigned that religion. This override is only applied when a single religion is identified; ABIs with multiple religions listed retain their original classifications.
 
-Some "Interfaith" descriptions, such as "CHURCHES" and "CHURCH ORGANIZATIONS", are primarily associated with Christian organizations and are therefore disambiguated to "Christian Church" in the absence of other clear religious identifiers. Otherwise, they are treated the same way as the other interfaith categories. This approach may miss cases where these descriptions apply to interfaith ministries, but will reduce the overattribution of interfaith classifications, which prior results suggest is likely to occur.
+Some "Interfaith" descriptions, such as "CHURCHES" and "CHURCH ORGANIZATIONS", are primarily associated with Christian organizations and are therefore disambiguated to "Christian Church" in the absence of other clear religious identifiers. Otherwise, they are treated the same way as the other interfaith categories. This approach may miss cases where these descriptions apply to interfaith ministries, but will reduce the overattribution of interfaith classifications, which prior results suggest is likely to occur. An exception is made for entries with the SIC description "SYNAGOGUES MESSIANIC", which are attributed to both "Christian Church" and "Jewish Synagogue".
 
-An exception is made for entries with the SIC description "SYNAGOGUES MESSIANIC", which are attributed to both "Christian Church" and "Jewish Synagogue".
+Following this, entries that could not be disambiguated alone were labeled "Interfaith", as they may be resolvable in the presence of other, clearer classifiers. It is important to clarify, however, that these remaining "Interfaith"-only cases are actually unspecified. An "Interfaith" column was also created to represent all cases where more than one religion, including "Other" and "Unspecified", is TRUE for a given entry.
 
 ### Fill Minor Years Reported Gaps
 
@@ -1802,7 +1802,7 @@ A quick check comparing dimensions of distinct outcomes over address and over ad
 \end{Verbatim}
   \end{codebox}
 
-  \vspace{-2ex}
+  \vspace{-4ex}
   \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
 \end{list}
 
@@ -1969,8 +1969,6 @@ CSA        & 12.11 & 53.24 & 34.65 \\
 
 \end{minipage}
 
-\newpage
-
 ## Step 3: Standardize and Reshape Metadata to Wide Format  {#results-3}
 
 ### Normalize SIC Codes and Annotate with Classifiers
@@ -2003,10 +2001,10 @@ Full results can be found in ["Results/From Clean Raw Data/Step 3_2026 Format/"]
 \toprule
 \textbf{x} & \textbf{classifier} & \textbf{Freq} \\
 \midrule
-CHURCHES & Christian Church; Interfaith & 46.4 \\
-RELIGIOUS ORGANIZATIONS & Interfaith & 21.5 \\
-CHURCH ORGANIZATIONS & Christian Church; Interfaith & 10.7 \\
-CLERGY & Interfaith & 8.9 \\
+CHURCHES & \makecell[l]{Christian Church;\\Interfaith} & 46.4 \\[0.7em]
+RELIGIOUS ORGANIZATIONS & Interfaith & 21.5 \\[0.7em]
+CHURCH ORGANIZATIONS & \makecell[l]{Christian Church;\\Interfaith} & 10.7 \\[0.7em]
+CLERGY & Interfaith & 8.9 \\[0.7em]
 MINISTRIES-OUT REACH & Interfaith & 3.4 \\
 \bottomrule
 \end{tabular}
@@ -2023,11 +2021,11 @@ MINISTRIES-OUT REACH & Interfaith & 3.4 \\
 \toprule
 \textbf{x} & \textbf{classifier} & \textbf{Freq} \\
 \midrule
-MOSQUES & Muslim Mosque & 44.3 \\
-CHURCHES & Christian Church; Interfaith & 32.3 \\
-RELIGIOUS ORGANIZATIONS & Interfaith & 15.8 \\
-MOSQUES MUSLIM-ISLAMIC CHARITABLE-ORGZTN & Muslim Mosque & 5.1 \\
-CHURCH ORGANIZATIONS & Christian Church; Interfaith & 1.3 \\
+MOSQUES & Muslim Mosque & 44.3 \\[0.7em]
+CHURCHES & \makecell[l]{Christian Church;\\Interfaith} & 32.3 \\[0.7em]
+RELIGIOUS ORGANIZATIONS & Interfaith & 15.8 \\[0.7em]
+MOSQUES MUSLIM-ISLAMIC CHARITABLE-ORGZTN & Muslim Mosque & 5.1 \\[0.7em]
+CHURCH ORGANIZATIONS & \makecell[l]{Christian Church;\\Interfaith} & 1.3 \\
 \bottomrule
 \end{tabular}
 \end{adjustbox}
@@ -2046,10 +2044,10 @@ CHURCH ORGANIZATIONS & Christian Church; Interfaith & 1.3 \\
 \toprule
 \textbf{x} & \textbf{classifier} & \textbf{Freq} \\
 \midrule
-SYNAGOGUES & Jewish Synagogue & 46.4 \\
-SYNAGOGUES JEWISH & Jewish Synagogue & 31.2 \\
-CHURCHES & Christian Church; Interfaith & 7.1 \\
-RELIGIOUS ORGANIZATIONS & Interfaith & 4.3 \\
+SYNAGOGUES & Jewish Synagogue & 46.4 \\[0.7em]
+SYNAGOGUES JEWISH & Jewish Synagogue & 31.2 \\[0.7em]
+CHURCHES & \makecell[l]{Christian Church;\\Interfaith} & 7.1 \\[0.7em]
+RELIGIOUS ORGANIZATIONS & Interfaith & 4.3 \\[0.7em]
 SYNAGOGUES ORTHODOX & Jewish Synagogue & 3.6 \\
 \bottomrule
 \end{tabular}
@@ -2066,10 +2064,10 @@ SYNAGOGUES ORTHODOX & Jewish Synagogue & 3.6 \\
 \toprule
 \textbf{x} & \textbf{classifier} & \textbf{Freq} \\
 \midrule
-CHURCHES & Christian Church; Interfaith & 43.5 \\
-TEMPLES-HINDU & Hindu Mandir & 43.5 \\
-SYNAGOGUES & Jewish Synagogue & 8.7 \\
-RELIGIOUS ORGANIZATIONS & Interfaith & 2.2 \\
+CHURCHES & \makecell[l]{Christian Church;\\Interfaith} & 43.5 \\[0.7em]
+TEMPLES-HINDU & Hindu Mandir & 43.5 \\[0.7em]
+SYNAGOGUES & Jewish Synagogue & 8.7 \\[0.7em]
+RELIGIOUS ORGANIZATIONS & Interfaith & 2.2 \\[0.7em]
 TEMPLES-BUDDHIST & Buddhist Temple & 2.2 \\
 \bottomrule
 \end{tabular}
@@ -2077,6 +2075,31 @@ TEMPLES-BUDDHIST & Buddhist Temple & 2.2 \\
 \end{minipage}
 
 \end{minipage}
+
+Most entries were associated with a Christian church (76\%). The next largest category was Unspecified at approximately 22\%, followed by Judaism at 1.7\%. All other religions fell below 1\% (Table \ref{tbl-religion-flags-by-abi}).
+
+\noindent\begin{minipage}{\linewidth}
+\captionof{table}{Religion classification flags by ABI (percent of ABIs).}
+\label{tbl-religion-flags-by-abi}
+\centering
+\small
+\begin{tabular}{lrr}
+\toprule
+\textbf{Religion} & \textbf{FALSE (\%)} & \textbf{TRUE (\%)} \\
+\midrule
+Buddhist Temple  & 99.89 & 0.11 \\
+Christian Church & 23.60 & 76.40 \\
+Hindu Mandir     & 99.97 & 0.03 \\
+Jewish Synagogue & 98.31 & 1.69 \\
+Muslim Mosque    & 99.88 & 0.12 \\
+Sikh Gurdwara    & 99.99 & 0.01 \\
+Other Religion   & 99.62 & 0.38 \\
+Interfaith        & 99.93 & 0.07 \\
+Unspecified       & 78.39 & 21.61 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
 
 ### Fill Minor Years Reported Gaps
 
@@ -2086,6 +2109,7 @@ TEMPLES-BUDDHIST & Buddhist Temple & 2.2 \\
 \captionof{table}{Gaps filled by average filled-gap length (row \%).}
 \label{tbl-gaps-filled-by-avglen}
 \centering
+\small
 \begin{tabular}{lrrrrrr}
 \toprule
  & \multicolumn{6}{c}{\textbf{Gaps Filled}} \\

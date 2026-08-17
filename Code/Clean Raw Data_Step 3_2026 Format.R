@@ -840,6 +840,44 @@ cls_cols <- setdiff(names(classify_wide), c("abi", "address"))
 for (cc in cls_cols) set(classify_wide, which(is.na(classify_wide[[cc]])), cc, FALSE)
 
 
+# Prior classifications labeled ambiguous entries as "Interfaith" because they
+# could not be disambiguated alone, but may be resolvable in the presence of
+# other, clearer classifiers. At this juncture, it is important to clarify that
+# these remaining cases are actually unspecified. An "Interfaith" column will
+# also be created to represent all cases where more than one religion is TRUE
+# for a given entry.
+
+# Rename existing Interfaith -> Non-specific Religious
+setnames(classify_wide, old = "Interfaith", new = "Unspecified")
+
+# 2) Define the religion flag columns to check for multi-TRUE on each row
+relig_cols <- c(
+  "Buddhist Temple", "Christian Church", "Hindu Mandir", "Jewish Synagogue",
+  "Muslim Mosque", "Sikh Gurdwara", "Other Religion", "Unspecified"
+)
+
+# keep only columns that actually exist (avoids name-mismatch errors)
+relig_cols <- intersect(relig_cols, names(classify_wide))
+
+# 3) New Interfaith: TRUE if 2+ of those columns are TRUE on that row
+classify_wide[, Interfaith := Reduce(`+`, lapply(.SD, function(x) x %in% TRUE)) >= 2L,
+              .SDcols = relig_cols]
+
+# Rename columns with spaces so they are easier to manage in parquet.
+colnames(classify_wide)[-c(1:2)] <-
+  tolower(gsub(" ", "_", colnames(classify_wide)[-c(1:2)]))
+
+setcolorder(
+  classify_wide,
+  c(
+    "abi", "address",
+    "buddhist_temple", "christian_church", "hindu_mandir",
+    "jewish_synagogue", "muslim_mosque", "sikh_gurdwara",
+    "other_religion", "interfaith", "unspecified"
+  )
+)
+
+
 ## --------------------
 ## SUBSECTION B4: Compile the Final SIC Wide Columns
 
@@ -851,6 +889,47 @@ final_sic_classified_wide <- merge(
   all.x = TRUE,
   allow.cartesian = TRUE
 )
+
+
+# Count the number of entries associated with each religious category.
+
+# Collapse to one row per ABI: did this ABI ever have TRUE?
+abi_flag <- final_sic_classified_wide[, .(
+  buddhist_temple  = any(buddhist_temple %in% TRUE),
+  christian_church = any(christian_church %in% TRUE),
+  hindu_mandir     = any(hindu_mandir %in% TRUE),
+  jewish_synagogue = any(jewish_synagogue %in% TRUE),
+  muslim_mosque    = any(muslim_mosque %in% TRUE),
+  sikh_gurdwara    = any(sikh_gurdwara %in% TRUE),
+  other_religion   = any(other_religion %in% TRUE),
+  interfaith       = any(interfaith %in% TRUE),
+  unspecified      = any(unspecified %in% TRUE)
+), by = abi]
+
+# Generate tables where one row represents one variable's results.
+out <- melt(abi_flag, measure.vars = vars,
+            variable.name = "field", value.name = "val")[,
+                                                         .N, by = .(field, val)
+            ][,
+              pct := 100 * N / sum(N), by = field
+            ][,
+              dcast(.SD, field ~ val, value.var = "pct", fill = 0)
+            ]
+
+# Ensure consistent column names/order
+setnames(out, old = c("FALSE", "TRUE"), new = c("FALSE", "TRUE"), skip_absent = TRUE)
+
+# Cleanup
+out[, `:=`(
+   `FALSE` = fifelse(is.na(`FALSE`), 0, round(`FALSE`, 2)),
+   `TRUE`  = fifelse(is.na(`TRUE`),  0, round(`TRUE`,  2))
+)]
+
+out[]
+
+# As anticipated, most entries were associated with a Christian church (76%).
+# The next largest category was Unspecified at approximately 22%, followed by
+# Judaism at 1.7%. All other religions fell below 1%.
 
 
 
@@ -1232,10 +1311,6 @@ round(prop.table(table(abi_step_from_by_addr$transition_type, abi_step_from_by_a
 # most common being 2 move events. The maximum number of moves detected per 
 # ABI/address was 5.
 round(prop.table(table(abi_step_from_by_addr$n_moves))*100, digits = 3)
-
-# Rename columns with spaces so they are easier to manage in parquet.
-colnames(final_sic_classified_wide)[27:34] <-
-  tolower(gsub(" ", "_", colnames(final_sic_classified_wide)[27:34]))
 
 
 #' @description
