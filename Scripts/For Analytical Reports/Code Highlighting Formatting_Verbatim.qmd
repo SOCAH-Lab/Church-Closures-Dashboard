@@ -27,7 +27,10 @@ source("Code Highlighting Functions_Verbatim.R")
 
 # Read all your bash snippets
 bash_snippets <- list(
-  'duplicated(church_wide$abi) %>% table()'
+  'n_distinct(census_qc$qc1$address) == nrow(distinct(census_qc$qc1, address, census_block))
+n_distinct(census_qc$qc1$address) == nrow(distinct(census_qc$qc1, address, census_tract))
+n_distinct(census_qc$qc1$address) == nrow(distinct(census_qc$qc1, address, county_code))
+n_distinct(census_qc$qc1$address) == nrow(distinct(census_qc$qc1, address, fips_code))'
 )
 
 # Generate all formatted code
