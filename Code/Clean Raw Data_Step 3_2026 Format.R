@@ -1,5 +1,5 @@
 ## ----------------------------------------------------------------
-## 
+## Standardize and Reshape Metadata to Wide Format
 ## 
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 12th, 2026

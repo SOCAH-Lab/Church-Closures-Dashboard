@@ -968,9 +968,55 @@ For the implementation of data variable assessments relevant to the cleaning alg
 
 Additional details regarding the algorithm's performance outcomes can be found in [Results - Step 2: Clean and Validate Addresses and Geolocation, and Annotate Records with Census Boundaries](#results-2), which includes results specifically assessing the outcomes of the three quality control assessments.
 
-## Step 3: 
+## Step 3: Standardize and Reshape Metadata to Wide Format
 
-\newpage
+At this stage, the cleaned and validated data is prepared for dashboard metric generation. A critical structural transformation required for this involves reshaping records from long format (years open represented as rows) to wide format (years-open/years-closed encoded as binary columns), such that each record is unique to a given ABI and address combination.
+
+As demonstrated in **PART C: HANDLING ADDITIONAL METADATA** of ["Process Data Update.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Process%20Data%20Update.R), many metadata fields are not unique to a given ABI/address combination. While a consolidation procedure was defined that would preserve these variables as strings retaining the unique years reported per ABI/address, they provide no analytical value at this stage of the project. Furthermore, converting them to wide format would render them largely unsuitable for usage.
+
+Given that these variables are outside the scope of cleaning and validation and do not contribute to subsequent steps, they will be excluded from further processing. Users requiring distributor-provided metadata should use the cleaned and validated long-form 2026 Formatted dataset generated after **Step 2**. In-scope entries will be normalized to be unique within each ABI/address combination.
+
+**Retained variables:** `archive_version_year`, `abi`, `address`, \linebreak `address_verified`, `address_matched`, `primary_sic_code`, `sic_code[_1:4]`, \linebreak `sic6_descriptions_sic[1:4]]`, `latitude`, `longitude`, `geolocation_verified`, \linebreak `geoid_[2000|2010|2020]`, `geoid_match`, `cbsa_code_[2007|2010|2020]`, \linebreak `cbsa_level_[2007|2010|2020]`, `csa_code_[2007|2010|2020]`, `zcta_[2000|2010|2020]`
+
+### Normalize SIC Codes and Annotate with Classifiers
+
+"SUBSECTION B2: Primary and Additional SIC Encodings" in ["Process Data Update.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Process%20Data%20Update.R) evaluated the dimensionality, nomenclature consistency, and other characteristics of the SIC code columns. The primary SIC column was found to be restricted to a limited set of codes, while the remaining columns represented thousands of additional functional classifications. Each non-primary SIC column represented a sequential overflow of classification information. Notably, while the primary column contained only 42 distinct codes, those same codes appeared across all overflow columns as well.
+
+Without direct assessment, it is assumed that these metadata columns, particularly following the data cleaning and validation steps that reconciled similar addresses, are not consistent across unique ABI/address combinations. To support downstream annotation, these columns were standardized to ensure a unique value per ABI/address combination, consistent with all other retained variables.
+
+Because the codes in the primary SIC column are restricted but are also represented across the SIC overflow columns, they are handled separately. First, the primary SIC column is normalized by ABI/address combination, with any extra classifications reassigned to the overflow SIC columns. Next, all unique SIC classifications across the overflow columns are pooled together, including any additional primary SIC codes, and cast to new columns for each additional classification. All primary SIC codes were non-missing and did not need to be supplemented from the overflow columns.
+
+### Assign Religious Classifiers
+
+As noted earlier, each ABI and address entry has at least one primary SIC code and, in some cases, one or more overflow SIC codes. All relevant descriptions appear in the primary column, with a few additional ones found only in the overflow columns.
+
+This means some ABI and address entries may be associated with more than one religious category. Additionally, ABIs with multiple addresses may file under different religious codes, either because they are interfaith organizations or because the codes are being used more generally. We therefore assessed classification consistency across entries; specifically, whether any entries are filed under multiple religious categories and how frequently this occurs.
+
+Consistencies by classifiers defined in ["Results/From Clean Raw Data/Step 3_2026 Format/SIC Code Classifications_08.15.2026.csv"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Data/Results/From%20Clean%20Raw%20Data/Step%203_2026%20Format/SIC%20Code%20Classifications_08.15.2026.csv) were matched across all primary and overflow SIC columns separately. Any SIC classifiers associated with an ABI matching this criteria were then reported to show how many additional religious or interfaith classifications were present. This was done using the custom `function sic_desc_split_summary_dt()`.
+
+Classifiers were assigned based on clear attribution to a specific religion. However, a few descriptions showed a surprising degree of overlap across religions. The most notable example is the SIC description "CHURCHES". Others, such as "RELIGIOUS ORGANIZATIONS", "PLACES OF WORSHIP", and "CONVENTS & MONASTERIES", were too vague to attribute to a single religion and were therefore labeled "Interfaith".
+
+Classifiers are assigned based on the primary and overflow SIC codes. If, at the ABI level, only one religious classifier appears alongside "Interfaith" entries, all entries for that ABI are assigned that religion. This override is only applied when a single religion is identified; ABIs with multiple religions listed retain their original classifications.
+
+Some "Interfaith" descriptions, such as "CHURCHES" and "CHURCH ORGANIZATIONS", are primarily associated with Christian organizations and are therefore disambiguated to "Christian Church" in the absence of other clear religious identifiers. Otherwise, they are treated the same way as the other interfaith categories. This approach may miss cases where these descriptions apply to interfaith ministries, but will reduce the overattribution of interfaith classifications, which prior results suggest is likely to occur.
+
+An exception is made for entries with the SIC description "SYNAGOGUES MESSIANIC", which are attributed to both "Christian Church" and "Jewish Synagogue".
+
+### Fill Minor Years Reported Gaps
+
+A closure is defined as an event in which four or more consecutive years have no filings under any address. To simplify metric calculations, these missing years will be filled in. Care must be taken to ensure that this process does not induce duplicate records in the event of temporary relocations within intervening years.
+
+In the first pass, the custom function `fill_gaps_leq_k()` fills all qualifying gaps identified in a row-wise procedure. Some of these fills coincided with a temporary relocation entry, causing column-wise sums over the binary year columns to no longer be unique ($> 1$). These entries are corrected using the custom function `fix_bad_abi_flagfill()`, which performs a row-wise gap-fill for each impacted ABI using a sentinel flag value of 50. Any flagged fills that fall in an ABI-year where other non-zero values already exist are then pruned to avoid introducing conflicts. Finally, remaining flagged values are converted to 1, confirming the gap as a legitimate fill.
+
+### Identifying and Quantifying Moves vs. Reopenings at New Location
+
+Moves are defined as any change of address, including returns to a previous address. However, this excludes cases where more than four years elapsed between point a and point b. In such cases, the event is considered a reopening at a new location rather than a move.
+
+Address changes are assessed between each pair of sequential addresses recorded for an ABI. The distance in kilometers between the current and previous address is computed using the Haversine formula via `geosphere`\ [@geosphere_2026], which calculates the shortest surface distance between two geographic coordinates. If the intervening years between sequential addresses exceed four, the transition is relabeled as a "Reopened (New Location)". Additional indicator columns are generated as boolean flags identifying whether the move exceeded 5, 10, or 25 miles.
+
+Some addresses were moved from, returned to, and moved from again multiple times, causing the results to no longer correspond one-to-one with the ABI–address unique entry design. These entries were therefore summarized to the address level, with move counts aggregated, distances summarized as mean and maximum, boolean flags resolved as any-true, and string fields (e.g. moved to addresses) collapsed into semicolon-separated values.
+
+Additional details regarding the algorithm's performance outcomes can be found in [Results - Step 3: Standardize and Reshape Metadata to Wide Format](#results-3), which includes results specifically assessing the outcomes of the three quality control assessments.
 
 # Results {#results}
 
@@ -1240,14 +1286,13 @@ The most comprehensive quality check (QC1) contains all ABIs; the remaining chec
 
 \end{minipage}
 
-\newpage
-
 #### QC1: API Usage, Matching Overview, and Unique Result Consistency
 
 Of the records that underwent API validation, approximately 1.5\% did not attempt verification — `verified_address` is absent from the dataset for these records (Table \ref{tbl-verification_attempt_summary}). All such cases correspond to a `NA` value in `address_line_1`; direct examination of these ABIs confirmed that no valid address was available, causing the validation step to be skipped.
 
 \noindent\begin{minipage}{\linewidth}
-\small
+\small460/60
+
 \captionof{table}{Verification Attempt by NA Address Presence and API Permission (\%)}
 \label{tbl-verification_attempt_summary}
 
@@ -1757,7 +1802,7 @@ A quick check comparing dimensions of distinct outcomes over address and over ad
 \end{Verbatim}
   \end{codebox}
 
-  \vspace{-4ex}
+  \vspace{-2ex}
   \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
 \end{list}
 
@@ -1926,7 +1971,211 @@ CSA        & 12.11 & 53.24 & 34.65 \\
 
 \newpage
 
-## Step 3:  {#results-3}
+## Step 3: Standardize and Reshape Metadata to Wide Format  {#results-3}
+
+### Normalize SIC Codes and Annotate with Classifiers
+
+4\% of unique ABI/address entries have more than one primary SIC code associated. Notably, only 14\% of these cases include a verified or matched address, indicating that the discrepancy predates the redundancy reduction steps in this pipeline. This raises the question of whether the variation reflects changes in religious or denominational affiliation over time. This question falls outside the scope of the current assessment and will not be explored further, only noted here.
+
+On average, entries with multiple primary SIC codes had only a second one, with some having as many as five unique primary codes. Most entries with overflow SIC codes had only one, with some having as many as eleven.
+
+### Assign Religious Classifiers
+
+SIC code classifiers ["Results/From Clean Raw Data/Step 3_2026 Format/SIC Code Classifications_08.15.2026.csv"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Data/Results/From%20Clean%20Raw%20Data/Step%203_2026%20Format/SIC%20Code%20Classifications_08.15.2026.csv) were defined using descriptions that clearly or implicitly indicate the religion a business is associated with. The SIC descriptions "SYNAGOGUES MESSIANIC" and "TEMPLES BUDDHIST EDUCATIONAL INSTITUTION" are the only classifiers absent from the primary SIC code column; all others appear in both primary and overflow SIC columns.
+
+Table \ref{tbl-sic-top-outcomes} shows a selection of results assessing classification consistency by religious classifier across both primary and overflow columns. These results highlight the top descriptions in entries associated with a given religion over the primary SIC columns. Some classifiers that are not clearly attributable to a single religion show a high degree of overlap. The most notable example is the SIC description "CHURCHES".
+
+Full results can be found in ["Results/From Clean Raw Data/Step 3_2026 Format/"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Results/From%20Clean%20Raw%20Data/Step%203_2026%20Format).
+
+\noindent\begin{minipage}{\linewidth}
+\small
+\captionof{table}{Top primary SIC-description outcomes (\% of search hits)}
+\label{tbl-sic-top-outcomes}
+
+%----------------------- Row 1 -----------------------%
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{Christian Church}
+
+\vspace{1em}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{p{0.62\linewidth} l r}
+\toprule
+\textbf{x} & \textbf{classifier} & \textbf{Freq} \\
+\midrule
+CHURCHES & Christian Church; Interfaith & 46.4 \\
+RELIGIOUS ORGANIZATIONS & Interfaith & 21.5 \\
+CHURCH ORGANIZATIONS & Christian Church; Interfaith & 10.7 \\
+CLERGY & Interfaith & 8.9 \\
+MINISTRIES-OUT REACH & Interfaith & 3.4 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{Muslim Mosque}
+
+\vspace{1em}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{p{0.62\linewidth} l r}
+\toprule
+\textbf{x} & \textbf{classifier} & \textbf{Freq} \\
+\midrule
+MOSQUES & Muslim Mosque & 44.3 \\
+CHURCHES & Christian Church; Interfaith & 32.3 \\
+RELIGIOUS ORGANIZATIONS & Interfaith & 15.8 \\
+MOSQUES MUSLIM-ISLAMIC CHARITABLE-ORGZTN & Muslim Mosque & 5.1 \\
+CHURCH ORGANIZATIONS & Christian Church; Interfaith & 1.3 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{minipage}
+
+\vspace{1.5em}
+
+%----------------------- Row 2 -----------------------%
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{Jewish Synagogue}
+
+\vspace{1em}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{p{0.62\linewidth} l r}
+\toprule
+\textbf{x} & \textbf{classifier} & \textbf{Freq} \\
+\midrule
+SYNAGOGUES & Jewish Synagogue & 46.4 \\
+SYNAGOGUES JEWISH & Jewish Synagogue & 31.2 \\
+CHURCHES & Christian Church; Interfaith & 7.1 \\
+RELIGIOUS ORGANIZATIONS & Interfaith & 4.3 \\
+SYNAGOGUES ORTHODOX & Jewish Synagogue & 3.6 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{Hindu Mandir}
+
+\vspace{1em}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{p{0.62\linewidth} l r}
+\toprule
+\textbf{x} & \textbf{classifier} & \textbf{Freq} \\
+\midrule
+CHURCHES & Christian Church; Interfaith & 43.5 \\
+TEMPLES-HINDU & Hindu Mandir & 43.5 \\
+SYNAGOGUES & Jewish Synagogue & 8.7 \\
+RELIGIOUS ORGANIZATIONS & Interfaith & 2.2 \\
+TEMPLES-BUDDHIST & Buddhist Temple & 2.2 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{minipage}
+
+\end{minipage}
+
+### Fill Minor Years Reported Gaps
+
+9.2\% of ABI/address entries required gap filling, and approximately 3\% of ABIs had an induced duplicate record as a result. For most ABIs, only one qualifying gap was filled (89\%), of which 62\% were 1-year gaps, 25\% were 2-year gaps, and 8\% were 3-year gaps. Table \ref{tbl-gaps-filled-by-avglen} shows that as the number of gaps filled increases, so does the average gap length. Note that zeros are omitted for readability and do not indicate missing values.
+
+\noindent\begin{minipage}{\linewidth}
+\captionof{table}{Gaps filled by average filled-gap length (row \%).}
+\label{tbl-gaps-filled-by-avglen}
+\centering
+\begin{tabular}{lrrrrrr}
+\toprule
+ & \multicolumn{6}{c}{\textbf{Gaps Filled}} \\
+\cmidrule(lr){2-7}
+\textbf{Avg Length Filled} & \textbf{1} & \textbf{2} & \textbf{3} & \textbf{4} & \textbf{5} & \textbf{6} \\
+\midrule
+1    & 65.05 & 42.52 & 25.29 & 19.51 & 20.00 &  \\
+1.2  &       &       &       &       & 20.00 &  \\
+1.25 &       &       &       & 30.89 &       &  \\
+1.33 &       &       & 33.71 &       &       & 100.00 \\
+1.4  &       &       &       &       & 20.00 &  \\
+1.5  &       & 35.23 &       & 28.46 &       &  \\
+1.6  &       &       &       &       & 40.00 &  \\
+1.67 &       &       & 22.39 &       &       &  \\
+1.75 &       &       &       & 11.38 &       &  \\
+2    & 25.79 & 16.81 & 12.64 &  8.13 &       &  \\
+2.25 &       &       &       &  1.63 &       &  \\
+2.33 &       &       &  4.65 &       &       &  \\
+2.5  &       &  4.53 &       &       &       &  \\
+2.67 &       &       &  1.23 &       &       &  \\
+3    &  9.16 &  0.92 &  0.09 &       &       &  \\
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+
+### Identifying and Quantifying Moves vs. Reopenings at New Location
+
+Approximately 26%\ of entries involved a move or reopening at a new location, of these about 40\% involved a PO Box. Most moves were less than 5 miles, with only approximately 14\% exceeding 5 miles (Table \ref{tbl-move-distance-by-transition}). Most relocations were also less than 5 miles, with approximately 1\% exceeding 5 miles. As expected, the share of addresses beyond 10 and 25 miles decreased incrementally: approximately 5\% and 1\%, respectively. Note that "reopenings" here refer to those that reopened at a new location following a closure.
+
+\noindent\begin{minipage}{\linewidth}
+\small
+\captionof{table}{Move distance indicators by transition type (\% row)}
+\label{tbl-move-distance-by-transition}
+
+\centering
+
+%----------------------- One row, three columns -----------------------%
+\begin{minipage}{0.32\textwidth}
+\centering
+\textbf{$>$ 5 mi}
+
+\vspace{1em}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lrr}
+\toprule
+ & \textbf{FALSE} & \textbf{TRUE} \\
+\midrule
+Moved & 86.18 & 13.82 \\
+Reopened & 82.74 & 17.26 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{minipage}
+\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+\textbf{$>$ 10 mi}
+
+\vspace{1em}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lrr}
+\toprule
+ & \textbf{FALSE} & \textbf{TRUE} \\
+\midrule
+Moved & 94.51 & 4.47 \\
+Reopened & 0.95 & 0.07 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{minipage}
+\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+\textbf{$>$ 25 mi}
+
+\vspace{1em}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lrr}
+\toprule
+ & \textbf{FALSE} & \textbf{TRUE} \\
+\midrule
+Moved & 97.84 & 1.15 \\
+Reopened & 1.00 & 0.02 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{minipage}
+
+\end{minipage}
 
 \newpage
 
@@ -2844,6 +3093,172 @@ Boolean: \texttt{TRUE} if any address in these results came from a verified addr
 \addlinespace[6pt]
 \texttt{any\_address\_matched} &
 Boolean: \texttt{TRUE} if any address in these results came from an agnostically matched address; \texttt{NA} if no matching was applied. \\
+
+\end{longtable}
+\endgroup
+
+
+## Step 3 Final Result {#code-results-source-15}
+
+For the implementation, refer to **PART E: Reconstruct All Columns and Save Result** in ["Code/Clean Raw Data_Step 3_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%203_2026%20Format.R). The data processed were the **Step 2** results, run through all data cleaning steps outlined in **Step 3**. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 3_2026 Format/church_2026_form_wide_annotated_08.16.2026.parquet"`.
+
+\vspace{2ex}
+
+\begingroup
+\renewcommand{\arraystretch}{1.05}
+\setlength{\LTpre}{0pt}
+\setlength{\LTpost}{0pt}
+
+\begin{longtable}{l p{0.50\linewidth}}
+\caption{Codebook for New Output Fields from Cleaning and Validation}
+\label{tbl:codebook-15}\\
+
+\toprule
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{2}{r}{\emph{Continued on next page}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+\texttt{2000:2025} & Binary columns indicating years open and closed. \\
+\addlinespace[6pt]
+\texttt{gap\_filled} & Boolean. TRUE if a qualifying gap between flanking 1's has been filled; FALSE otherwise. \\
+\addlinespace[6pt]
+\texttt{n\_gaps\_filled} & The number of gaps filled for that address. \\
+\addlinespace[6pt]
+\texttt{avg\_gap\_len\_filled} & The average length, in years, of filled gaps; ranges from 1 to 3 sequential years. \\
+\addlinespace[6pt]
+\texttt{n\_moves} & Number of times a given ABI/address was identified as a \texttt{from\_address}, indicating a new move event. \\
+\addlinespace[6pt]
+\texttt{to\_address} & The address to which the current entry relocated. These are the addresses quantified by the move variables. \\
+\addlinespace[6pt]
+\texttt{transition\_type} & Classifies the type of address transition. Gaps exceeding four consecutive years are classified as reopenings at a new location rather than moves. Addresses appearing multiple times temporally with a temporary new address may have multiple transitions associated per ABI/address. \\
+\addlinespace[6pt]
+\texttt{mean\_dist\_km} & The mean haversine distance (km) across all address transitions. For entries appearing more than once, this reflects the average distance across all moves; otherwise, it is the distance of the single move. \\
+\addlinespace[6pt]
+\texttt{max\_dist\_km} & The maximum haversine distance (km) across all address transitions. For entries appearing more than once, this reflects the largest single-move distance observed; otherwise, it is the distance of the single move. \\
+\addlinespace[6pt]
+\texttt{move\_gt\_[5mi|10mi|25mi]} & Boolean. TRUE if any of the moves exceeds 5, 10, or 25 miles, respectively. \\
+\addlinespace[6pt]
+\texttt{any\_pobox} & Boolean. TRUE if a PO Box is present for either the \texttt{from\_} or \texttt{to\_address}; FALSE otherwise. \\
+\addlinespace[6pt]
+
+\begin{tabular}[t]{@{}l@{}}
+\texttt{primary\_sic...primary\_sic\_desc,}\\
+\texttt{primary\_sic...}\\
+\texttt{...overflow\_sic\_desc\_[1:11]}
+\end{tabular}
+&
+Standardized primary and overflow SIC columns, made consistent across all ABI/address entries. \\
+\addlinespace[6pt]
+
+\begin{tabular}[t]{@{}l@{}}
+\texttt{buddhist\_temple, christian\_church,}\\
+\texttt{hindu\_mandir, interfaith,}\\
+\texttt{jewish\_synagogue, muslim\_mosque,}\\
+\texttt{other\_religion, sikh\_gurdwara}
+\end{tabular}
+&
+Boolean. TRUE if the address is classified under the given religion; FALSE otherwise. \\
+
+\end{longtable}
+\endgroup
+
+## Religious Classifiers Consistency Check {#code-results-source-16}
+
+For the implementation, refer to **SUBSECTION B3: Assign Religious Classifiers** in ["Code/Clean Raw Data_Step 3_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%203_2026%20Format.R). Religious classifiers were compared against all primary and overflow SIC columns, with non-matching entries for the same ABI reported alongside. The data processed were the **Step 2** results. Comparison results were written to `"./Data/Results/From Clean Raw Data/Step 3_2026 Format/SIC Codes Consistency Check_XX_08.15.2026.xlsx"`, with the respective religion filled in place of XX.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for SIC Description Consistency Sheets}
+\label{tbl:codebook-16}
+\begin{tabular}{l p{0.72\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{primary\_pct100} & Sheet that filters the primary SIC code column for descriptions that are consistent across all addresses filed by an ABI. \\
+\addlinespace[6pt]
+\texttt{primary\_pctlt100} & Sheet that filters the primary SIC code column for descriptions that are inconsistent across all addresses filed by an ABI. Each observed outcome is listed individually, rather than as pairs. \\
+\addlinespace[6pt]
+\texttt{overflow\_pct100} & Sheet that is the same as \texttt{primary\_pct100}, but applied to all deduplicated overflow column outcomes. \\
+\addlinespace[6pt]
+\texttt{overflow\_pctlt100} & Sheet that is the same as \texttt{primary\_pctlt100}, but applied to all deduplicated overflow column outcomes. \\
+\addlinespace[6pt]
+\texttt{x} & The SIC description (variable within each sheet). \\
+\addlinespace[6pt]
+\texttt{Freq} & The percentage of times the description appeared across all search hits (variable within each sheet). \\
+\end{tabular}
+\endgroup
+
+## Moves and Reopenings at New Addresses {#code-results-source-17}
+
+For the implementation, refer to **PART D: Identifying and Quantifying Moves vs. Reopenings at New Location** in ["Code/Clean Raw Data_Step 3_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%203_2026%20Format.R). The data processed were the **Step 2** results. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 3_2026 Format/Moves and Reopenings at New Address_08.16.2026.parquet"`, with the respective religion filled in place of XX.
+
+\vspace{2ex}
+
+\begingroup
+\renewcommand{\arraystretch}{1.05}
+\setlength{\LTpre}{0pt}
+\setlength{\LTpost}{0pt}
+
+\begin{longtable}{l p{0.60\linewidth}}
+\caption{Codebook for Move-Event Quantification Data Frame}
+\label{tbl:codebook-17}\\
+
+\toprule
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{2}{r}{\emph{Continued on next page}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+\texttt{abi} & The business ID to which the results relate. \\
+\addlinespace[6pt]
+\texttt{from\_address} & The address from which the entry relocated. This is also listed as the primary address for that entry. \\
+\addlinespace[6pt]
+\texttt{to\_address} & The address to which the entry relocated. These are the addresses quantified by the move variables. \\
+\addlinespace[6pt]
+\texttt{from\_last\_year} & The last year on file for the origin address. \\
+\addlinespace[6pt]
+\texttt{to\_first\_year} & The first year on file for the destination address. \\
+\addlinespace[6pt]
+\texttt{year\_gap} & The number of years between the two filings. \\
+\addlinespace[6pt]
+\texttt{missing\_years} & The number of years within the gap where no address was filed. \\
+\addlinespace[6pt]
+\texttt{dist\_km} & The haversine distance between the two address coordinates, in km. \\
+\addlinespace[6pt]
+\texttt{move\_gt\_[5mi|10mi|25mi]} & Boolean. TRUE if the move distance exceeds 5, 10, or 25 miles, respectively. \\
+\addlinespace[6pt]
+\texttt{dist\_flag} & Boolean. TRUE if the distance can be calculated (i.e., coordinates are non-missing and sufficient address information is available). \\
+\addlinespace[6pt]
+\texttt{transition\_type} & Classifies the address change as \texttt{"Moved"} or \texttt{"Reopening (New Location)"} if the gap between filings exceeds 4 years. \\
+\addlinespace[6pt]
+\texttt{from\_is\_pobox} & Boolean. TRUE if the origin address is a PO Box; FALSE otherwise. \\
+\addlinespace[6pt]
+\texttt{to\_is\_pobox} & Boolean. TRUE if the destination address is a PO Box; FALSE otherwise. \\
+\addlinespace[6pt]
+\texttt{any\_pobox} & Boolean. TRUE if either address is a PO Box; FALSE otherwise. \\
 
 \end{longtable}
 \endgroup
