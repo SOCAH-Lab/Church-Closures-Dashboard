@@ -3,9 +3,21 @@
 ## 
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 12th, 2026
-## Date Modified: August 15th, 2026
+## Date Modified: August 16th, 2026
 ## 
-## Description: 
+## Description: Metrics are computed at the unique ABI/address level. Therefore,
+##              it is important to reshape the dataset accordingly. As discussed
+##              later, not all metadata retained after data cleaning and
+##              validation in Step 2 is needed going forward. The remaining
+##              metadata must be standardized and annotated in preparation
+##              for reshaping to unique ABI/address rows.
+##
+##              Most retained metadata columns from Step 2 are already unique
+##              by ABI/address. SIC columns, however, require additional
+##              preparation before reshaping. In addition, several new metrics
+##              are derived at this stage: number of moves and a religious
+##              classification of SIC codes. Years-open will be restructured
+##              as binary indicator columns.
 ## 
 ## NOTE: Under the Data Use Agreements (DUAs) with Data Axle and the USPS API 
 ##       license, raw data cannot be publicly distributed and is stored locally 
@@ -63,7 +75,7 @@
 ##        * SUBSECTION C1: Reshape Years-Open Entries from Rows to Columns
 ##        * SUBSECTION C2: Fill Minor Years Reported Gaps
 ## 
-##    - PART D: 
+##    - PART D: Identifying and Quantifying Moves vs. Reopenings at New Location
 ##    - PART E: Reconstruct All Columns and Save Result
 
 ## ----------------------------------------------------------------
@@ -92,6 +104,7 @@ suppressPackageStartupMessages({
   library("data.table")       # High-performance data manipulation
   library("future.apply")     # Parallel processing
   library("progressr")        # Progress bars
+  library("geosphere")        ## Geospatial distance calculations (e.g., Haversine distance in meters) 
 })
 
 # Set up the plan for parallel processing.
@@ -476,7 +489,7 @@ setnames(
 )
 
 # Cast the SIC code and description columns as wide.
-final_sic_wide <- Reduce(function(x, y) merge(x, y, by = c("abi","address"), all = TRUE), list(
+sic_wide <- Reduce(function(x, y) merge(x, y, by = c("abi","address"), all = TRUE), list(
   primary_by_key[, .(abi, address,
                      primary_sic = code,
                      primary_sic_desc = desc)],
@@ -485,9 +498,9 @@ final_sic_wide <- Reduce(function(x, y) merge(x, y, by = c("abi","address"), all
 ))
 
 # Reorder columns so each overflow_sic_i is immediately followed by 
-# overflow_sic_desc_i
+# overflow_sic_desc_i.
 setcolorder(
-  final_sic_wide,
+  sic_wide,
   c(
     "abi", "address",
     "primary_sic", "primary_sic_desc",
@@ -569,9 +582,17 @@ buddhist_results <- sic_desc_split_summary_dt(
   overflow_long = overflow_long
 )
 
+other_results <- sic_desc_split_summary_dt(
+  church_2026_form_analysis_dt = church_2026_form_analysis_dt,
+  target_classification = "Other Religion",
+  sic_classifications = sic_classifications,
+  primary_long = primary_long,
+  overflow_long = overflow_long
+)
+
 
 #' @description
-#' Codebook for classification consistency checks across six religious
+#' Codebook for classification consistency checks across seven religious
 #' categories. The goal is to assess how consistently each ABI and address
 #' entry is labeled across the primary and overflow SIC columns; specifically,
 #' whether any entries are filed under multiple religious categories, and
@@ -601,7 +622,8 @@ sheets <-
   #jewish_results %>%
   #sikh_results %>%
   #hindu_results %>%
-  buddhist_results %>%
+  #buddhist_results %>%
+  other_results %>%
   (\(x) {list(
   "primary_pct100"      = x$primary$pct100,
   "primary_pctlt100"    = x$primary$pctlt100,
@@ -617,10 +639,34 @@ write_xlsx(sheets, path = "./Data/Results/From Clean Raw Data/Step 3_2026 Format
 write_xlsx(sheets, path = "./Data/Results/From Clean Raw Data/Step 3_2026 Format/SIC Codes Consistency Check_Hindu_08.15.2026.xlsx")
 write_xlsx(sheets, path = "./Data/Results/From Clean Raw Data/Step 3_2026 Format/SIC Codes Consistency Check_Buddhist_08.15.2026.xlsx")
 
+write_xlsx(sheets, path = "./Data/Results/From Clean Raw Data/Step 3_2026 Format/SIC Codes Consistency Check_Other_08.15.2026.xlsx")
 
-# One key finding is that "Churches" appear across all religions and should 
-# therefore be labeled as "Interfaith". Classifiers will be assigned based on 
-# outcomes across both the primary and overflow SIC codes.
+
+# Classifiers were assigned based on clear attribution to a specific religion. 
+# However, a few descriptions showed a surprising degree of overlap across 
+# religions. The most notable example is the SIC description "CHURCHES". Others, 
+# such as "RELIGIOUS ORGANIZATIONS", "PLACES OF WORSHIP", and "CONVENTS & 
+# MONASTERIES", were too vague to attribute to a single religion and were 
+# therefore labeled "Interfaith".
+#
+# In the following section, classifiers are assigned based on the primary and 
+# overflow SIC codes. If, at the ABI level, only one religious classifier 
+# appears alongside "Interfaith" entries, all entries for that ABI will be 
+# assigned that religion. This override is only applied when a single religion 
+# is identified; ABIs with multiple religions listed will retain their original 
+# classifications.
+# 
+# Some descriptions, such as "CHURCHES" and "CHURCH ORGANIZATIONS", are 
+# primarily associated with Christian organizations and will therefore be 
+# attributed to "Christian Church" in the absence of other clear religious 
+# identifiers. This approach may miss cases where these descriptions apply to 
+# interfaith ministries, but will reduce the overattribution of interfaith 
+# classifications, which prior results suggest is likely to occur.
+#
+# An exception is made for entries with the SIC description "SYNAGOGUES 
+# MESSIANIC", which will be attributed to both "Christian Church" and "Jewish 
+# Synagogue".
+
 
 # Convert to a data table.
 primary_dt   <- as.data.table(primary_long)
@@ -633,7 +679,7 @@ overflow_dt[,  code_chr := as.character(code)]
 sic_classifications_dt[, sic_code_chr := as.character(sic_code)]
 
 # Join the primary SIC table with the classifiers.
-dtj <- merge(
+dt_p <- merge(
   primary_dt[, .(abi, address, code = code_chr)],
   sic_classifications_dt,
   by.x = "code", by.y = "sic_code_chr",
@@ -643,7 +689,7 @@ dtj <- merge(
   select(-code)
 
 # Join the overflow SIC table with the classifiers and remove unmatched records.
-dtk <- merge(
+dt_o <- merge(
   overflow_dt[, .(abi, address, code = code_chr)],
   sic_classifications_dt,
   by.x = "code", by.y = "sic_code_chr",
@@ -654,18 +700,137 @@ dtk <- merge(
   select(-code)
 
 # Combine the primary and overflow results.
-dt <- bind_rows(dtj, dtk)
+dt_all <- bind_rows(dt_p, dt_o)
+
+
+# These SIC/classification records can be messy: the same address may show 
+# multiple labels, and some “Christian Church” SICs are frequently used as a 
+# generic or interfaith-style tag rather than a true Christian identifier.
+#
+# What we do here:
+# - For each ABI+address, collect any explicit religion labels from `religions`.
+# - If at least one explicit religion is present, we do NOT keep "Interfaith"
+#   (Interfaith is only used when no explicit religion labels are found).
+# - Handle “soft Christian” SICs (866104, 866125, 866107, 866108):
+#     These SICs sometimes trigger a "Christian Church" label in a 
+#     generic/interfaith way. We only drop "Christian Church" when there is 
+#     exactly ONE non-Christian religion present at the address and the 
+#     Christian evidence comes ONLY from these soft SICs. If Christian is the 
+#     only religion present (i.e., no other religion labels appear), we keep 
+#     "Christian Church".
+# 
+#     The “soft Christian” rule triggers only when exactly one non-Christian 
+#     religion is present; if there are 2+ non-Christian religions plus 
+#     soft-Christian, "Christian Church" will remain included (by design per 
+#     this rule).
+#
+# Output:
+# `abi_addr_religion` is long: one row per ABI+address+religion. "Interfaith" 
+# appears only when the address has no explicit religion labels.
+
+religions <- c(
+  "Hindu Mandir", "Christian Church", "Other Religion",
+  "Jewish Synagogue", "Muslim Mosque", "Buddhist Temple", "Sikh Gurdwara"
+)
+soft_christian_sic <- c(866104L, 866125L, 866107L, 866108L)
+
+# Clean the classification variables.
+dt_all[, classification := trimws(classification)]
+
+abi_addr_religion <- dt_all[
+  , {
+    # Collapse to the distinct SIC/classification signals observed at this 
+    # ABI+address
+    u <- unique(.SD[, .(sic_code, classification)])
+    
+    # Collect explicit religion labels (only those in `religions`; excludes 
+    # "Interfaith")
+    rel <- intersect(u$classification, religions)
+    
+    # Identify any non-Christian religions present at this ABI+address
+    rel_non_chr <- setdiff(rel, "Christian Church")
+    
+    # Soft-Christian override:
+    # If there is exactly one non-Christian religion present, and any 
+    # "Christian Church" evidence comes only from the soft_christian_sic codes, 
+    # then treat the address as that single non-Christian religion (drop 
+    # "Christian Church" from rel).
+    if (length(rel_non_chr) == 1L) {
+      # SIC codes contributing to the "Christian Church" label at this address 
+      # (if any)
+      christian_sic <- unique(u[classification == "Christian Church", sic_code])
+      
+      # Only override when Christian appears AND all its SIC codes are 
+      # soft-Christian
+      if (length(christian_sic) > 0L && all(christian_sic %in% soft_christian_sic)) {
+        rel <- rel_non_chr
+      }
+    }
+    
+    # De-duplicate and stabilize ordering for consistent downstream behavior
+    rel <- sort(unique(rel))
+    
+    # Emit long-format output:
+    # - one row per explicit religion when present
+    # - otherwise a single "Interfaith" row when no religion labels are found
+    if (length(rel) > 0L) {
+      data.table(religion = rel)         # one row per religion
+    } else {
+      data.table(religion = "Interfaith")
+    }
+  },
+  by = .(abi, address)                    # compute separately for each ABI+address group
+]
+
+
+# After building address-level religion labels, we apply a conservative 
+# ABI-level cleanup:
+# - If an ABI has exactly ONE distinct non-"Interfaith" religion across all its 
+#   addresses, we treat that as the ABI’s “consensus” religion.
+# - We then replace "Interfaith" at the address level ONLY for that ABI, using 
+#   the consensus religion. This fills in likely missing/unspecified religions 
+#   at Interfaith-only addresses.
+# 
+# Guardrails (what we do NOT change):
+# - If an ABI has multiple non-Interfaith religions, we do not propagate 
+#   anything—leave all address-level labels as-is (including any "Interfaith" rows).
+# - If an ABI has no non-Interfaith religion (all Interfaith), nothing changes.
+# - We never overwrite a specific religion label at an address; only 
+#   "Interfaith" can be replaced.
+
+# Build ABI consensus table (as before)
+abi_single <- abi_addr_religion[
+  religion != "Interfaith",
+  .(abi_religion = if (uniqueN(religion) == 1L) unique(religion) else NA_character_),
+  by = abi
+]
+
+# Start from full table, then update (never drops rows)
+abi_addr_religion_fixed <- copy(abi_addr_religion)
+
+# Add abi_religion via lookup (unmatched ABIs become NA)
+abi_addr_religion_fixed[
+  abi_single, on = "abi", abi_religion := i.abi_religion
+]
+
+# Replace only Interfaith when abi_religion is defined
+abi_addr_religion_fixed[
+  religion == "Interfaith" & !is.na(abi_religion),
+  religion := abi_religion
+][
+  , abi_religion := NULL
+]
 
 
 # Collapse to ABI+address with “any” flags.
-classify_long <- dt[!is.na(classification),
+classify_long <- abi_addr_religion_fixed[!is.na(religion),
             .(present = TRUE),
-            by = .(abi, address, classification)]
+            by = .(abi, address, religion)]
 
 # Cast the classifiers column to wide as boolean.
 classify_wide <- dcast(
   classify_long,
-  abi + address ~ classification,
+  abi + address ~ religion,
   value.var = "present",
   fill = FALSE
 )
@@ -679,8 +844,8 @@ for (cc in cls_cols) set(classify_wide, which(is.na(classify_wide[[cc]])), cc, F
 ## SUBSECTION B4: Compile the Final SIC Wide Columns
 
 # Combine the SIC code, description, and classifier columns.
-sic_classified_wide <- merge(
-  final_sic_wide,
+final_sic_classified_wide <- merge(
+  sic_wide,
   classify_wide,
   by = c("abi", "address"),
   all.x = TRUE,
@@ -725,7 +890,7 @@ yr_wide <- dcast(
 
 # Verify that the two transformed metadata columns have the same number of rows, 
 # each representing a unique ABI/address combination.
-nrow(final_sic_wide) == nrow(yr_wide)
+nrow(final_sic_classified_wide) == nrow(yr_wide)
 
 
 ## --------------------
@@ -807,47 +972,328 @@ final_yr_wide[abi %in% abi_zero_or_one[all_zero_or_one == FALSE, abi], ]
 
 
 ## ----------------------------------------------------------------
-## PART D:
+## PART D: Identifying and Quantifying Moves vs. Reopenings at New Location
+
+# Moves are defined as any change of address, including returns to a previous 
+# address. However, this excludes cases where more than four years elapsed 
+# between point a and point b. In such cases, the event is considered a 
+# reopening at a new location rather than a move.
 
 
-# Annotate with moves
+dist_long <- church_2026_form_analysis_dt %>%
+  select(archive_version_year, abi, address, latitude, longitude)
 
-# Values
-#   - Distance to walk depreciated
-#   - Distance to take public transit depreciated
-#   - Distance to drive depreciated
-#   - Within 1 mile
-#   - Within 1-5 miles
-#   - Within 5-10 miles
-#   - Within 10-50 miles
+setorder(dist_long, abi, archive_version_year)
 
-# Just calculate the closure and summarize the movement
-# i.e.: 10% moved more than 1-5 miles away, 5% had a drop of walk ability.
-# i.e.: 4% detected more than 1 community (80% two and 20% three)
-# 
-# Only closed due to a move if it moved outside of the community. Also note
-# if later addresses fell into previously identified community.
+# 1) Create an episode id that increments when address changes within an abi
+dist_long[, episode_id := rleid(address), by = abi]
+
+# 2) Collapse each episode to first/last year + one set of coords
+episodes <- dist_long[, .(
+  from_year = min(archive_version_year),
+  to_year   = max(archive_version_year),
+  address   = address[1],
+  latitude  = latitude[1],
+  longitude = longitude[1]
+), by = .(abi, episode_id)]
+
+setorder(episodes, abi, from_year)
+
+# 3) Previous episode info (this is address A, with its LAST year = prev_to_year)
+episodes[, `:=`(
+  prev_address = shift(address),
+  prev_to_year = shift(to_year),
+  prev_lat     = shift(latitude),
+  prev_lon     = shift(longitude)
+), by = abi]
+
+# 4) Gap you actually want: first year of B minus last year of A
+episodes[, year_gap := from_year - prev_to_year]
+
+# 5) Calculate the missing years = year_gap - 1, so threshold 4 => year_gap >= 5
+gap_threshold_missing_years <- 4L
+episodes[, transition_type := fifelse(
+  is.na(prev_address), NA_character_,
+  fifelse((year_gap - 1L) >= gap_threshold_missing_years, "Reopened (New Location)", "Moved")
+)]
+
+# 6) Distance between episode endpoints (A -> B)
+episodes[, calculatable := !(is.na(prev_lat) | is.na(prev_lon) | is.na(latitude) | is.na(longitude))]
+
+# dist_km first
+episodes[, dist_km := fifelse(
+  is.na(prev_address), NA_real_,
+  fifelse(calculatable,
+          round(geosphere::distHaversine(
+            cbind(prev_lon, prev_lat),
+            cbind(longitude, latitude)
+          ) / 1000, 2),
+          NA_real_)
+)]
+
+# then your move-threshold flags
+episodes[, `:=`(
+  move_gt_5mi  = !is.na(dist_km) & dist_km >  5 * 1.609344,
+  move_gt_10mi = !is.na(dist_km) & dist_km > 10 * 1.609344,
+  move_gt_25mi = !is.na(dist_km) & dist_km > 25 * 1.609344
+)]
+
+# then dist_flag (or any other labels)
+episodes[, dist_flag := fifelse(
+  is.na(prev_address), NA_character_,
+  fifelse(calculatable, "Calculatable", "Uncalculatable")
+)]
+
+# 7) Step-to-step output
+abi_step_dist <- episodes[!is.na(prev_address),
+                          .(abi,
+                            from_address = prev_address,
+                            to_address   = address,
+                            from_last_year = prev_to_year,   # last year at A
+                            to_first_year  = from_year,      # first year at B
+                            year_gap,
+                            missing_years = pmax(year_gap - 1L, 0L),
+                            dist_km,
+                            move_gt_5mi,
+                            move_gt_10mi,
+                            move_gt_25mi,
+                            dist_flag,
+                            transition_type)
+]
 
 
+# Approximately 26% of entries involved a move or reopening at a new location.
+round(nrow(abi_step_dist)/nrow(yr_wide)*100, digits = 2)
+
+# Most moves were less than 5 miles, with only ~14% exceeding 5 miles. Most 
+# relocations were also less than 5 miles, with ~17% exceeding 5 miles. As 
+# expected, the share of addresses beyond 10 and 25 miles decreased 
+# incrementally: ~5% and ~1%, respectively.
+round(prop.table(table(
+  abi_step_dist$transition_type, 
+  "> 5 mi" = abi_step_dist$move_gt_5mi, 
+  useNA = "ifany"
+), margin = 1)*100, digits = 2)
+round(prop.table(table(abi_step_dist$transition_type, "> 10 mi" = abi_step_dist$move_gt_10mi, useNA = "ifany"))*100, digits = 2)
+round(prop.table(table(abi_step_dist$transition_type, "> 25 mi" = abi_step_dist$move_gt_25mi, useNA = "ifany"))*100, digits = 2)
+
+
+# Detect common PO Box patterns: "PO Box", "P.O. Box", "P O BOX", "Post Office Box"
+po_pat <- "(?i)\\bP\\s*\\.?\\s*O\\s*\\.?\\s*BOX\\b|\\bPOST\\s+OFFICE\\s+BOX\\b"
+
+# row-level flags (if you still want them)
+abi_step_dist[, `:=`(
+  from_is_pobox = !is.na(from_address) & grepl(po_pat, from_address, perl = TRUE),
+  to_is_pobox   = !is.na(to_address)   & grepl(po_pat, to_address, perl = TRUE)
+)]
+abi_step_dist[, any_pobox := from_is_pobox | to_is_pobox]
+
+# per-ABI summary
+pobox_by_abi <- abi_step_dist[, .(
+  any_pobox_abi = any(any_pobox, na.rm = TRUE),            # did this ABI ever involve a PO Box?
+  n_steps       = .N,
+  n_any_pobox   = sum(any_pobox, na.rm = TRUE),            # how many transitions involved a PO Box?
+  n_from_pobox  = sum(from_is_pobox, na.rm = TRUE),
+  n_to_pobox    = sum(to_is_pobox, na.rm = TRUE)
+), by = abi]
+
+# About 40% of businesses included a move that involved a PO Box.
+round(prop.table(table(pobox_by_abi$any_pobox, useNA = "ifany"))*100, digits = 2)
+
+
+#' @description
+#' Codebook for the data frame quantifying move events. Some addresses appear
+#' more than once due to intervening alternative addresses. This may result
+#' from duplicate address records that were not collapsed during cleaning, the 
+#' presence of PO Boxes, or potentially temporary relocations. If the gap 
+#' between filings at two distinct addresses exceeds 4 years, the transition is 
+#' reclassified as a reopening.
+#'
+#' @field abi The business ID to which the results relate.
+#' @field from_address The address from which the entry relocated. This is also
+#'                     listed as the primary address for that entry.
+#' @field to_address The address to which the entry relocated. These are the 
+#'                   addresses quantified by the move variables.
+#' @field from_last_year The last year on file for the origin address.
+#' @field to_first_year The first year on file for the destination address.
+#' @field year_gap The number of years between the two filings.
+#' @field missing_years The number of years within the gap where no address was 
+#'                      filed.
+#' @field dist_km The haversine distance between the two address coordinates, 
+#'                in km.
+#' @field move_gt_[5mi|10mi|25mi] Boolean. TRUE if the move distance exceeds
+#'                                5, 10, or 25 miles, respectively.
+#' @field dist_flag Boolean. TRUE if the distance can be calculated, i.e., 
+#'                  coordinates are non-missing and sufficient address 
+#'                  information is available.
+#' @field transition_type Classifies the address change as "Moved" or
+#'                        "Reopening (New Location)" if the gap between filings 
+#'                        exceeds 4 years.
+#' @field from_is_pobox Boolean. TRUE if the origin address is a PO Box; FALSE 
+#'                      otherwise.
+#' @field to_is_pobox Boolean. TRUE if the destination address is a PO Box; 
+#'                    FALSE otherwise.
+#' @field any_pobox Boolean. TRUE if either address is a PO Box; FALSE otherwise.
+
+# # Save result.
+# write_parquet(abi_step_dist, "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 3_2026 Format/Moves and Reopenings at New Address_08.16.2026.parquet")
+
+# Load in the pre-produced results.
+abi_step_dist <- read_parquet("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 3_2026 Format/Moves and Reopenings at New Address_08.16.2026.parquet") %>%
+  as.data.table()
 
 
 ## ----------------------------------------------------------------
 ## PART E: Reconstruct All Columns and Save Result
 
-#Reconstruct with all the metadata and expanded columns, join by abi/address
-church_2026_form_analysis_dt[
-  , !c("archive_version_year",
+# Over the prior sections three metadata were generated: standardized and
+# classified SIC codes, reshaped years-open information as binary columns,
+# and quantifying moves.
+
+# Coerce to data.table (doesn't copy if already DT)
+a <- as.data.table(final_sic_classified_wide)[, .(abi, address)]
+b <- as.data.table(final_yr_wide)[, .(abi, address)]
+c <- as.data.table(abi_step_dist)[, .(abi, from_address)]
+
+# (Recommended) normalize types/whitespace to avoid false mismatches
+a[, `:=`(abi = as.character(abi), address = trimws(as.character(address)))]
+b[, `:=`(abi = as.character(abi), address = trimws(as.character(address)))]
+c[, `:=`(abi = as.character(abi), address = trimws(as.character(from_address)))]
+
+c <- c[, !"from_address"]
+
+# 1) Same set of (abi,address) pairs (order doesn't matter)?
+same_pairs  <- setequal(a, b)
+same_pairs2 <- setequal(a, c)
+
+same_pairs
+same_pairs2
+
+# 2) Diagnostics: what’s in one but not the other?
+only_in_a <- fsetdiff(a, b)   # pairs in final_sic_classified_wide not in final_yr_wide
+only_in_b <- fsetdiff(b, a)   # pairs in final_yr_wide not in final_sic_classified_wide
+
+only_in_ca <- fsetdiff(c, a)  # pairs in final_sic_classified_wide not in abi_step_dist
+only_in_ac <- fsetdiff(a, c)  # pairs in abi_step_dist not in final_sic_classified_wide
+
+list(
+  n_pairs_a = nrow(unique(a)),
+  n_pairs_b = nrow(unique(b)),
+  n_pairs_c = nrow(unique(c)),
+  n_only_in_a = nrow(only_in_a),
+  n_only_in_b = nrow(only_in_b),
+  n_only_in_ca = nrow(only_in_ca),  # only in a not in c
+  n_only_in_ac = nrow(only_in_ac)   # only in c not in a
+)
+
+# This confirms that all ABI and address combinations in sets a and b are 
+# identical, while those in set c differ. This is expected, as the process of 
+# quantifying moves focuses only on entries where a move occurred.
+
+# Reconstruct with all the metadata and expanded columns, join by abi/address
+metadata <- church_2026_form_analysis_dt[
+  , !c("archive_version_year", "latitude", "longitude",
        names(church_2026_form_analysis_dt)[grepl("sic", names(church_2026_form_analysis_dt), ignore.case = TRUE)]),
   with = FALSE
-]
+] %>%
+  distinct(abi, address, .keep_all = TRUE)
+
+# Summarize abi_step_dist at the origin (from_address) level.
+# Result: one row per (abi, from_address). We keep:
+# - to_address: all destination addresses seen from that origin (collapsed into 
+#   one string)
+# - transition_type: all unique transition types from that origin (collapsed)
+# - dist_km: maximum distance observed from that origin
+# - move_gt_*: TRUE if any move from that origin exceeds the threshold
+# - any_pobox: TRUE if any step from that origin was flagged as PO Box-related
+abi_step_from_by_addr <- abi_step_dist %>%
+  transmute(abi, address = from_address, to_address, transition_type,
+            move_gt_5mi, move_gt_10mi, move_gt_25mi, dist_km, any_pobox) %>%
+  filter(!is.na(address)) %>%
+  group_by(abi, address) %>%
+  summarise(
+    n_moves = dplyr::n(),
+    to_address = paste(sort(unique(na.omit(to_address))), collapse = "; "),
+    transition_type = paste(sort(unique(na.omit(transition_type))), collapse = "; "),
+    mean_dist_km = suppressWarnings(mean(dist_km, na.rm = TRUE)),
+    max_dist_km = suppressWarnings(max(dist_km, na.rm = TRUE)),
+    move_gt_5mi  = any(move_gt_5mi  %in% TRUE, na.rm = TRUE),
+    move_gt_10mi = any(move_gt_10mi %in% TRUE, na.rm = TRUE),
+    move_gt_25mi = any(move_gt_25mi %in% TRUE, na.rm = TRUE),
+    any_pobox    = any(any_pobox    %in% TRUE, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Most entries were classified as a move (98%), with only 0.06% containing 
+# multiple categories.
+round(prop.table(table(abi_step_from_by_addr$transition_type, abi_step_from_by_addr$any_pobox))*100, digits = 2)
+
+# Most ABI/address entries had 1 associated move event (95%), with the next 
+# most common being 2 move events. The maximum number of moves detected per 
+# ABI/address was 5.
+round(prop.table(table(abi_step_from_by_addr$n_moves))*100, digits = 3)
+
+# Rename columns with spaces so they are easier to manage in parquet.
+colnames(final_sic_classified_wide)[27:34] <-
+  tolower(gsub(" ", "_", colnames(final_sic_classified_wide)[27:34]))
 
 
-sic_classified_wide
-final_yr_wide
+#' @description
+#' Codebook for new output fields produced during the data cleaning and
+#' validation step. All other fields were present in the Step 2 form of
+#' the data.
+#'
+#' @field 2000:2025 Binary columns indicating years open and closed.
+#' @field gap_filled Boolean. TRUE if a qualifying gap between flanking
+#'                   1's has been filled; FALSE otherwise.
+#' @field n_gaps_filled The number of gaps filled for that address.
+#' @field avg_gap_len_filled The average length, in years, of filled
+#'                           gaps; ranges from 1 to 3 sequential years.
+#' @field n_moves Number of times a given ABI/address was identified
+#'                as a from_address, indicating a new move event.
+#' @field to_address The address to which the current entry relocated.
+#'                   These are the addresses quantified by the move
+#'                   variables.
+#' @field transition_type Classifies the type of address transition.
+#'                        Gaps exceeding four consecutive years are
+#'                        classified as reopenings at a new location
+#'                        rather than moves. Addresses appearing
+#'                        multiple times temporally with a temporary
+#'                        new address may have multiple transitions
+#'                        associated per ABI/address.
+#' @field mean_dist_km The mean haversine distance (km) across all address
+#'                     transitions. For entries appearing more than once,
+#'                     this reflects the average distance across all moves;
+#'                     otherwise, it is the distance of the single move.
+#' @field max_dist_km  The maximum haversine distance (km) across all address
+#'                     transitions. For entries appearing more than once,
+#'                     this reflects the largest single-move distance observed;
+#'                     otherwise, it is the distance of the single move.
+#' @field move_gt_[5mi|10mi|25mi] Boolean. TRUE if any of the moves exceeds
+#'                                5, 10, or 25 miles, respectively.
+#' @field any_pobox Boolean. TRUE if a PO Box is present for either
+#'                  the from_ or to_address; FALSE otherwise.
+#' @field primary_sic...primary_sic_desc,
+#'        `overflow_sic_[1:11]...overflow_sic_desc_[1:11]`
+#'        Standardized primary and overflow SIC columns, made
+#'        consistent across all ABI/address entries.
+#' @field buddhist_temple, `christian_church`,
+#'        `hindu_mandir`, `interfaith`,
+#'        `jewish_synagogue`, `muslim_mosque`,
+#'        `other_religion`, `sikh_gurdwara`
+#'        Boolean. TRUE if the address is classified under the given
+#'        religion; FALSE otherwise.
 
 
+# Combine all four separate tables
+combined <- final_yr_wide %>%
+  full_join(metadata, by = c("abi","address")) %>%
+  full_join(abi_step_from_by_addr, by = c("abi","address")) %>%
+  full_join(final_sic_classified_wide, by = c("abi","address")) %>%
+  relocate(address_verified, .after = address) %>%
+  relocate(address_matched, .after = address_verified)
 
-
-
+# Save result.
+write_parquet(combined, "./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 3_2026 Format/church_2026_form_wide_annotated_08.16.2026.parquet")
 
 

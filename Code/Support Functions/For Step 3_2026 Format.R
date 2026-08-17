@@ -375,8 +375,6 @@ fix_bad_abi_flagfill <- function(dt,
 
 
 
-
-
 sic_desc_split_summary_dt <- function(church_2026_form_analysis_dt,
                                       target_classification = "Jewish Synagogue",
                                       sic_classifications,
@@ -438,30 +436,94 @@ sic_desc_split_summary_dt <- function(church_2026_form_analysis_dt,
   #'   \item{Freq}{Proportion across the selected set (rounded to 3 decimals).}
   #' }
   
+  # --- Packages (use requireNamespace so the function doesn't attach packages globally) ---
   requireNamespace("data.table")
   requireNamespace("utils")
   
-  # -- Progress bar helpers ------------------------------------------------------
-  pb_init <- function(n) if (isTRUE(progress)) utils::txtProgressBar(min = 0, max = n, style = 3) else NULL
-  pb_step <- function(pb, i) if (!is.null(pb)) utils::setTxtProgressBar(pb, i)
+  # --- Small helper: fast membership test ---
+  # Uses %chin% (data.table) when both vectors are character; otherwise uses base %in%.
+  in_fast <- function(x, table) {
+    if (is.character(x) && is.character(table)) x %chin% table else x %in% table
+  }
+  
+  # --- Progress bar helpers (optional) ---
+  pb_init  <- function(n) if (isTRUE(progress)) utils::txtProgressBar(min = 0, max = n, style = 3) else NULL
+  pb_step  <- function(pb, i) if (!is.null(pb)) utils::setTxtProgressBar(pb, i)
   pb_close <- function(pb) if (!is.null(pb)) close(pb)
   
-  # Steps: coerce 4 inputs + search_code + compute summaries
-  pb <- pb_init(6)
+  # --- NEW helper: annotate pct tables with a single "classifier" column ---
+  # Input:  pct_dt with columns:
+  #   - x    : SIC description string
+  #   - Freq : proportion (already computed)
+  # Output: a table with columns ordered exactly as:
+  #   - x
+  #   - classifier (collapsed string of unique classifications that match x)
+  #   - Freq
+  #
+  # Note: allow.cartesian=TRUE is intentional because a single sic_desc can map
+  #       to multiple classifications.
+  annotate_pct_classifier <- function(pct_dt, dt_sic) {
+    dt  <- data.table::as.data.table(pct_dt)
+    sic <- data.table::as.data.table(dt_sic)
+    
+    # If pct table is empty, return an empty table with the desired schema
+    if (!nrow(dt)) {
+      return(data.table::data.table(x = character(),
+                                    classifier = character(),
+                                    Freq = numeric()))
+    }
+    
+    # Safety checks: make sure required columns exist
+    if (!("x" %in% names(dt)))    stop("pct table must have column 'x'.")
+    if (!("Freq" %in% names(dt))) stop("pct table must have column 'Freq'.")
+    if (!all(c("sic_desc", "classification") %in% names(sic))) {
+      stop("sic_classifications must have columns: 'sic_desc' and 'classification'.")
+    }
+    
+    # De-duplicate the lookup mapping so repeated rows don't inflate the join
+    sic_u <- unique(sic[, .(sic_desc, classification)])
+    
+    # Join pct descriptions (x) to lookup descriptions (sic_desc)
+    j <- merge(dt, sic_u,
+               by.x = "x", by.y = "sic_desc",
+               all.x = TRUE,
+               allow.cartesian = TRUE)
+    
+    # Collapse potentially multiple classifications into a single string per x
+    out <- j[, .(
+      classifier =
+        if (all(is.na(classification))) NA_character_
+      else paste(sort(unique(classification[!is.na(classification)])), collapse = "; "),
+      # Freq is the same for all joined rows of a given x; take the first
+      Freq = data.table::first(Freq)
+    ), by = x]
+    
+    # NEW: sort by decreasing frequency (highest -> lowest)
+    data.table::setorder(out, -Freq)
+    
+    # Return columns in the required order: x, classifier, Freq
+    out[, .(x, classifier, Freq)]
+  }
+  
+  # --- Initialize progress bar ---
+  # Step count includes: coercions (4), code lookup (1), summaries (1), annotation (1) = 7
+  pb <- pb_init(7)
   on.exit(pb_close(pb), add = TRUE)
   i <- 0L
   
-  # -- Coerce to data.table (no copy if already data.table) ----------------------
+  # --- Coerce all inputs to data.table for speed/consistency ---
   dt_church <- data.table::as.data.table(church_2026_form_analysis_dt); i <- i + 1L; pb_step(pb, i)
   dt_sic    <- data.table::as.data.table(sic_classifications);          i <- i + 1L; pb_step(pb, i)
   dt_pri    <- data.table::as.data.table(primary_long);                 i <- i + 1L; pb_step(pb, i)
   dt_ovr    <- data.table::as.data.table(overflow_long);                i <- i + 1L; pb_step(pb, i)
   
-  # -- 1) SIC codes for the target classification --------------------------------
-  search_code <- unique(dt_sic[classification %chin% target_classification, sic_code])
+  # --- 1) Find the SIC codes that belong to the target classification(s) ---
+  # target_classification can be a single label or a vector of labels
+  search_code <- unique(dt_sic[in_fast(classification, target_classification), sic_code])
   i <- i + 1L; pb_step(pb, i)
   
-  # Helper: frequency/proportion table for a character vector
+  # --- Helper: compute overall distribution (proportions) of description values ---
+  # Returns a table with columns: x (description), Freq (proportion), sorted descending.
   dist_table <- function(x) {
     if (length(x) == 0L) return(data.table::data.table(x = character(), Freq = numeric()))
     out <- data.table::as.data.table(prop.table(table(x)))
@@ -471,48 +533,68 @@ sic_desc_split_summary_dt <- function(church_2026_form_analysis_dt,
     out
   }
   
-  # Helper: compute summaries for a given set of ABIs
+  # --- Helper: given a set of ABIs, compute by-ABI composition and two distributions ---
+  # by_abi  : counts and within-ABI percentages for each (abi, sic6_descriptions)
+  # pct100  : distribution of descriptions among ABIs with exactly 1 distinct description
+  # pctlt100: distribution of descriptions among ABIs with >1 distinct description
   summarize_for_abis <- function(abis) {
+    
+    # No ABIs -> return empty-but-typed structures
     if (length(abis) == 0L) {
       return(list(
         by_abi = data.table::data.table(
-          abi = character(), sic6_descriptions = character(), n = integer(), pct = numeric()
+          abi = dt_church[0, abi],
+          sic6_descriptions = character(),
+          n = integer(),
+          pct = numeric()
         ),
-        pct100 = data.table::data.table(x = character(), Freq = numeric()),
+        pct100   = data.table::data.table(x = character(), Freq = numeric()),
         pctlt100 = data.table::data.table(x = character(), Freq = numeric())
       ))
     }
     
-    # Filter to relevant ABIs and keep only needed columns
-    dat <- dt_church[abi %chin% abis & !is.na(sic6_descriptions),
+    # Filter church data to ABIs of interest and non-missing descriptions
+    dat <- dt_church[in_fast(abi, abis) & !is.na(sic6_descriptions),
                      .(abi, sic6_descriptions)]
     
-    # Per-ABI counts and within-ABI percentages
+    # Count rows per ABI x description
     by_abi <- dat[, .(n = .N), by = .(abi, sic6_descriptions)]
+    
+    # Within each ABI, compute percent share by description
     by_abi[, pct := round(n / sum(n) * 100, 2), by = abi]
     data.table::setorder(by_abi, abi, -pct, -n)
     
-    # ABI-level classification: one vs multiple descriptions
+    # How many distinct descriptions per ABI?
     abi_n_desc <- by_abi[, .(n_desc = .N), by = abi]
     abis_one   <- abi_n_desc[n_desc == 1L, abi]
     abis_multi <- abi_n_desc[n_desc >  1L, abi]
     
-    # Overall distributions of sic6_descriptions for each ABI class
-    pct100   <- dist_table(by_abi[abi %chin% abis_one,   sic6_descriptions])
-    pctlt100 <- dist_table(by_abi[abi %chin% abis_multi, sic6_descriptions])
+    # Overall description distributions for each ABI subset
+    pct100   <- dist_table(by_abi[in_fast(abi, abis_one),   sic6_descriptions])
+    pctlt100 <- dist_table(by_abi[in_fast(abi, abis_multi), sic6_descriptions])
     
     list(by_abi = by_abi, pct100 = pct100, pctlt100 = pctlt100)
   }
   
-  # -- 2) ABIs from primary/overflow ---------------------------------------------
-  primary_abi  <- unique(dt_pri[code %chin% search_code, abi])
-  overflow_abi <- unique(dt_ovr[code %chin% search_code, abi])
+  # --- 2) Identify ABIs whose primary/overflow codes are in the target code set ---
+  primary_abi  <- unique(dt_pri[in_fast(code, search_code), abi])
+  overflow_abi <- unique(dt_ovr[in_fast(code, search_code), abi])
   
-  # -- 3) Summaries ---------------------------------------------------------------
+  # --- 3) Compute summaries for primary-derived ABIs and overflow-derived ABIs ---
   primary_res  <- summarize_for_abis(primary_abi)
   overflow_res <- summarize_for_abis(overflow_abi)
   i <- i + 1L; pb_step(pb, i)
   
+  # --- 4) Annotate pct tables with classifier labels (ONLY a single classifier column) ---
+  # The pct tables contain descriptions in column `x`; we match those to dt_sic$sic_desc.
+  # Output column order is enforced: x, classifier, Freq.
+  primary_res$pct100    <- annotate_pct_classifier(primary_res$pct100,    dt_sic)
+  primary_res$pctlt100  <- annotate_pct_classifier(primary_res$pctlt100,  dt_sic)
+  overflow_res$pct100   <- annotate_pct_classifier(overflow_res$pct100,   dt_sic)
+  overflow_res$pctlt100 <- annotate_pct_classifier(overflow_res$pctlt100, dt_sic)
+  i <- i + 1L; pb_step(pb, i)
+  
+  # --- Return the same structure as before, but with annotated pct tables ---
   list(
     target_classification = target_classification,
     search_code = search_code,
