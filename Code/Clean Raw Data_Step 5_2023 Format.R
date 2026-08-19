@@ -99,11 +99,11 @@
 ##    - SET UP THE ENVIRONMENT
 ##    - LOAD IN THE DATA
 ## 
-##    - PART A: Annotate with the Decennial Tract, County, and State
+##    - PART A: ANNOTATE WITH THE DECENNIAL TRACT, COUNTY, AND STATE
 ##        * SUBSECTION A1: tigris Algorithm
 ##        * SUBSECTION A2: Assess the Algorithms Performance
 ## 
-##    - PART B: US Census Bureau Geocoder Algorithm (ARCHIVED)
+##    - PART B: US CENSUS BUREAU GEOCODER ALGORITHM (ARCHIVED)
 
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
@@ -159,7 +159,7 @@ step_4 <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Da
 
 
 ## ----------------------------------------------------------------
-## PART A: Annotate with the Decennial Tract, County, and State
+## PART A: ANNOTATE WITH THE DECENNIAL TRACT, COUNTY, AND STATE
 
 # Three sources were explored to retrieve this information for the census tract, 
 # county, and state:
@@ -275,7 +275,7 @@ sapply(step_5[, c("tract", "tract_name", "state_fips", "county_fips")], function
 
 
 ## ----------------------------------------------------------------
-## PART B: US Census Bureau Geocoder Algorithm (ARCHIVED)
+## PART B: US CENSUS BUREAU GEOCODER ALGORITHM (ARCHIVED)
 
 # The Geocoder algorithm is restricted to the vintages available at the time
 # of development, which for this pipeline were the 2010 and 2020 decennial

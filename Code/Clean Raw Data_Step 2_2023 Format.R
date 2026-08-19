@@ -111,18 +111,18 @@
 ##    - SET UP THE ENVIRONMENT
 ##    - LOAD IN THE DATA
 ##
-##    - PART A: Validating the Address Using the USPS API
+##    - PART A: VALIDATING THE ADDRESS USING THE USPS API
 ##        * SUBSECTION A1: Prepare Subset for HPC
 ##        * SUBSECTION A2: Compile the Results
 ## 
-##    - PART B: Complete Handling of Special Cases
+##    - PART B: COMPLETE HANDLING OF SPECIAL CASES
 ##        * SUBSECTION B1: ABI-Specific Duplication Confirmation
 ##        * SUBSECTION B2: Consolidate Duplications and Remove Difficult Cases
 ##        * SUBSECTION B3: Consolidate Addresses with Different City
 ## 
-##    - PART C: Organize and Save the Results
+##    - PART C: ORGANIZE AND SAVE THE RESULTS
 ## 
-##    - PART D: Assess the Algorithms Performance
+##    - PART D: ASSESS THE ALGORITHMS PERFORMANCE
 
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
@@ -188,7 +188,7 @@ step_1 <- rownames_to_column(step_1, var = "rowname")
 
 
 ## ----------------------------------------------------------------
-## PART A: Validating the Address Using the USPS API
+## PART A: VALIDATING THE ADDRESS USING THE USPS API
 
 # This process has been designed to work both locally and on a High Performance
 # Computer (HPC). Two HPC methods are outlined: a live session and a batch
@@ -316,7 +316,7 @@ length(step_1$rowname[step_1$rowname %!in% step_2$rowname]) == 0 &
 
 
 ## ----------------------------------------------------------------
-## PART B: Complete Handling of Special Cases
+## PART B: COMPLETE HANDLING OF SPECIAL CASES
 
 # Address collapsing introduced duplicate year-opened and year-closed values
 # that were not present prior to that step. Duplicates arose from two sources:
@@ -1067,7 +1067,7 @@ finish_build2 <- rbindlist(finish_build2, use.names = TRUE, fill = TRUE)
 
 
 ## ----------------------------------------------------------------
-## PART C: Organize and Save the Results
+## PART C: ORGANIZE AND SAVE THE RESULTS
 
 # Before recompiling the datasets, verify that all components are accounted for
 # and will be retained after parsing.
@@ -1186,7 +1186,7 @@ step_2_final <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2
 
 
 ## ----------------------------------------------------------------
-## PART D: Assess the Algorithms Performance
+## PART D: ASSESS THE ALGORITHMS PERFORMANCE
 
 # After reconciling duplications, the final dataset has 2.5% more rows than step_1.
 (length(step_2_final) - length(step_1)) / length(step_1) * 100

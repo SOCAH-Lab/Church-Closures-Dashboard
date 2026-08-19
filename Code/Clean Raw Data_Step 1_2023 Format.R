@@ -59,25 +59,25 @@
 ##    - SET UP THE ENVIRONMENT
 ##    - LOAD IN THE DATA
 ##
-##    - PART A: Enhancing Function Performance and Efficiency
+##    - PART A: ENHANCING FUNCTION PERFORMANCE AND EFFICIENCY
 ##        * SUBSECTION A1: Optimizing Data Subsetting
 ##        * SUBSECTION A2: Optimizing Data Combination
 ##
-##    - PART B: Standardize and Merge Similar Addresses
+##    - PART B: STANDARDIZE AND MERGE SIMILAR ADDRESSES
 ##        * SUBSECTION B1: Verify No Duplicates Got Added
 ##        * SUBSECTION B2: Explore the Nature of Duplications
 ##        * Subsection B3: Similar Addresses: Geolocation Discrepancies
 ## 
-##    - PART C: Resolving Failed Geolocation Tests via Expansion and Overrides
+##    - PART C: RESOLVING FAILED GEOLOCATION TESTS VIA EXPANSION AND OVERRIDES
 ##        * SUBSECTION C1: Combine All Results
 ## 
-##    - PART D: Cleaning for Saving the Result
+##    - PART D: CLEANING FOR SAVING THE RESULT
 ##        * SUBSECTION D1: Add Missing Columns
 ##        * SUBSECTION D2: Merge Duplicate and Singular Record Datasets
 ##        * SUBSECTION D3: Remove Businesses with No Recorded Physical Address
 ##        * SUBSECTION D4: Organize and Save the Results
 ## 
-##    - PART E: Assess Overall Performance
+##    - PART E: ASSESS OVERALL PERFORMANCE
 
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
@@ -146,7 +146,7 @@ duplicates_detected <- read_csv("./Data/Results/KEEP LOCAL/From Explore the Raw 
 
 
 ## ----------------------------------------------------------------
-## PART A: Enhancing Function Performance and Efficiency
+## PART A: ENHANCING FUNCTION PERFORMANCE AND EFFICIENCY
 
 # Different methods were compared to enhance function speed and scalability, 
 # identifying the most efficient approaches for both local computations and 
@@ -288,7 +288,7 @@ write.csv(as.data.frame(mb_result), "./Data/Results/From Clean Raw Data/Step 1_2
 
 
 ## ----------------------------------------------------------------
-## PART B: Standardize and Merge Similar Addresses
+## PART B: STANDARDIZE AND MERGE SIMILAR ADDRESSES
 
 # Data evaluation revealed that most reduplicated entries arise from either new 
 # addresses added within the observation period or typographical errors. To 
@@ -1155,7 +1155,7 @@ df_duplicates <- df_duplicates %>%
 
 
 ## ----------------------------------------------------------------
-## PART D: Cleaning for Saving the Result
+## PART D: CLEANING FOR SAVING THE RESULT
 
 # Save the part of the raw data where there are no duplicates.
 no_duplicates <- church_wide %>% 
@@ -1287,7 +1287,7 @@ step_1 <- read_csv("Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Form
 
 
 ## ----------------------------------------------------------------
-## PART E: Assess Overall Performance
+## PART E: ASSESS OVERALL PERFORMANCE
 
 # In this section, we verify that all ABIs were accounted for and that none
 # are missing from the collapsed dataset. We also evaluate the overall

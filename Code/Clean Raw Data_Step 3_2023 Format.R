@@ -61,12 +61,12 @@
 ##    - SET UP THE ENVIRONMENT
 ##    - LOAD IN THE DATA
 ## 
-##    - PART A: Validating the Geocoordinates Using the US Census Bureau Geocoder API
+##    - PART A: VALIDATING THE GEOCOORDINATES USING THE US CENSUS BUREAU GEOCODER API
 ##        * SUBSECTION A1: Algorithm
 ##        * SUBSECTION A2: Save Results
 ## 
-##    - PART B: Assess the Algorithms Performance
-##    - PART C: Subset for Next Steps
+##    - PART B: ASSESS THE ALGORITHMS PERFORMANCE
+##    - PART C: SUBSET FOR NEXT STEPS
 
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
@@ -118,7 +118,7 @@ step_2 <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Da
 
 
 ## ----------------------------------------------------------------
-## PART A: Validating the Geocoordinates Using the US Census Bureau Geocoder API
+## PART A: VALIDATING THE GEOCOORDINATES USING THE US CENSUS BUREAU GEOCODER API
 
 ## --------------------
 ## SUBSECTION A1: Algorithm
@@ -302,7 +302,7 @@ step_3 <- read_csv("./Data/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Da
 
 
 ## ----------------------------------------------------------------
-## PART B: Assess the Algorithms Performance
+## PART B: ASSESS THE ALGORITHMS PERFORMANCE
 
 # The majority of addresses (~88%) and geocoordinates (~82%) were successfully
 # verified, though a substantial proportion remained unverifiable via this API.
@@ -364,7 +364,7 @@ round(prop.table(
 
 
 ## ----------------------------------------------------------------
-## PART C: Subset for Next Steps
+## PART C: SUBSET FOR NEXT STEPS
 
 # Only data with a verified geocoordinates will be used for the prototype.
 # Stringency for this will be reviewed with the team and more closely assessed 

@@ -63,20 +63,20 @@
 ##    - SET UP THE ENVIRONMENT
 ##    - LOAD IN THE DATA
 ## 
-##    - PART A: Exclude Metadata Not Conducive to the Analysis
+##    - PART A: EXCLUDE METADATA NOT CONDUCIVE TO THE ANALYSIS
 ## 
-##    - PART B: Normalize SIC Codes and Annotate with Classifiers
+##    - PART B: NORMALIZE SIC CODES AND ANNOTATE WITH CLASSIFIERS
 ##        * SUBSECTION B1: Normalize Primary SIC Codes
 ##        * SUBSECTION B2: Normalize Overflow SIC Codes
 ##        * SUBSECTION B3: Assign Religious Classifiers
 ##        * SUBSECTION B4: Compile the Final SIC Wide Columns
 ## 
-##    - PART C: Generate the Years-Open Binary Columns
+##    - PART C: GENERATE THE YEARS-OPEN BINARY COLUMNS
 ##        * SUBSECTION C1: Reshape Years-Open Entries from Rows to Columns
 ##        * SUBSECTION C2: Fill Minor Years Reported Gaps
 ## 
-##    - PART D: Identifying and Quantifying Moves vs. Reopenings at New Location
-##    - PART E: Reconstruct All Columns and Save Result
+##    - PART D: IDENTIFYING AND QUANTIFYING MOVES VS. REOPENINGS AT NEW LOCATION
+##    - PART E: RECONSTRUCT ALL COLUMNS AND SAVE RESULT
 
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
@@ -142,7 +142,7 @@ sic_classifications <- read.csv("./Data/Results/From Clean Raw Data/Step 3_2026 
 
 
 ## ----------------------------------------------------------------
-## PART A: Exclude Metadata Not Conducive to the Analysis
+## PART A: EXCLUDE METADATA NOT CONDUCIVE TO THE ANALYSIS
 
 # At this stage, the cleaned and validated data is prepared for dashboard
 # metric generation. A critical structural transformation required for this
@@ -251,7 +251,7 @@ rm(church_2026_form_validated)  # Clear up RAM by removing the complete dataset
 
 
 ## ----------------------------------------------------------------
-## PART B: Normalize SIC Codes and Annotate with Classifiers
+## PART B: NORMALIZE SIC CODES AND ANNOTATE WITH CLASSIFIERS
 
 # "SUBSECTION B2: Primary and Additional SIC Encodings" in "Process Data
 # Update.R" evaluated the dimensionality, nomenclature consistency, and
@@ -907,7 +907,7 @@ abi_flag <- final_sic_classified_wide[, .(
 ), by = abi]
 
 # Generate tables where one row represents one variable's results.
-out <- melt(abi_flag, measure.vars = vars,
+out <- melt(abi_flag, measure.vars = colnames(abi_flag)[-1],
             variable.name = "field", value.name = "val")[,
                                                          .N, by = .(field, val)
             ][,
@@ -935,7 +935,7 @@ out[]
 
 
 ## ----------------------------------------------------------------
-## PART C: Generate the Years-Open Binary Columns
+## PART C: GENERATE THE YEARS-OPEN BINARY COLUMNS
 
 ## --------------------
 ## SUBSECTION C1: Reshape Years-Open Entries from Rows to Columns
@@ -1051,7 +1051,7 @@ final_yr_wide[abi %in% abi_zero_or_one[all_zero_or_one == FALSE, abi], ]
 
 
 ## ----------------------------------------------------------------
-## PART D: Identifying and Quantifying Moves vs. Reopenings at New Location
+## PART D: IDENTIFYING AND QUANTIFYING MOVES VS. REOPENINGS AT NEW LOCATION
 
 # Moves are defined as any change of address, including returns to a previous 
 # address. However, this excludes cases where more than four years elapsed 
@@ -1223,7 +1223,7 @@ abi_step_dist <- read_parquet("./Data/Results/KEEP LOCAL/From Clean Raw Data/Ste
 
 
 ## ----------------------------------------------------------------
-## PART E: Reconstruct All Columns and Save Result
+## PART E: RECONSTRUCT ALL COLUMNS AND SAVE RESULT
 
 # Over the prior sections three metadata were generated: standardized and
 # classified SIC codes, reshaped years-open information as binary columns,

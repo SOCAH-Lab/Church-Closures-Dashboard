@@ -73,11 +73,11 @@
 ##    - SET UP THE ENVIRONMENT
 ##    - LOAD IN THE DATA
 ## 
-##    - PART A: Quantifying Relocations Outside the Community
+##    - PART A: QUANTIFYING RELOCATIONS OUTSIDE THE COMMUNITY
 ##        * SUBSECTION A1: Summarize Geographic Spread of Address Locations
 ##        * SUBSECTION A2: Geographic Clustering Among Businesses That Relocated
 ## 
-##    - PART B: Cluster-Based Address Aggregation for Stationary Businesses
+##    - PART B: CLUSTER-BASED ADDRESS AGGREGATION FOR STATIONARY BUSINESSES
 ##        * SUBSECTION B1: Geographic Clustering Among Businesses That Did Not Relocate
 ##        * SUBSECTION B2: Representative Address Assignment
 ##        * SUBSECTION B3: Save Results
@@ -151,7 +151,7 @@ step_3 <- step_3 %>%
 
 
 ## ----------------------------------------------------------------
-## PART A: Quantifying Relocations Outside the Community
+## PART A: QUANTIFYING RELOCATIONS OUTSIDE THE COMMUNITY
 
 # The original methods from Dr. Song quantified relocations by address change:
 # different census tract, city, county, or state; and by coordinate distance:
@@ -345,7 +345,7 @@ cluster_moved %>%
 
 
 ## ----------------------------------------------------------------
-## PART B: Cluster-Based Address Aggregation for Stationary Businesses
+## PART B: CLUSTER-BASED ADDRESS AGGREGATION FOR STATIONARY BUSINESSES
 
 # The results above were promising, but dbscan() clustering is not considered
 # standard practice and will not be used in subsequent iterations of the

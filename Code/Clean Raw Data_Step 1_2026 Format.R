@@ -63,16 +63,17 @@
 ##    - SET UP THE ENVIRONMENT
 ##    - LOAD IN THE DATA
 ## 
-##    - PART A: Correct the NAICS Nomenclature
-##    - PART B: Correct the SIC Nomenclature
+##    - PART A: CORRECT THE NAICS NOMENCLATURE
+## 
+##    - PART B: CORRECT THE SIC NOMENCLATURE
 ##        * SUBSECTION B1: Validate SIC Code and Description Column Structure
 ##        * SUBSECTION B2: Validate Overflow Column Consistency
 ##        * SUBSECTION B3: Validate Unique Code-to-Description Mappings
 ##        * SUBSECTION B4: Apply Manual Corrections
 ##        * SUBSECTION B5: Export Validated SIC Code and Description Summaries
 ## 
-##    - PART C: Add Missing Fields and Organize
-##    - PART D: Save As Parquet
+##    - PART C: ADD MISSING FIELDS AND ORGANIZE
+##    - PART D: SAVE AS PARQUET
 
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
@@ -116,7 +117,7 @@ core_fields <- read_csv("Data/Results/From Process Data Update/Handling Raw Vari
 
 
 ## ----------------------------------------------------------------
-## PART A: Correct the NAICS Nomenclature
+## PART A: CORRECT THE NAICS NOMENCLATURE
 
 # The NAICS code includes the standard six-digit code and a proprietary
 # two-digit suffix from Data Axle. These will be separated for clarity.
@@ -138,7 +139,7 @@ core_fields$Variable[core_fields$Variable %!in% colnames(church_2026_form)]
 
 
 ## ----------------------------------------------------------------
-## PART B: Correct the SIC Nomenclature
+## PART B: CORRECT THE SIC NOMENCLATURE
 
 # Confirm the following assumptions about the SIC encodings:
 #   a. Overflow columns are filled progressively with no other discernible pattern.
@@ -340,7 +341,7 @@ sic_results_confirm <- read.csv("./Data/Results/KEEP LOCAL/From Process Data Upd
 
 
 ## ----------------------------------------------------------------
-## PART C: Add Missing Fields and Organize
+## PART C: ADD MISSING FIELDS AND ORGANIZE
 
 # Inspect which expected SIC description columns are present (and which are missing)
 # in the current data frame.
@@ -369,7 +370,7 @@ church_2026_form <- church_2026_form %>%
 
 
 ## ----------------------------------------------------------------
-## PART D: Save As Parquet
+## PART D: SAVE AS PARQUET
 
 #' @description
 #' Codebook for new output fields produced by the data cleaning and validation

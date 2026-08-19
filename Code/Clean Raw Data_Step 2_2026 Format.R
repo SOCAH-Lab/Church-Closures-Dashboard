@@ -149,7 +149,7 @@
 ##    - SET UP THE ENVIRONMENT
 ##    - LOAD IN THE DATA
 ## 
-##    - PART A: Variable Characteristics and Missingness Impact
+##    - PART A: VARIABLE CHARACTERISTICS AND MISSINGNESS IMPACT
 ##        * SUBSECTION A1: Uniqueness, Missingness, and Key Variable Characteristics
 ##        * SUBSECTION A2: Distribution of Characteristics Requiring Removal
 ##        * SUBSECTION A3: Set Geocoder Search Priorities
@@ -157,12 +157,12 @@
 ## 
 ##    - PART B: ALGORITHM TO CLEAN, VALIDATE, AND ANNOTATE ADDRESS DATA
 ## 
-##    - PART C: Recompile Results from the HPC
+##    - PART C: RECOMPILE RESULTS FROM THE HPC
 ##        * SUBSECTION C1: Batch Array 18850425
 ##        * SUBSECTION C2: Batch Array 20823868
 ##        * SUBSECTION C3: Combining the Batches
 ## 
-##    - PART D: Assess Overall Performance
+##    - PART D: ASSESS OVERALL PERFORMANCE
 ##        * SUBSECTION D1: Load Combined Batch Results
 ##        * SUBSECTION D2: Confirm Complete ABI Coverage
 ##        * SUBSECTION D3: Plot the Distribution of Quality Check Outcomes
@@ -230,7 +230,7 @@ sf::sf_use_s2(TRUE)
 # Compiled results for this step are saved to
 # "~/From Clean Raw Data/Step 2_2026 Format/Compiled by Batches/"
 # and can be loaded directly from that location. The code for loading these
-# pre-prepared files can be found in "PART D: Assess Overall Performance".
+# pre-prepared files can be found in "PART D: ASSESS OVERALL PERFORMANCE".
 # 
 # NOTE: The file sizes are large enough that loading both the raw data and the
 #       newly produced files simultaneously may cause problems. Prioritize
@@ -254,7 +254,7 @@ zip_city_lookup <- build_zip_city_lookup(uscities_df)
 
 
 ## ----------------------------------------------------------------
-## PART A: Variable Characteristics and Missingness Impact
+## PART A: VARIABLE CHARACTERISTICS AND MISSINGNESS IMPACT
 
 # Prior to running the cleaning and validation algorithm, it is important
 # to assess the overall characteristics and missingness of the variables
@@ -975,7 +975,7 @@ if (status$core_areas_ok && status$states_ok) {
 
 
 ## ----------------------------------------------------------------
-## PART C: Recompile Results from the HPC
+## PART C: RECOMPILE RESULTS FROM THE HPC
 
 # Compute resources for batches deployed on Yale's HPC cluster are managed 
 # using SLURM. Due to these resource constraints, only 25 arrays could be 
@@ -1497,7 +1497,7 @@ qc_geo_20$qc3 <- qc_geo_20$qc3 %>%
 # To ensure results are written cleanly, run this step with minimal other
 # objects in the global environment after a recent session restart. Writing
 # confirmations are included here for less consistent processes; confirmations
-# for more consistent processes are in "PART D: Assess Overall Performance".
+# for more consistent processes are in "PART D: ASSESS OVERALL PERFORMANCE".
 
 
 # -- Combine Main Dataset ----------------------------
@@ -1722,9 +1722,9 @@ write_list_to_duckdb(
 
 
 ## ----------------------------------------------------------------
-## PART D: Assess Overall Performance
+## PART D: ASSESS OVERALL PERFORMANCE
 
-# If results were recently compiled in "PART C: Recompile Results from the HPC"
+# If results were recently compiled in "PART C: RECOMPILE RESULTS FROM THE HPC"
 # then it is possible the available compute RAM is limited. Before proceeding
 # with this section, restart the session and import only the datasets required.
 # 
