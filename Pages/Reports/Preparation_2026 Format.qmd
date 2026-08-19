@@ -908,7 +908,7 @@ Results were saved in two columnar formats: Parquet and DuckDB\ [@arrow; @duckdb
 
 Both functions also include generalized import quality checks (QC), which use the file name to verify that all expected ABIs are present in a defined subset. This check requires precise alignment between the dataset organization in the HPC script and the range defined in the file name, and allows for a quick confirmation that no information was lost across batch array runs. Additionally, `compile_parquet_folder()` generates summaries of the discrete QC outcomes (address validation and matching, census annotation, and geocoordinates) saved in the main dataset alongside all results and metadata.
 
-Two batches were run to complete the process described here. Any subsetting of the ABI search space, which defines which ABIs are processed during a given batch, is described in each respective section in **PART C: Recompile Results from the HPC**. Some QCs were also revised for conciseness and to account for variations not considered or covered by the HPC script. This was done in preparation for compiling the results across batches into the final result in **SUBSECTION C3: Combining the Batches**.
+Two batches were run to complete the process described here. Any subsetting of the ABI search space, which defines which ABIs are processed during a given batch, is described in each respective section in **PART C: RECOMPILE RESULTS FROM THE HPC**. Some QCs were also revised for conciseness and to account for variations not considered or covered by the HPC script. This was done in preparation for compiling the results across batches into the final result in **SUBSECTION C3: Combining the Batches**.
 
 Primary datasets, comprising the main data with all metadata and quality control data, were compiled across batches, while import quality controls were maintained as separate lists for each batch. Batch-specific results are denoted by the first two digits of the batch number it is from. The main dataset was too large to compile in-memory, necessitating a DuckDB SQL compilation approach (code below). Results were then consolidated using the custom function `write_qc_groups()`, combining the compiled main data with their respective batch import quality control datasets.
 
@@ -2207,7 +2207,7 @@ Reopened & 1.00 & 0.02 \\
 
 ## All SIC Codes and Descriptions {#code-results-source-1}
 
-For the implementation, refer to **PART B: Correct the SIC Nomenclature** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). The data processed was the raw export \linebreak `church_long_form_050926.csv`. Results were written to `"./Data/Results/KEEP LOCAL/From Process Data Update/Non-Primary SIC Codes_06.10.2026.csv"`.
+For the implementation, refer to **PART B: CORRECT THE SIC NOMENCLATURE** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). The data processed was the raw export \linebreak `church_long_form_050926.csv`. Results were written to `"./Data/Results/KEEP LOCAL/From Process Data Update/Non-Primary SIC Codes_06.10.2026.csv"`.
 
 \vspace{2ex}
 
@@ -2235,7 +2235,7 @@ For the implementation, refer to **PART B: Correct the SIC Nomenclature** in ["C
 
 ## Primary SIC Codes and Descriptions {#code-results-source-2}
 
-For the implementation, refer to **PART B: Correct the SIC Nomenclature** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). The data processed was the raw export \linebreak `church_long_form_050926.csv`. Results were written to `"./Data/Results/KEEP LOCAL/From Process Data Update/Primary SIC Codes_06.10.2026.csv"`.
+For the implementation, refer to **PART B: CORRECT THE SIC NOMENCLATURE** in ["Code/Clean Raw Data_Step 1_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2026%20Format.R). The data processed was the raw export \linebreak `church_long_form_050926.csv`. Results were written to `"./Data/Results/KEEP LOCAL/From Process Data Update/Primary SIC Codes_06.10.2026.csv"`.
 
 \vspace{2ex}
 
@@ -2421,7 +2421,7 @@ For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line G
 
 ## Step 2 Final Result {#code-results-source-9}
 
-For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). The standardized records generated in **Step 1** were run through the sequential cleaning and validation steps outlined in **Step 2**. Results were compiled across a batch's array outputs and aggregated between batches into a single complete file in **PART C: Recompile Results from the HPC**, then written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Compiled by Batches/church_2026_form_validated_08.03.2026.db`.
+For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). The standardized records generated in **Step 1** were run through the sequential cleaning and validation steps outlined in **Step 2**. Results were compiled across a batch's array outputs and aggregated between batches into a single complete file in **PART C: RECOMPILE RESULTS FROM THE HPC**, then written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Compiled by Batches/church_2026_form_validated_08.03.2026.db`.
 
 \vspace{2ex}
 
@@ -2484,7 +2484,7 @@ Five-digit ZCTA assigned via point-in-polygon spatial join with ZCTA TIGER/Line 
 
 ## Step 2 Final Result - Import Quality Checks {#code-results-source-10}
 
-For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). The standardized records generated in **Step 1** were run through the sequential cleaning and validation steps outlined in **Step 2**. Results were compiled across a batch's array outputs and aggregated between batches into a single complete file in **PART C: Recompile Results from the HPC**.
+For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). The standardized records generated in **Step 1** were run through the sequential cleaning and validation steps outlined in **Step 2**. Results were compiled across a batch's array outputs and aggregated between batches into a single complete file in **PART C: RECOMPILE RESULTS FROM THE HPC**.
 
 Selected outcomes and characteristics of these within-batch imports were generated to enable rapid confirmation of expected coverage and completeness. These were written with the main results to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Compiled by Batches/church_2026_form_validated_08.03.2026.db`. Each batch's results are annotated with the first two digits of the batch number (`<XX>`).
 
@@ -3124,7 +3124,7 @@ Boolean: \texttt{TRUE} if any address in these results came from an agnostically
 
 ## Step 3 Final Result {#code-results-source-15}
 
-For the implementation, refer to **PART E: Reconstruct All Columns and Save Result** in ["Code/Clean Raw Data_Step 3_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%203_2026%20Format.R). The data processed were the **Step 2** results, run through all data cleaning steps outlined in **Step 3**. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 3_2026 Format/church_2026_form_wide_annotated_08.16.2026.parquet"`.
+For the implementation, refer to **PART E: RECONSTRUCT ALL COLUMNS AND SAVE RESULT** in ["Code/Clean Raw Data_Step 3_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%203_2026%20Format.R). The data processed were the **Step 2** results, run through all data cleaning steps outlined in **Step 3**. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 3_2026 Format/church_2026_form_wide_annotated_08.16.2026.parquet"`.
 
 \vspace{2ex}
 
@@ -3226,7 +3226,7 @@ For the implementation, refer to **SUBSECTION B3: Assign Religious Classifiers**
 
 ## Moves and Reopenings at New Addresses {#code-results-source-17}
 
-For the implementation, refer to **PART D: Identifying and Quantifying Moves vs. Reopenings at New Location** in ["Code/Clean Raw Data_Step 3_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%203_2026%20Format.R). The data processed were the **Step 2** results. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 3_2026 Format/Moves and Reopenings at New Address_08.16.2026.parquet"`, with the respective religion filled in place of XX.
+For the implementation, refer to **PART D: IDENTIFYING AND QUANTIFYING MOVES VS. REOPENINGS AT NEW LOCATION** in ["Code/Clean Raw Data_Step 3_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%203_2026%20Format.R). The data processed were the **Step 2** results. Results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 3_2026 Format/Moves and Reopenings at New Address_08.16.2026.parquet"`, with the respective religion filled in place of XX.
 
 \vspace{2ex}
 

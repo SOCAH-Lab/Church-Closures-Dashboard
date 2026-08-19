@@ -345,7 +345,7 @@ For reference, one degree of longitude is approximately 69 miles (111 kilometers
 
 This approach assumes that reported geolocations for each address are accurate to within the specified range with sufficient consistency to be reliable. As the primary objective of this method is to reduce address reduplication and improve downstream algorithmic performance, variations that may undermine this validation step are not considered to meaningfully impact the final results. When uncertain, the method is designed to err on the side of caution by retaining addresses as distinct rather than risk consolidating genuinely separate addresses that share strong surface-level similarities.
 
-Following the algorithm outlined in **PART B: Standardize and Merge Similar Addresses** of ["Clean Raw Data_Step 1_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R), the processed ABI records identified as containing possible address reduplications were reduced to one-third of their original count. To confirm the consistency of these results, the custom function `check_all_counts_0_or_1()` was run to assess whether duplications had been introduced in the year-opened and year-closed columns, which had been confirmed as unique in the raw data. Unfortunately, 2.6% of ABI records were flagged as having newly introduced duplications.
+Following the algorithm outlined in **PART B: STANDARDIZE AND MERGE SIMILAR ADDRESSES** of ["Clean Raw Data_Step 1_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R), the processed ABI records identified as containing possible address reduplications were reduced to one-third of their original count. To confirm the consistency of these results, the custom function `check_all_counts_0_or_1()` was run to assess whether duplications had been introduced in the year-opened and year-closed columns, which had been confirmed as unique in the raw data. Unfortunately, 2.6% of ABI records were flagged as having newly introduced duplications.
 
 As the algorithm was developed under time constraints, its deduplication strategy could not be optimized. Priority was instead placed on progressing through subsequent steps. Consequently, records with induced duplications were excluded from the prototype pipeline, while the nature of the duplications was later carefully assessed to inform a strategy for their reintegration and to guide improvements to the overall approach. These insights informed the design of the 2026 Format comparative version.
 
@@ -724,12 +724,12 @@ To address these bottlenecks, three common R approaches were benchmarked: base R
 #| message: false
 #| warning: false
 
-# Results from "PART A SUBSECTION A1: Optimizing Data Subsetting" found in
+# Results from "PART A SUBSECTION A1: OPTIMIZING DATA SUBSETTING" found in
 # "Clean Raw Data_Step 1_2023 Format.R"
 mb_result1 <- read_csv("../../Data/Results/From Clean Raw Data/Step 1_2023 Format/Step 1 MB Timings_Subsetting_04.22.2026.csv") %>% 
                 as.data.frame()
 
-# Results from "PART A SUBSECTION A2: Optimizing Data Combination" found in
+# Results from "PART A SUBSECTION A2: OPTIMIZING DATA COMBINATION" found in
 # "Clean Raw Data_Step 1_2023 Format.R"
 mb_result2 <- read_csv("../../Data/Results/From Clean Raw Data/Step 1_2023 Format/Step 1 MB Timings_Data Combining_04.22.2026.csv") %>%
                 as.data.frame()
@@ -835,7 +835,7 @@ Refer to [Appendix - Optimizing Data Subsetting](#code-results-source-1) and [Ap
 
 #### Explore the Nature of Duplications Added
 
-The deduplication algorithm in **PART B: Standardize and Merge Similar Addresses** reduced the number of entries associated with ABIs with multiple listed addresses to 36.4\% of the original count. A column-wise sum over each date of entry was conducted using the custom function `check_all_counts_0_or_1()` to confirm if all years-open and years-closed binary indicators remained unique. However, the step had the unintended effect of inducing duplications for 2.6\% of ABIs.
+The deduplication algorithm in **PART B: STANDARDIZE AND MERGE SIMILAR ADDRESSES** reduced the number of entries associated with ABIs with multiple listed addresses to 36.4\% of the original count. A column-wise sum over each date of entry was conducted using the custom function `check_all_counts_0_or_1()` to confirm if all years-open and years-closed binary indicators remained unique. However, the step had the unintended effect of inducing duplications for 2.6\% of ABIs.
 
 It is possible that these duplications arose either from the same address falling into multiple clusters, or from addresses sharing an identical `address_line_1` but differing in metadata, causing artificial expansion of the table when a randomly chosen match had multiple rows with distinct metadata. To begin investigating this, we first assess whether the induced duplicates provide identical records for the years-open and years-closed binary columns. Such cases can be trivially reconciled by randomly removing all but one instance.
 
@@ -1224,7 +1224,7 @@ For the implementation, refer to **SUBSECTION A2: Optimizing Data Combination** 
 
 ## Step 1: Address Deduplication {#code-results-source-3}
 
-For the implementation, refer to **PART B: Standardize and Merge Similar Addresses** in ["Code/Clean Raw Data_Step 1_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R). The data processed in this step was the raw wide-format received in Summer 2025. The raw data was stored in `"./Data/Raw/KEEP LOCAL/church_wide_form_071723.csv"`, and the results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B_04.22.2026.csv"`.
+For the implementation, refer to **PART B: STANDARDIZE AND MERGE SIMILAR ADDRESSES** in ["Code/Clean Raw Data_Step 1_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R). The data processed in this step was the raw wide-format received in Summer 2025. The raw data was stored in `"./Data/Raw/KEEP LOCAL/church_wide_form_071723.csv"`, and the results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B_04.22.2026.csv"`.
 
 \vspace{2ex}
 
@@ -1281,7 +1281,7 @@ For the implementation, refer to **SUBSECTION B2: Explore the Nature of Duplicat
 
 ## Step 1: Resolving Failed Geolocation Tests {#code-results-source-6}
 
-For the implementation, refer to **PART C: Resolving Failed Geolocation Tests via Expansion** in ["Code/Clean Raw Data_Step 1_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R). The data processed were a deduplicated subset of the wide-format data received in Summer 2025, restricted to the ABIs identified as containing erroneous duplicate year-opened and year-closed columns. The data processed was stored in `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B2_04.26.2026.csv"`, and the results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection C1_04.27.2026.csv"`.
+For the implementation, refer to **PART C: RESOLVING FAILED GEOLOCATION TESTS VIA EXPANSION** in ["Code/Clean Raw Data_Step 1_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R). The data processed were a deduplicated subset of the wide-format data received in Summer 2025, restricted to the ABIs identified as containing erroneous duplicate year-opened and year-closed columns. The data processed was stored in `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection B2_04.26.2026.csv"`, and the results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 1 Subsection C1_04.27.2026.csv"`.
 
 \vspace{2ex}
 
@@ -1298,7 +1298,7 @@ For the implementation, refer to **PART C: Resolving Failed Geolocation Tests vi
 
 ## Step 1: Final Result {#code-results-source-7}
 
-For the implementation, refer to **PART D: Cleaning for Saving the Result** in ["Code/Clean Raw Data_Step 1_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R). The data processed was a deduplicated version of the wide-format received in Summer 2025, annotated with the columns generated in preceding sections. The `no_duplicates` data was stored in `"./Data/Raw/KEEP LOCAL/church_wide_form_071723.csv"` and excludes ABI in the `df_duplicates` dataset processed through **PART B** and **PART C**. The results were written to `Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 01_Completed Result_04.29. 2026.csv`.
+For the implementation, refer to **PART D: CLEANING FOR SAVING THE RESULT** in ["Code/Clean Raw Data_Step 1_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%201_2023%20Format.R). The data processed was a deduplicated version of the wide-format received in Summer 2025, annotated with the columns generated in preceding sections. The `no_duplicates` data was stored in `"./Data/Raw/KEEP LOCAL/church_wide_form_071723.csv"` and excludes ABI in the `df_duplicates` dataset processed through **PART B** and **PART C**. The results were written to `Data/Results/KEEP LOCAL/From Clean Raw Data/Step 1_2023 Format/Step 01_Completed Result_04.29. 2026.csv`.
 
 No additional columns were generated after this evaluation.
 
@@ -1327,7 +1327,7 @@ The processed data was stored in `"./Data/Results/KEEP LOCAL/From Clean Raw Data
 
 ## Step 2: Final Result {#code-results-source-9}
 
-For the implementation, refer to **PART C: Organize and Save the Results** in ["Code/Clean Raw Data_Step 2_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2023%20Format.R). The data represents a recompilation of the subsets generated in **SUBSECTION B1: ABI-Specific Duplication Confirmation**, which were processed through subsequent sections only if flagged as requiring those steps. Businesses where duplication mitigation was unsuccessful were removed from this compilation prior to saving. Refer to **PART C: Organize and Save the Results**, `abi_sets` for details on how these datasets were recombined. The results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/Step 02_Completed Result_06.01.2026.csv"`.
+For the implementation, refer to **PART C: ORGANIZE AND SAVE THE RESULTS** in ["Code/Clean Raw Data_Step 2_2023 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2023%20Format.R). The data represents a recompilation of the subsets generated in **SUBSECTION B1: ABI-Specific Duplication Confirmation**, which were processed through subsequent sections only if flagged as requiring those steps. Businesses where duplication mitigation was unsuccessful were removed from this compilation prior to saving. Refer to **PART C: ORGANIZE AND SAVE THE RESULTS**, `abi_sets` for details on how these datasets were recombined. The results were written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2023 Format/Step 02_Completed Result_06.01.2026.csv"`.
 
 \newpage
 

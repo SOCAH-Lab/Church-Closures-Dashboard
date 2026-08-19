@@ -188,28 +188,29 @@
 \definecolor{SOCAHLightBlue}{HTML}{B2DFFC}
 \definecolor{SOCAHDarkBlue}{HTML}{002855}
 \definecolor{SOCAHGreen}{HTML}{6D9277}
+\definecolor{Black}{HTML}{000000}
 
 % ------------------------------
 % Page style: headers/footers (scrlayer-scrpage)
 % ------------------------------
 \clearpairofpagestyles
 \ihead[]{} % Inner header (blank)
-\ohead[]{{\hfill \footnotesize\itshape\color{SOCAHDarkBlue} Last Rendered \today}} % Outer header (print date)
+\ohead[]{{\hfill \footnotesize\itshape\color{Black} Last Rendered \today}} % Outer header (print date)
 
-% \ifoot[{%
-%   \stackon[0mm]{\includegraphics[height=2.5cm]{\rootdir/SOCAH Lab Logo 6.png}}{}%
-% }]{%
-%   \stackon[0mm]{\includegraphics[height=2.5cm]{\rootdir/SOCAH Lab Logo 6.png}}{}%
-% } % Inner footer: wordmark/logo
+\ifoot[{%
+  \stackon[0mm]{\includegraphics[height=0.9cm]{\rootdir/Wordmark-SOCAH_Lab-black.png}}{}%
+}]{%
+  \stackon[0mm]{\includegraphics[height=0.9cm]{\rootdir/Wordmark-SOCAH_Lab-black.png}}{}%
+} % Inner footer: wordmark/logo
 
 \cfoot[\pagemark]{\pagemark} % Center footer: page number
 
 \ofoot[%
-  \footnotesize\itshape\color{SOCAHDarkBlue} Version: 006.07.15.26\\%
+  \footnotesize\itshape\color{Black} Version: 006.07.15.26\\%
   Generated using Quarto (v. 1.8.27)\\%
   and RStudio (v. 2026.01.1+403)
 ]{%
-  \footnotesize\itshape\color{SOCAHDarkBlue} Version: 006.07.15.26\\%
+  \footnotesize\itshape\color{Black} Version: 006.07.15.26\\%
   Generated using Quarto (v. 1.8.27)\\%
   and RStudio (v. 2026.01.1+403)
 } % Outer footer: document metadata block
