@@ -1,13 +1,17 @@
 ## ----------------------------------------------------------------
-## Define the coding parameters used in the environment.
+## Define functions used in the Generate the Metrics script for the 2023 Formatted data.
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025
 ## Date Modified: April 8th, 2026
 ## 
-## Description: All custom functions used in the raw data cleaning
-##              and preparation process. Much of this content was written
-##              with the assistance of Yale's AI Clarity.
+## Description: In addition to the general-purpose functions defined in another
+##              script, the following functions are used to complete "Generate 
+##              the Metrics" of the data cleaning and validation process, as 
+##              identified through exploratory data analysis.
+##
+## NOTE: Much of this content was developed with the assistance of Yale's
+##       AI Clarity.
 ## 
 ## Functions
 ## 
@@ -527,6 +531,7 @@ calculate_persistence <- function(subset_flag, full_flag) {
   
   return(persistence_ratio)
 }
+
 
 
 
@@ -1129,17 +1134,21 @@ reorder_columns <- function(df, metrics_vector, dates_table) {
 
 combine_geocoding <- function(data) {
   #' @description
-  #' This function combines geocoding information with decennial census data for 
-  #' both state and county levels. It iteratively processes each unique 
-  #' decennial period present in the input data and merges the corresponding 
-  #' geographic shape files with the data based on FIPS codes.
+  #' Combines input decennial census data with geographic boundary geometries
+  #' from the U.S. Census Bureau TIGER/Line cartographic boundary (CB) shapefiles,
+  #' accessed via the $$\texttt{tigris}$$ package ($$\texttt{tigris::states(cb = TRUE)}$$ 
+  #' and $$\texttt{tigris::counties(cb = TRUE)}$$). For each unique 
+  #' $$\texttt{decennial\_census}$$ year in $$\texttt{data}$$, it downloads the 
+  #' corresponding state and/or county CB shapefiles and left-joins them to 
+  #' $$\texttt{data}$$ using FIPS codes (year-specific column names in the 
+  #' shapefiles are handled internally).
   #'
-  #' @param data A data frame containing the decennial census data. It must 
-  #'             include columns `decennial_census` and `state_fips`. For 
-  #'             county-level data, it should also include the column 
+  #' @param data A data frame containing the decennial census data. It must
+  #'             include columns `decennial_census` and `state_fips`. For
+  #'             county-level data, it should also include the column
   #'             `county_fips`.
   #'
-  #' @return A data frame with the combined geocoding information for each 
+  #' @return A data frame with the combined geocoding information for each
   #'         decennial period.
   
   # Function to get the shape files and merge for a specific decennial period.
