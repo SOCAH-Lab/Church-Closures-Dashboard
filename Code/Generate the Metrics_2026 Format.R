@@ -684,6 +684,16 @@ church_2026_form_analysis[
 setorder(church_2026_form_analysis, rid__)
 church_2026_form_analysis[, rid__ := NULL]
 
+# A small handful of entries had a move detected but the distance was
+# uncalculatable, likely due to missing geocoordinates. These can be recoded
+# as NA for easier downstream calculations.
+
+church_2026_form_analysis %>% filter(max_dist_km %in% -Inf)
+church_2026_form_analysis[max_dist_km == -Inf, `:=`(
+  max_dist_km  = NA_real_,
+  mean_dist_km = NA_real_
+)]
+
 
 #' @description
 #' Codebook for new output fields representing the two lookup table values,
@@ -711,13 +721,397 @@ church_2026_form_analysis[, rid__ := NULL]
 ## ----------------------------------------------------------------
 ## PART C: 
 
+rollup_results <- function(discrete_results,
+                           agg_fun = function(x) if (is.numeric(x)) sum(x, na.rm = TRUE) else uniqueN(x)) {
+  library(data.table)
+  
+  DT <- as.data.table(discrete_results)
+  DT[, geoid := as.character(geoid)]
+  DT[, zcta  := as.character(zcta)]
+  
+  has_relig <- "religion" %in% names(DT)
+  
+  # what to aggregate (exclude ids + any grouping keys)
+  drop_ids <- c("abi", "year", "geoid", "zcta")
+  if (has_relig) drop_ids <- c(drop_ids, "religion")
+  agg_cols <- setdiff(names(DT), drop_ids)
+  
+  levels <- list(
+    state       = 2L,
+    county      = 5L,
+    tract       = 11L,
+    block_group = 12L,
+    block       = 15L
+  )
+  
+  # per-column aggregator (no current_column())
+  agg_one <- function(nm, x) {
+    if (grepl("^wavg_dist_km__", nm)) {
+      if (all(is.na(x))) NA_real_ else mean(x, na.rm = TRUE)
+    } else if (grepl("^max_dist_km__", nm)) {
+      if (all(is.na(x))) NA_real_ else max(x, na.rm = TRUE)
+    } else {
+      agg_fun(x)
+    }
+  }
+  
+  # helper: add per-capita / per-area rates after rollup
+  add_rates <- function(out, id_col = c("geoid", "zcta")) {
+    if (is.null(out) || !nrow(out)) return(out)
+    
+    id_col <- match.arg(id_col)
+    pop_col  <- if (id_col == "geoid") "geoid_pop"     else "zcta_pop"
+    area_col <- if (id_col == "geoid") "geoid_sqMiles" else "zcta_sqMiles"
+    
+    cnm_cols <- grep("^closures_no_moves__", names(out), value = TRUE)
+    ca_cols  <- grep("^closures_all__",     names(out), value = TRUE)
+    
+    for (cc in cnm_cols) {
+      suf <- sub("^closures_no_moves__", "", cc)
+      pop_rate  <- paste0("closures_no_moves_per_pop__",  suf)
+      area_rate <- paste0("closures_no_moves_per_sqmi__", suf)
+      
+      out[, (pop_rate)  := fifelse(is.na(get(pop_col))  | get(pop_col)  == 0, NA_real_, get(cc) / get(pop_col))]
+      out[, (area_rate) := fifelse(is.na(get(area_col)) | get(area_col) == 0, NA_real_, get(cc) / get(area_col))]
+    }
+    
+    for (cc in ca_cols) {
+      suf <- sub("^closures_all__", "", cc)
+      pop_rate  <- paste0("closures_all_per_pop__",  suf)
+      area_rate <- paste0("closures_all_per_sqmi__", suf)
+      
+      out[, (pop_rate)  := fifelse(is.na(get(pop_col))  | get(pop_col)  == 0, NA_real_, get(cc) / get(pop_col))]
+      out[, (area_rate) := fifelse(is.na(get(area_col)) | get(area_col) == 0, NA_real_, get(cc) / get(area_col))]
+    }
+    
+    out
+  }
+  
+  # roll up by a GEOID level (no zcta in grouping)
+  roll_geoid <- function(L) {
+    x <- DT[nchar(geoid) >= L]
+    if (!nrow(x)) return(NULL)
+    x[, geoid_roll := substr(geoid, 1L, L)]
+    
+    by_expr <- if (has_relig) quote(.(geoid = geoid_roll, religion)) else quote(.(geoid = geoid_roll))
+    
+    out <- x[, {
+      vals <- lapply(agg_cols, function(nm) agg_one(nm, get(nm)))
+      setNames(vals, agg_cols)
+    }, by = eval(by_expr)]
+    
+    add_rates(out, id_col = "geoid")
+  }
+  
+  out_geoid <- lapply(levels, roll_geoid)
+  out_geoid <- out_geoid[!vapply(out_geoid, is.null, logical(1))]
+  
+  # roll up by ZCTA only (once)
+  by_expr_z <- if (has_relig) quote(.(zcta, religion)) else quote(.(zcta))
+  
+  out_zcta <- DT[, {
+    vals <- lapply(agg_cols, function(nm) agg_one(nm, get(nm)))
+    setNames(vals, agg_cols)
+  }, by = eval(by_expr_z)]
+  
+  out_zcta <- add_rates(out_zcta, id_col = "zcta")
+  
+  list(
+    by_geoid = out_geoid,  # named list: $block, $block_group, $tract, $county, $state (where available)
+    by_zcta  = out_zcta    # single DT aggregated by zcta (and religion, if present)
+  )
+}
+
+
 ## --------------------
-## SUBSECTION C1: 
+## SUBSECTION C1: Exclude Entries with Critical Missing Information
+
+# Entries with critical missing information are excluded from metric generation:
+#   - Missing geocoordinates (no GEOID or ZCTA assigned)
+#   - Missing address_line_1 (address-based geocoding not possible)
+#   - PO Box listed instead of a physical address (physical location cannot be 
+#     confirmed, as it may differ significantly from the PO Box)
+
+# Pull address_line_1, everything before first comma, to check for missing values.
+church_2026_form_analysis[, addr_line1 := fifelse(
+  is.na(address),
+  NA_character_,
+  trimws(sub(",.*$", "", address))
+)]
+
+# Assign a missing-information label to each entry. Final results will include
+# the count of removed entries broken down by date range and area.
+church_2026_form_analysis[, `:=`(
+  addr1_is_na = is.na(addr_line1),
+  addr1_is_pobox = !is.na(addr_line1) &
+    grepl("^\\s*(p\\.?\\s*o\\.?\\s*(box)?|post\\s*office\\s*box)\\b",
+          addr_line1, ignore.case = TRUE),
+  geoid_is_na = is.na(geoid),
+  zcta_is_na  = is.na(zcta)
+)][, addr_line1 := NULL]
+
+
+## --------------------
+## SUBSECTION C2: 
+
+
+date_range <- build_year_windows(church_2026_form_analysis, min_span = 5L) %>% .[1:2, ]
+
+relig_cols <- c(
+  "buddhist_temple", "christian_church", "hindu_mandir", "jewish_synagogue",
+  "muslim_mosque", "sikh_gurdwara", "other_religion", "interfaith", "unspecified"
+)
+
+
+pb <- utils::txtProgressBar(min = 0, max = nrow(date_range), style = 3)
+on.exit(close(pb), add = TRUE)
+
+rollups_accum <- NULL
+
+for (i in seq_len(nrow(date_range))) {
+  
+  start_y <- date_range$start[i]
+  end_y   <- date_range$end[i]
+  yrs     <- start_y:end_y
+  lab     <- date_range$label[i]
+  
+  message("Window: ", lab, " (", start_y, "–", end_y, ")")
+  utils::setTxtProgressBar(pb, i)
+  
+  church_by_years <- filter_ts(church_2026_form_analysis, yrs)
+  data.table::setDT(church_by_years)
+  
+  # collect ALL religion-specific discrete results for this window (ABI-year grain)
+  discrete_list <- vector("list", length(relig_cols))
+  names(discrete_list) <- relig_cols
+  k <- 0L
+  
+  for (relig_j in relig_cols) {
+    
+    abi_keep <- abi_any_true(church_by_years, cols = relig_j)
+    if (length(abi_keep) == 0L) next
+    
+    church_relig <- church_by_years[abi %in% abi_keep]
+    if (nrow(church_relig) == 0L) next
+    
+    # --- flags on the religion-filtered universe ---
+    flag_counts <- church_relig[
+      ,
+      .(
+        n_abi = data.table::uniqueN(abi),
+        abi_addr1_is_na    = data.table::uniqueN(abi[addr1_is_na    %in% TRUE]),
+        abi_addr1_is_pobox = data.table::uniqueN(abi[addr1_is_pobox %in% TRUE]),
+        abi_geoid_is_na    = data.table::uniqueN(abi[geoid_is_na    %in% TRUE]),
+        abi_zcta_is_na     = data.table::uniqueN(abi[zcta_is_na     %in% TRUE])
+      ),
+      by = .(geoid, zcta)
+    ]
+    data.table::setnames(flag_counts, old = "n_abi", new = "n_open", skip_absent = TRUE)
+    
+    # --- clean on the religion-filtered universe ---
+    bad_abi <- unique(church_relig[
+      addr1_is_na %in% TRUE |
+        addr1_is_pobox %in% TRUE |
+        geoid_is_na %in% TRUE |
+        zcta_is_na %in% TRUE,
+      abi
+    ])
+    church_clean <- church_relig[!abi %in% bad_abi]
+    if (nrow(church_clean) == 0L) next
+    
+    yrs_present <- sort(unique(church_clean$year))
+    if (length(yrs_present) == 0L) next
+    
+    message("  Religion: ", relig_j, " | years: ", min(yrs_present), "–", max(yrs_present))
+    
+    closures_by_year <- lapply(yrs_present, function(yr) {
+      dt_y <- church_clean[year == yr]
+      if (nrow(dt_y) == 0L) return(NULL)
+      
+      closures_all <- suppressWarnings(suppressMessages({
+        tmp <- NULL
+        capture.output(
+          tmp <- calculate_closure(DT = dt_y, min_zero_run = 4L, multi_addr_mode = "compress"),
+          file = NULL
+        )
+        tmp
+      }))
+      
+      closures_no_moves <- suppressWarnings(suppressMessages({
+        tmp <- NULL
+        capture.output(
+          tmp <- calculate_closure(DT = dt_y, min_zero_run = 4L, multi_addr_mode = "skip"),
+          file = NULL
+        )
+        tmp
+      }))
+      
+      closures <- closures_no_moves[closures_all, on = "abi"]
+      closures[, year := yr]
+      closures
+    })
+    
+    closures_dt <- data.table::rbindlist(closures_by_year, fill = TRUE, use.names = TRUE)
+    if (nrow(closures_dt) == 0L) next
+    
+    # add identifiers (needed for suffixing; will be dropped before rollup)
+    flag_counts[,  `:=`(start_y = start_y, end_y = end_y, label = lab, religion = relig_j)]
+    closures_dt[,  `:=`(start_y = start_y, end_y = end_y, label = lab, religion = relig_j)]
+    
+    church_join <- unique(church_clean[, c(
+      "abi", "year", "geoid", "zcta", "geoid_pop",
+      "geoid_sqMiles", "zcta_pop", "zcta_sqMiles"
+    )])
+    
+    flag_counts_aug <- flag_counts[church_join, on = .(geoid, zcta)]
+    closures_aug    <- closures_dt[church_join, on = .(abi, year)]
+    
+    # re-assert religion right before join (prevents losing it)
+    flag_counts_aug[, religion := relig_j]
+    closures_aug[,    religion := relig_j]
+    
+    # suffix metric columns by window label
+    id_keep_flags <- c("geoid","zcta","start_y","end_y","label","religion",
+                       "abi","year","geoid_pop","geoid_sqMiles","zcta_pop","zcta_sqMiles")
+    metric_cols_flags <- setdiff(names(flag_counts_aug), id_keep_flags)
+    if (length(metric_cols_flags) > 0L) {
+      data.table::setnames(flag_counts_aug, metric_cols_flags, paste0(metric_cols_flags, "__", lab))
+    }
+    
+    id_keep_clos <- c("abi","year","start_y","end_y","label","religion",
+                      "geoid","zcta","geoid_pop","geoid_sqMiles","zcta_pop","zcta_sqMiles")
+    metric_cols_clos <- setdiff(names(closures_aug), id_keep_clos)
+    if (length(metric_cols_clos) > 0L) {
+      data.table::setnames(closures_aug, metric_cols_clos, paste0(metric_cols_clos, "__", lab))
+    }
+    
+    # NA count only onto flags
+    cnm    <- paste0("closures_no_moves__", lab)
+    na_col <- paste0("na_closures_no_moves__", lab)
+    if (cnm %in% names(closures_aug)) {
+      na_by_geo <- closures_aug[, .(tmp_na = sum(is.na(get(cnm)))), by = .(geoid, zcta)]
+      data.table::setnames(na_by_geo, "tmp_na", na_col)
+      flag_counts_aug <- na_by_geo[flag_counts_aug, on = .(geoid, zcta)]
+    }
+    
+    discrete_results <- closures_aug[
+      flag_counts_aug,
+      on = .(
+        abi, year, geoid, zcta, geoid_pop, geoid_sqMiles, zcta_pop, zcta_sqMiles,
+        start_y, end_y, label, religion
+      )
+    ]
+    
+    # drop cols start_y, end_y, and label
+    drop_cols <- intersect(c("start_y", "end_y", "label"), names(discrete_results))
+    if (length(drop_cols) > 0L) discrete_results[, (drop_cols) := NULL]
+    
+    k <- k + 1L
+    discrete_list[[k]] <- discrete_results
+  }
+  
+  # compile to ONE table (all religions) then roll up ONCE
+  discrete_list <- discrete_list[seq_len(k)]
+  if (length(discrete_list) == 0L) next
+  
+  discrete_window <- data.table::rbindlist(discrete_list, fill = TRUE, use.names = TRUE)
+  
+  message("    Rollup: ", lab, " | ALL religions")
+  rollups <- rollup_results(discrete_window)
+  
+  # accumulate rollups across windows (merge by id + religion)
+  if (is.null(rollups_accum)) {
+    rollups_accum <- rollups
+  } else {
+    
+    for (lvl in union(names(rollups_accum$by_geoid), names(rollups$by_geoid))) {
+      a <- rollups_accum$by_geoid[[lvl]]
+      b <- rollups$by_geoid[[lvl]]
+      
+      if (is.null(a)) {
+        rollups_accum$by_geoid[[lvl]] <- b
+      } else if (!is.null(b)) {
+        
+        key_cols <- intersect(c("geoid", "religion"), names(a))
+        overlap  <- intersect(setdiff(names(a), key_cols), setdiff(names(b), key_cols))
+        if (length(overlap) > 0L) b[, (overlap) := NULL]
+        
+        rollups_accum$by_geoid[[lvl]] <- merge(a, b, by = key_cols, all = TRUE)
+      }
+    }
+    
+    {
+      a <- rollups_accum$by_zcta
+      b <- rollups$by_zcta
+      
+      key_cols <- intersect(c("zcta", "religion"), names(a))
+      overlap  <- intersect(setdiff(names(a), key_cols), setdiff(names(b), key_cols))
+      if (length(overlap) > 0L) b[, (overlap) := NULL]
+      
+      rollups_accum$by_zcta <- merge(a, b, by = key_cols, all = TRUE)
+    }
+  }
+}
+
+# FINAL OUTPUT:
+# rollups_accum is a list:
+#   - rollups_accum$by_geoid: named list of DTs ($state, $county, $tract, $block_group, $block)
+#     where each window label contributes new metric__<label> columns
+#   - rollups_accum$by_zcta: a DT keyed by zcta with the same property
+
+
+
+# only output: discrete_long
+discrete_long
+
+
+
+# 5. Save the results. These represent the results for the smallest available
+#    census boundary. Over this, sums can be made for each GEOID level.
+discrete_results <- closures[church_clean[, c(
+  "abi", "year", "geoid", "zcta", "geoid_pop", 
+  "geoid_sqMiles", "zcta_pop", "zcta_sqMiles"
+)], on = "abi"] %>%
+  relocate(year, .after = abi) %>%
+  relocate(geoid, .after = year) %>%
+  relocate(zcta, .after = geoid)
+
+# Add the missing data info
+discrete_results <- discrete_results[discrete_results[
+  ,
+  .(na_closures_no_moves = sum(is.na(closures_no_moves))),
+  by = .(geoid, zcta)
+], on = .(geoid, zcta)][flag_counts, on = .(geoid, zcta)] %>%
+  relocate(na_closures_no_moves, .after = n_abi)
+
+rollups <- rollup_results(discrete_results)
+
+
+
+
+# Algorithm
+# Subset years columns based on user selection
+# Filter any ABI with no 1's; no metrics to calculate
+# Remove ABI if any entries have: 
+#   - A PO Box in the address
+#   - NA in the first part of the address
+#   - Missing GEOID/ZCTA
+# Record the number of ABI removed; where possible aggregate this by GEOID/ZCTA. 
+# Otherwise, apply ABI removed by missing GEOID/ZCTA as for that date selection.
+# Prepare to calculate open/closed (by ABI and decennial year)
+#   - For including moves, column-wise sum over all entries by ABI
+#   - For excluding moves, remove ABI with a move tag prior to column-wise sum
+# Calculate closures; add a column counting the number of qualifying closure events
+# Calculate reopenings; add a column counting the number of qualifying reopening events
+# Aggregate to the GEOID/ZCTA and include the total number of ABI for that region by decennial period
+# Calculate the rates per 10,000 people and per sq mile.
+# Save each aggregation as a table by region and add columns for new date ranges.
+
 
 # Algorithm - Closures
 # Subset years columns based on user selection
 # Calculate Churches open/closed (by ABI and decennial year)
-#   - For including moves, column-wise sum over all entries by BI
+#   - For including moves, column-wise sum over all entries by ABI
 #   - For excluding moves, remove ABI with a move tag prior to column-wise sum
 #   - Filter ABI with all zeros, these are treated as not open
 #   - Count number of ABI, these are businesses open
