@@ -88,13 +88,42 @@
 ##       \code{min_span} years — up to and including the full available range.
 ## 
 ##   13. rollup_results: Aggregate ABI-year discrete results to multiple GEOID 
-##       prefix levels and to ZCTA, optionally stratified by religion. Also 
-##       computes closure rates per 10k people and per square mile using the 
-##       appropriate denominators.
+##       prefix levels and to ZCTA, optionally stratified by religion.
+## 
+##       Key semantics (refactor):
+##          Event-count columns (closures/reopenings) represent counts of events 
+##          within a window, which may exceed 1. For rollups we now produce:
+##             - <event>_any__<lab>         : count of ABIs with > 0 events 
+##                                            (treat >0 as 1)
+##             - <event>_avg__<lab>         : mean events per ABI in that area
+##             - <event>_max__<lab>         : max events on any ABI in that area
+## 
+##       Rates are computed off the *_any__<lab> columns (businesses with any 
+##       event).
 ## 
 ##   14. move_col_after: Reorder columns in a data.table so that a specified 
 ##       column $$col$$ appears immediately after another column $$after$$. If 
 ##       either column is missing, the input is returned unchanged.
+## 
+##   15. reorder_rollup_cols: Reorder rollup output columns into a stable, 
+##       human-readable layout. Pure presentation helper: does NOT change 
+##       values, only column order.
+## 
+##       Layout target:
+##          1) Geographic IDs + year + (optional) religion + denominators first
+##          2) Window-specific "event" block next, in a deterministic order:
+##             - n_open__<lab>
+##             - no_moves closures: any, rates, avg, max
+##             - no_moves reopenings: any, avg, max
+##             - n_move__<lab> (after reopenings_no_moves_max__<lab>)
+##             - all closures: any, rates, avg, max
+##             - all reopenings: any, avg, max
+##          3) Everything else after (moves totals, distances, flags, etc.)
+## 
+##       NOTE on semantics (matches your rollup_results()):
+##          *_any__<lab> = count of ABIs with >0 events (binary per ABI: >0 -> 1)
+##          *_avg__<lab> and *_max__<lab> are computed over ABIs with >0 events
+##          (zeros excluded), so they summarize "eventful" ABIs only.
 
 ## ----------------------------------------------------------------
 ## FUNCTIONS
@@ -595,56 +624,41 @@ calculate_closure <- function(DT,
   multi_addr_mode <- match.arg(multi_addr_mode)
   
   # ── Identify year columns ────────────────────────────────────────────────────
-  
-  # Match column names that look like a 4-digit year in the range 1900–2099.
   yc <- names(DT)[grepl("^(19|20)\\d{2}$", names(DT))]
-  
   if (length(yc) == 0L) stop("No year columns found in DT (expected names like '2018','2019',...).")
-  # At least 2 years are required to observe a transition (open → closed, etc.).
   if (length(yc) < 2L) stop("Need at least 2 year columns to evaluate events.")
-  
-  # Sort lexicographically – because year names are zero-padded 4-digit strings,
-  # this is equivalent to sorting chronologically.
   yc <- sort(yc)
   
   # ── State-machine event counter ──────────────────────────────────────────────
-  
-  #' @param x   Integer vector of yearly activity values for one ABI.
-  #' @param k0  Minimum zero-run length to trigger a closure.
-  #' @param k1  Minimum one-run length (after closure) to trigger a reopening.
-  #' @return Named integer vector: c(closures = <n>, reopenings = <n>).
   count_events <- function(x, k0, k1) {
     
-    seen_open <- FALSE          # TRUE once the first active year is encountered
-    state     <- "preopen"      # current state: preopen | open | closed
-    zrun      <- 0L             # length of the current consecutive zero run
-    orun      <- 0L             # length of the current consecutive one run
-    closures  <- 0L             # accumulated closure count
-    reopens   <- 0L             # accumulated reopening count
+    seen_open <- FALSE
+    state     <- "preopen"
+    zrun      <- 0L
+    orun      <- 0L
+    closures  <- 0L
+    reopens   <- 0L
     
     for (v in x) {
       v <- as.integer(v)
       
       if (v == 1L) {
-        seen_open <- TRUE        # mark that the entity was ever active
-        orun <- orun + 1L        # extend the active run
-        zrun <- 0L               # reset the zero run counter
+        seen_open <- TRUE
+        orun <- orun + 1L
+        zrun <- 0L
         
         if (state == "closed" && orun == k1) {
-          # A run of k1 consecutive ones after a closure → reopening event.
           reopens <- reopens + 1L
           state <- "open"
         } else if (state == "preopen") {
-          # First active year transitions us out of the pre-open state.
           state <- "open"
         }
         
       } else {
-        zrun <- zrun + 1L        # extend the inactive run
-        orun <- 0L               # reset the one run counter
+        zrun <- zrun + 1L
+        orun <- 0L
         
         if (seen_open && state != "closed" && zrun == k0) {
-          # A run of k0 consecutive zeros while open → closure event.
           closures <- closures + 1L
           state <- "closed"
         }
@@ -655,32 +669,24 @@ calculate_closure <- function(DT,
   }
   
   # ── Multi-address handling ───────────────────────────────────────────────────
-  
-  # Count how many rows each ABI contributes to this subset.
   abi_rows <- DT[, .N, by = abi]
   
   if (multi_addr_mode == "skip") {
     
-    # ── "skip" branch ──────────────────────────────────────────────────────────
-    # Discard any ABI that appears on more than one row – we cannot reliably
-    # attribute moves vs. genuine activity gaps for these cases.
     church_use <- DT[abi_rows[N == 1L], on = "abi"]
     
-    # Collapse to one row per ABI (already guaranteed by the filter above) by
-    # taking the column-wise maximum; coerce to integer to enforce 0/1 values.
     abi_ts <- church_use[, lapply(.SD, \(x) as.integer(max(x, na.rm = TRUE))),
                          by = abi, .SDcols = yc]
     
   } else if (multi_addr_mode == "compress") {
     
-    # ── "compress" branch ─────────────────────────────────────────────────────
-    church_use <- DT   # retain all rows, including multi-address ABIs
+    church_use <- DT
     
-    # Aggregate move-distance metadata per ABI before collapsing year columns.
+    # ---- Move metadata aggregation (Option A flags derived from max_dist_km) ---
     move_agg <- church_use[, {
       
-      # ── moves_total ──────────────────────────────────────────────────────────
-      # Sum n_moves across all address rows; NA if the column is absent.
+      # Total moves: keep your current semantics (sum across rows)
+      # NOTE: if n_moves is replicated per ABI across rows, consider using max()
       moves_total <- if (!("n_moves" %in% names(church_use))) {
         NA_integer_
       } else if (all(is.na(n_moves))) {
@@ -691,32 +697,27 @@ calculate_closure <- function(DT,
       
       if (is.na(moves_total)) {
         
-        # No move data at all – return NA placeholders for every move metric.
         .(
           moves_total  = NA_integer_,
           wavg_dist_km = NA_real_,
           max_dist_km  = NA_real_,
-          move_gt_5mi  = NA,
-          move_gt_10mi = NA,
-          move_gt_25mi = NA
+          move_gt_5mi  = NA_integer_,
+          move_gt_10mi = NA_integer_,
+          move_gt_25mi = NA_integer_
         )
         
       } else {
         
-        # ── wavg_dist_km ───────────────────────────────────────────────────────
-        # Weighted mean distance (weights = n_moves per address row).
+        # Weighted mean distance (weights = n_moves)
         wavg_dist_km <- if (!all(c("n_moves", "mean_dist_km") %in% names(church_use))) {
           NA_real_
         } else {
-          # Only include rows that have valid move counts and distances.
           ok   <- !is.na(n_moves) & n_moves > 0 & !is.na(mean_dist_km)
           wsum <- sum(n_moves[ok], na.rm = TRUE)
-          # Guard against a zero total weight (all rows filtered out).
           if (wsum == 0) NA_real_ else sum(mean_dist_km[ok] * n_moves[ok], na.rm = TRUE) / wsum
         }
         
-        # ── max_dist_km ────────────────────────────────────────────────────────
-        # Largest single-move distance recorded across all address rows.
+        # Max distance across rows
         max_dist_km <- if (!("max_dist_km" %in% names(church_use))) {
           NA_real_
         } else if (all(is.na(max_dist_km))) {
@@ -725,58 +726,55 @@ calculate_closure <- function(DT,
           max(max_dist_km, na.rm = TRUE)
         }
         
-        # ── Distance-threshold flags ───────────────────────────────────────────
-        # TRUE if *any* address row recorded a move exceeding each threshold.
+        # ---- Option A: derive threshold flags from max_dist_km only -------------
+        mi_to_km <- 1.609344
+        thr_5  <-  5 * mi_to_km
+        thr_10 <- 10 * mi_to_km
+        thr_25 <- 25 * mi_to_km
+        
+        move_gt_5mi  <- if (is.na(max_dist_km)) NA_integer_ else as.integer(max_dist_km > thr_5)
+        move_gt_10mi <- if (is.na(max_dist_km)) NA_integer_ else as.integer(max_dist_km > thr_10)
+        move_gt_25mi <- if (is.na(max_dist_km)) NA_integer_ else as.integer(max_dist_km > thr_25)
+        
         .(
           moves_total  = moves_total,
           wavg_dist_km = wavg_dist_km,
           max_dist_km  = max_dist_km,
-          move_gt_5mi  = if ("move_gt_5mi"  %in% names(church_use)) any(move_gt_5mi  %in% TRUE) else NA,
-          move_gt_10mi = if ("move_gt_10mi" %in% names(church_use)) any(move_gt_10mi %in% TRUE) else NA,
-          move_gt_25mi = if ("move_gt_25mi" %in% names(church_use)) any(move_gt_25mi %in% TRUE) else NA
+          move_gt_5mi  = move_gt_5mi,
+          move_gt_10mi = move_gt_10mi,
+          move_gt_25mi = move_gt_25mi
         )
       }
     }, by = abi]
     
     # ── Compress year columns ─────────────────────────────────────────────────
-    # Sum activity across all address rows for each year, then binarise so that
-    # a church active at *any* location in a given year is coded as 1.
     abi_ts <- church_use[, lapply(.SD, \(x) as.integer(sum(x, na.rm = TRUE))),
                          by = abi, .SDcols = yc]
     abi_ts[, (yc) := lapply(.SD, \(x) as.integer(x > 0L)), .SDcols = yc]
     
-    # Join move metadata back onto the compressed time series (keyed join for
-    # efficiency and to avoid relying on row order).
-    setkey(move_agg, abi)
-    setkey(abi_ts,   abi)
+    # Join move metadata back
+    data.table::setkey(move_agg, abi)
+    data.table::setkey(abi_ts, abi)
     abi_ts <- move_agg[abi_ts]
     
   } else {
-    # match.arg() above should prevent this branch, but kept as a safety net.
     stop("multi_addr_mode must be 'skip' or 'compress'")
   }
   
   # ── Event counting ───────────────────────────────────────────────────────────
-  
-  # Convert the year columns to a plain matrix so apply() can iterate by row.
   mat <- as.matrix(abi_ts[, ..yc])
   
-  # Apply the state machine to every row; transpose so that each event type
-  # becomes a column rather than a row.
   ev <- t(apply(mat, 1L, count_events,
                 k0 = as.integer(min_zero_run),
                 k1 = as.integer(min_one_run_reopen)))
   
   # ── Attach event columns ─────────────────────────────────────────────────────
-  
-  # Use mode-specific column names so that outputs from the two modes can be
-  # safely combined / compared downstream without silent name collisions.
   if (multi_addr_mode == "compress") {
     abi_ts[, `:=`(
       closures_all   = as.integer(ev[, "closures"]),
       reopenings_all = as.integer(ev[, "reopenings"])
     )]
-  } else {   # "skip"
+  } else {
     abi_ts[, `:=`(
       closures_no_moves   = as.integer(ev[, "closures"]),
       reopenings_no_moves = as.integer(ev[, "reopenings"])
@@ -784,10 +782,6 @@ calculate_closure <- function(DT,
   }
   
   # ── Final column ordering ────────────────────────────────────────────────────
-  
-  # Build the desired output column order: abi → event counts → move metadata.
-  # Move columns are only present in "compress" mode; character(0) is a safe
-  # no-op when passed to setcolorder / subsetting.
   move_cols <- if (multi_addr_mode == "compress") {
     c("moves_total", "wavg_dist_km", "max_dist_km",
       "move_gt_5mi", "move_gt_10mi", "move_gt_25mi")
@@ -802,13 +796,11 @@ calculate_closure <- function(DT,
   }
   
   out_order <- c("abi", event_cols, move_cols)
-  # Guard against optional move columns being absent from DT entirely.
   out_order <- out_order[out_order %in% names(abi_ts)]
-  setcolorder(abi_ts, out_order)
+  data.table::setcolorder(abi_ts, out_order)
   
-  # Drop the year columns – callers only need the aggregated event/move counts.
   abi_ts[, (yc) := NULL]
-  abi_ts[]   # return visibly (data.table assignment is otherwise invisible)
+  abi_ts[]
 }
 
 
@@ -1026,38 +1018,25 @@ build_year_windows <- function(DT, min_span = 5L) {
 
 
 
-rollup_results <- function(discrete_results, agg_fun = function(x) if (is.numeric(x)) sum(x, na.rm = TRUE) else uniqueN(x)) {
-  #' Aggregate ABI-year discrete results to multiple GEOID prefix levels and to 
-  #' ZCTA, optionally stratified by religion. Also computes closure rates per 
-  #' 10k people and per square mile using the appropriate denominators.
+rollup_results <- function(
+    discrete_results,
+    agg_fun = function(x) if (is.numeric(x)) sum(x, na.rm = TRUE) else uniqueN(x)
+) {
+  #' Aggregate ABI-year discrete results to multiple GEOID prefix levels and to
+  #' ZCTA, optionally stratified by religion.
   #'
-  #' @param discrete_results A data.frame/data.table of ABI-year rows with:
-  #'   - IDs: abi, year, geoid, zcta (and optionally religion)
-  #'   - Denominators: geoid_pop, geoid_sqMiles, zcta_pop, zcta_sqMiles (if present)
-  #'   - Metrics: closures_no_moves__<label>, closures_all__<label>, etc.
-  #' @param agg_fun Aggregation function used for most columns. Defaults to:
-  #'   - numeric: sum(., na.rm = TRUE)
-  #'   - non-numeric: uniqueN(.)
+  #' Key semantics (refactor):
+  #'   Event-count columns (closures/reopenings) represent counts of events within
+  #'   a window, which may exceed 1. For rollups we now produce:
+  #'     - <event>_any__<lab>         : count of ABIs with > 0 events (treat >0 as 1)
+  #'     - <event>_avg__<lab>         : mean events per ABI in that area
+  #'     - <event>_max__<lab>         : max events on any ABI in that area
   #'
-  #' @details
-  #'   - GEOID rollups:
-  #'       * roll up by geoid prefix lengths (state/county/tract/block_group/block)
-  #'       * drops ZCTA denominators before aggregation
-  #'       * rates computed with GEOID denominators
-  #'   - ZCTA rollup:
-  #'       * rolls up by zcta
-  #'       * drops GEOID denominators before aggregation
-  #'       * rates computed with ZCTA denominators
-  #'   - Special column handling:
-  #'       * wavg_dist_km__* aggregated via mean (rounded to 2)
-  #'       * max_dist_km__* aggregated via max  (rounded to 2)
+  #'   Rates are computed off the *_any__<lab> columns (businesses with any event).
   #'
-  #' @return A list with:
-  #'   - by_geoid: named list of data.tables (state/county/tract/block_group/block)
-  #'   - by_zcta : data.table
+  #' @return list(by_geoid = named list of DTs, by_zcta = DT)
   
-  # ---- normalize input ----
-  DT <- as.data.table(discrete_results)
+  DT <- data.table::as.data.table(discrete_results)
   DT[, geoid := as.character(geoid)]
   DT[, zcta  := as.character(zcta)]
   
@@ -1077,18 +1056,108 @@ rollup_results <- function(discrete_results, agg_fun = function(x) if (is.numeri
     block       = 15L
   )
   
-  # per-column aggregation rules
+  # Identify the window-suffixed event count columns we want to treat specially
+  is_event_col <- function(nm) {
+    grepl("^(closures|reopenings)_(no_moves|all)__", nm)
+  }
+  event_cols <- agg_cols[is_event_col(agg_cols)]
+  
+  # Default aggregation rules (non-event columns)
+  # NOTE: if agg_fun returns integer in some groups and double in others, that
+  # can also cause type errors. We force numeric outputs to double for safety.
   agg_one <- function(nm, x) {
-    if (grepl("^wavg_dist_km__", nm)) {
-      if (all(is.na(x))) NA_real_ else round(mean(x, na.rm = TRUE), digits = 2)
-    } else if (grepl("^max_dist_km__", nm)) {
-      if (all(is.na(x))) NA_real_ else round(max(x, na.rm = TRUE), digits = 2)
-    } else {
-      agg_fun(x)
+    
+    # --- (2) Move-threshold columns: count flagged ABIs, not raw sums ----------
+    # We expect one row per ABI in discrete_results; this returns an INTEGER count
+    # for each rollup group.
+    if (grepl("^move_gt_(5mi|10mi|25mi)__", nm)) {
+      if (all(is.na(x))) return(NA_integer_)
+      # Count entries that evaluate to TRUE (works for logical, 0/1, or any nonzero)
+      return(as.integer(sum(as.logical(x), na.rm = TRUE)))
     }
+    
+    if (grepl("^wavg_dist_km__", nm)) {
+      v <- if (all(is.na(x))) NA_real_ else round(mean(x, na.rm = TRUE), digits = 2)
+      return(as.numeric(v))
+    }
+    if (grepl("^max_dist_km__", nm)) {
+      v <- if (all(is.na(x))) NA_real_ else round(max(x, na.rm = TRUE), digits = 2)
+      return(as.numeric(v))
+    }
+    
+    v <- agg_fun(x)
+    if (is.numeric(v)) as.numeric(v) else v
   }
   
-  # add derived rate columns (only for closure metrics; uses relevant denominators)
+  # Build the per-group aggregation output:
+  # - Keep standard aggregated columns, EXCEPT:
+  #     for event_cols we DO NOT keep the summed base column in the rollup output;
+  #     instead we emit *_any__<lab>, *_avg__<lab>, *_max__<lab>.
+  #
+  # CRITICAL: enforce stable output types across groups:
+  #   *_any__* -> integer
+  #   *_avg__* -> double
+  #   *_max__* -> double
+  build_group_vals <- function(.SD, agg_cols_use, event_cols_use) {
+    
+    # (1) Standard columns to aggregate normally (exclude event_cols_use)
+    base_cols_use <- setdiff(agg_cols_use, event_cols_use)
+    base_vals <- lapply(base_cols_use, function(nm) agg_one(nm, .SD[[nm]]))
+    names(base_vals) <- base_cols_use
+    
+    # (2) Event summary columns: any/avg/max
+    if (!length(event_cols_use)) return(base_vals)
+    
+    any_vals <- vector("list", length(event_cols_use))
+    avg_vals <- vector("list", length(event_cols_use))
+    max_vals <- vector("list", length(event_cols_use))
+    
+    names(any_vals) <- character(length(event_cols_use))
+    names(avg_vals) <- character(length(event_cols_use))
+    names(max_vals) <- character(length(event_cols_use))
+    
+    for (j in seq_along(event_cols_use)) {
+      nm <- event_cols_use[j]
+      x  <- .SD[[nm]]
+      
+      stem <- sub("__(.*)$", "", nm)   # e.g., "closures_no_moves"
+      suf  <- sub("^(.*)__", "__", nm) # e.g., "__2010_2015" (keeps leading "__")
+      
+      out_any <- paste0(stem, "_any", suf)
+      out_avg <- paste0(stem, "_avg", suf)
+      out_max <- paste0(stem, "_max", suf)
+      
+      names(any_vals)[j] <- out_any
+      names(avg_vals)[j] <- out_avg
+      names(max_vals)[j] <- out_max
+      
+      if (!is.numeric(x)) {
+        any_vals[[j]] <- NA_integer_
+        avg_vals[[j]] <- NA_real_
+        max_vals[[j]] <- NA_real_
+      } else {
+        
+        # ABIs with any events (>0)
+        pos <- x[!is.na(x) & x > 0]
+        
+        # any: count of ABIs with >0 events (INTEGER)
+        any_vals[[j]] <- as.integer(length(pos))
+        
+        # avg/max: ONLY over ABIs with >0 events (exclude zeros)
+        if (!length(pos)) {
+          avg_vals[[j]] <- NA_real_
+          max_vals[[j]] <- NA_real_
+        } else {
+          avg_vals[[j]] <- as.numeric(round(mean(pos), 4))
+          max_vals[[j]] <- as.numeric(max(pos))
+        }
+      }
+    }
+    
+    c(base_vals, any_vals, avg_vals, max_vals)
+  }
+  
+  # Rates based on *_any__<lab> (NOT summed event counts)
   add_rates <- function(out, id_col = c("geoid", "zcta")) {
     if (is.null(out) || !nrow(out)) return(out)
     
@@ -1096,36 +1165,38 @@ rollup_results <- function(discrete_results, agg_fun = function(x) if (is.numeri
     pop_col  <- if (id_col == "geoid") "geoid_pop"     else "zcta_pop"
     area_col <- if (id_col == "geoid") "geoid_sqMiles" else "zcta_sqMiles"
     
-    cnm_cols <- grep("^closures_no_moves__", names(out), value = TRUE)
-    ca_cols  <- grep("^closures_all__",     names(out), value = TRUE)
+    cnm_any <- grep("^closures_no_moves_any__", names(out), value = TRUE)
+    ca_any  <- grep("^closures_all_any__",     names(out), value = TRUE)
     
-    for (cc in cnm_cols) {
-      suf <- sub("^closures_no_moves__", "", cc)
-      pop_rate  <- paste0("closures_no_moves_per_10k__",  suf)
-      area_rate <- paste0("closures_no_moves_per_sqmi__", suf)
+    suf_from_any <- function(nm) sub("^closures_(no_moves|all)_any", "", nm)
+    
+    for (cc in cnm_any) {
+      suf <- suf_from_any(cc)  # "__<lab>"
+      pop_rate  <- paste0("closures_no_moves_per_10k",  suf)
+      area_rate <- paste0("closures_no_moves_per_sqmi", suf)
       
-      out[, (pop_rate) := fifelse(
+      out[, (pop_rate) := data.table::fifelse(
         is.na(get(pop_col)) | get(pop_col) == 0, NA_real_,
-        round((get(cc) / get(pop_col)) * 10000, digits = 4)
+        round((as.numeric(get(cc)) / as.numeric(get(pop_col))) * 10000, 4)
       )]
-      out[, (area_rate) := fifelse(
+      out[, (area_rate) := data.table::fifelse(
         is.na(get(area_col)) | get(area_col) == 0, NA_real_,
-        round(get(cc) / get(area_col), digits = 4)
+        round(as.numeric(get(cc)) / as.numeric(get(area_col)), 4)
       )]
     }
     
-    for (cc in ca_cols) {
-      suf <- sub("^closures_all__", "", cc)
-      pop_rate  <- paste0("closures_all_per_10k__",  suf)
-      area_rate <- paste0("closures_all_per_sqmi__", suf)
+    for (cc in ca_any) {
+      suf <- suf_from_any(cc)  # "__<lab>"
+      pop_rate  <- paste0("closures_all_per_10k",  suf)
+      area_rate <- paste0("closures_all_per_sqmi", suf)
       
-      out[, (pop_rate) := fifelse(
+      out[, (pop_rate) := data.table::fifelse(
         is.na(get(pop_col)) | get(pop_col) == 0, NA_real_,
-        round((get(cc) / get(pop_col)) * 10000, digits = 4)
+        round((as.numeric(get(cc)) / as.numeric(get(pop_col))) * 10000, 4)
       )]
-      out[, (area_rate) := fifelse(
+      out[, (area_rate) := data.table::fifelse(
         is.na(get(area_col)) | get(area_col) == 0, NA_real_,
-        round(get(cc) / get(area_col), digits = 4)
+        round(as.numeric(get(cc)) / as.numeric(get(area_col)), 4)
       )]
     }
     
@@ -1138,19 +1209,22 @@ rollup_results <- function(discrete_results, agg_fun = function(x) if (is.numeri
     if (!nrow(x)) return(NULL)
     
     x[, geoid_roll := substr(geoid, 1L, L)]
-    by_expr <- if (has_relig) quote(.(geoid = geoid_roll, religion)) else quote(.(geoid = geoid_roll))
+    by_expr <- if (has_relig) {
+      quote(.(geoid = geoid_roll, year, religion))
+    } else {
+      quote(.(geoid = geoid_roll, year))
+    }
     
-    # drop ZCTA denominators for GEOID rollups
+    # For GEOID rollups, never aggregate zcta denominators
     agg_cols_use <- setdiff(agg_cols, intersect(c("zcta_pop", "zcta_sqMiles"), agg_cols))
+    event_cols_use <- intersect(event_cols, agg_cols_use)
     
-    out <- x[, {
-      vals <- lapply(agg_cols_use, function(nm) agg_one(nm, get(nm)))
-      setNames(vals, agg_cols_use)
-    }, by = eval(by_expr)]
+    out <- x[, build_group_vals(.SD, agg_cols_use = agg_cols_use, event_cols_use = event_cols_use),
+             by = eval(by_expr), .SDcols = agg_cols_use]
     
     out <- add_rates(out, id_col = "geoid")
     
-    # safety drop
+    # Safety drop
     drop <- intersect(c("zcta_pop", "zcta_sqMiles"), names(out))
     if (length(drop)) out[, (drop) := NULL]
     
@@ -1161,19 +1235,22 @@ rollup_results <- function(discrete_results, agg_fun = function(x) if (is.numeri
   out_geoid <- out_geoid[!vapply(out_geoid, is.null, logical(1))]
   
   # ---- ZCTA rollup (single DT) ----
-  by_expr_z <- if (has_relig) quote(.(zcta, religion)) else quote(.(zcta))
+  by_expr_z <- if (has_relig) {
+    quote(.(zcta, year, religion))
+  } else {
+    quote(.(zcta, year))
+  }
   
-  # drop GEOID denominators for ZCTA rollups
+  # For ZCTA rollups, never aggregate geoid denominators
   agg_cols_use_z <- setdiff(agg_cols, intersect(c("geoid_pop", "geoid_sqMiles"), agg_cols))
+  event_cols_use_z <- intersect(event_cols, agg_cols_use_z)
   
-  out_zcta <- DT[, {
-    vals <- lapply(agg_cols_use_z, function(nm) agg_one(nm, get(nm)))
-    setNames(vals, agg_cols_use_z)
-  }, by = eval(by_expr_z)]
+  out_zcta <- DT[, build_group_vals(.SD, agg_cols_use = agg_cols_use_z, event_cols_use = event_cols_use_z),
+                 by = eval(by_expr_z), .SDcols = agg_cols_use_z]
   
   out_zcta <- add_rates(out_zcta, id_col = "zcta")
   
-  # safety drop
+  # Safety drop
   drop <- intersect(c("geoid_pop", "geoid_sqMiles"), names(out_zcta))
   if (length(drop)) out_zcta[, (drop) := NULL]
   
@@ -1212,5 +1289,97 @@ move_col_after <- function(DT, col, after) {
   pos <- match(after, cur)
   data.table::setcolorder(DT, append(cur, col, after = pos))
   DT
+}
+
+
+
+
+reorder_rollup_cols <- function(dt, lab, id = c("zcta", "geoid")) {
+  #' Reorder rollup output columns into a stable, human-readable layout.
+  #' Pure presentation helper: does NOT change values, only column order.
+  #'
+  #' Layout target:
+  #' 1) Geographic IDs + year + (optional) religion + denominators first
+  #' 2) Window-specific "event" block next, in a deterministic order:
+  #'    - n_open__<lab>
+  #'    - no_moves closures: any, rates, avg, max
+  #'    - no_moves reopenings: any, avg, max
+  #'    - n_move__<lab> (after reopenings_no_moves_max__<lab>)
+  #'    - all closures: any, rates, avg, max
+  #'    - all reopenings: any, avg, max
+  #' 3) Everything else after (moves totals, distances, flags, etc.)
+  #'
+  #' NOTE on semantics (matches your rollup_results()):
+  #'   *_any__<lab> = count of ABIs with >0 events (binary per ABI: >0 -> 1)
+  #'   *_avg__<lab> and *_max__<lab> are computed over ABIs with >0 events
+  #'   (zeros excluded), so they summarize "eventful" ABIs only.
+  #'
+  #' @param dt A data.table (or data.frame) rollup output (by_zcta or by_geoid).
+  #' @param lab Window label suffix used in column names, e.g. "2010_2015".
+  #' @param id Which geography this table is keyed on: "zcta" or "geoid".
+  #' @return The same data.table, with columns reordered.
+  
+  id <- match.arg(id)
+  if (is.null(dt) || !nrow(dt)) return(dt)
+  data.table::setDT(dt)
+  
+  # ---------------------------------------------------------------------------
+  # (A) FRONT BLOCK: IDs + year + optional religion + denominators
+  # ---------------------------------------------------------------------------
+  front <- if (id == "zcta") {
+    c("zcta", "year", "religion", "zcta_pop", "zcta_sqMiles", "zcta_sqmi")
+  } else {
+    c("geoid", "year", "religion", "geoid_pop", "geoid_sqMiles", "geoid_sqmi")
+  }
+  front <- front[front %chin% names(dt)]
+  
+  # ---------------------------------------------------------------------------
+  # (B) WINDOW-SUFFIXED METRICS (event family)
+  # ---------------------------------------------------------------------------
+  n_open <- paste0("n_open__", lab)
+  n_move <- paste0("n_move__", lab)
+  
+  # ---- no_moves: closures ----
+  cnm_any <- paste0("closures_no_moves_any__", lab)
+  cnm_sq  <- paste0("closures_no_moves_per_sqmi__", lab)
+  cnm_10k <- paste0("closures_no_moves_per_10k__",  lab)
+  cnm_avg <- paste0("closures_no_moves_avg__", lab)
+  cnm_max <- paste0("closures_no_moves_max__", lab)
+  
+  # ---- no_moves: reopenings ----
+  rnm_any <- paste0("reopenings_no_moves_any__", lab)
+  rnm_avg <- paste0("reopenings_no_moves_avg__", lab)
+  rnm_max <- paste0("reopenings_no_moves_max__", lab)
+  
+  # ---- all: closures ----
+  ca_any  <- paste0("closures_all_any__", lab)
+  ca_sq   <- paste0("closures_all_per_sqmi__", lab)
+  ca_10k  <- paste0("closures_all_per_10k__",  lab)
+  ca_avg  <- paste0("closures_all_avg__", lab)
+  ca_max  <- paste0("closures_all_max__", lab)
+  
+  # ---- all: reopenings ----
+  ra_any  <- paste0("reopenings_all_any__", lab)
+  ra_avg  <- paste0("reopenings_all_avg__", lab)
+  ra_max  <- paste0("reopenings_all_max__", lab)
+  
+  # ---------------------------------------------------------------------------
+  # (C) EVENT BLOCK ORDER (filtered to columns that exist)
+  # ---------------------------------------------------------------------------
+  event_block <- c(
+    n_open,
+    cnm_any, cnm_sq, cnm_10k, cnm_avg, cnm_max,
+    rnm_any, rnm_avg, rnm_max, n_move,
+    ca_any, ca_sq, ca_10k, ca_avg, ca_max,
+    ra_any, ra_avg, ra_max
+  )
+  event_block <- event_block[event_block %chin% names(dt)]
+  
+  # ---------------------------------------------------------------------------
+  # (D) FINAL ORDER: front block -> event block -> everything else
+  # ---------------------------------------------------------------------------
+  remaining <- setdiff(names(dt), c(front, event_block))
+  data.table::setcolorder(dt, c(front, event_block, remaining))
+  dt
 }
 

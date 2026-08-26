@@ -104,6 +104,8 @@ suppressPackageStartupMessages({
   library("dplyr")            # Data manipulation and transformation
   library("stringr")          # String operations
   library("tidycensus")
+  library("ggplot2")          # Graphics and visualization
+  library("scales")           # Scale/label helpers for plots (percent/number/date formatting, breaks)
   library("tibble")           # Manipulate data frames in tidyverse
   library("purrr")            # Functional programming tools
   library("lubridate")
@@ -752,7 +754,8 @@ church_2026_form_analysis[, `:=`(
 ## --------------------
 ## SUBSECTION C2: 
 
-date_range <- build_year_windows(church_2026_form_analysis, min_span = 5L) %>% filter(start == 2010, end == 2015)
+date_range <- build_year_windows(church_2026_form_analysis, min_span = 5L) #%>%
+  #filter(label %in% c("2010_2015", "2012_2018", "2010_2019"))
 
 relig_cols <- c(
   "buddhist_temple", "christian_church", "hindu_mandir", "jewish_synagogue",
@@ -770,7 +773,6 @@ for (i in seq_len(nrow(date_range))) {
   # (0) Window setup
   # ---------------------------------------------------------------------------
   
-  # Unfiltered pass sentinel + stored label (kept inside the loop for clarity)
   NO_FILTER_SENTINEL <- "__NO_FILTER__"
   NO_FILTER_RELIGION_VALUE <- "all_religions"
   
@@ -782,11 +784,9 @@ for (i in seq_len(nrow(date_range))) {
   message("Window: ", lab, " (", start_y, "–", end_y, ")")
   utils::setTxtProgressBar(pb, i)
   
-  # Subset to the years in this window
   church_by_years <- filter_ts(church_2026_form_analysis, yrs)
   data.table::setDT(church_by_years)
   
-  # We will generate one discrete_results table per religion mode, then row-bind them
   discrete_list <- vector("list", length(relig_cols) + 1L)
   k <- 0L
   
@@ -796,9 +796,7 @@ for (i in seq_len(nrow(date_range))) {
   
   for (mode in c(relig_cols, NO_FILTER_SENTINEL)) {
     
-    # -------------------------------------------------------------------------
-    # (1a) Choose universe: filtered (one religion) vs unfiltered (all)
-    # -------------------------------------------------------------------------
+    # (1a) filtered vs unfiltered universe
     if (identical(mode, NO_FILTER_SENTINEL)) {
       church_relig <- church_by_years
       relig_value  <- NO_FILTER_RELIGION_VALUE
@@ -810,9 +808,7 @@ for (i in seq_len(nrow(date_range))) {
     }
     if (nrow(church_relig) == 0L) next
     
-    # -------------------------------------------------------------------------
-    # (1b) Flag counts by (geoid, zcta) on the chosen universe
-    # -------------------------------------------------------------------------
+    # (1b) flags by (geoid, zcta)
     flag_counts <- church_relig[
       ,
       .(
@@ -825,9 +821,7 @@ for (i in seq_len(nrow(date_range))) {
       by = .(geoid, zcta)
     ]
     
-    # -------------------------------------------------------------------------
-    # (1c) Clean: drop ABIs with any “bad” flags (per your existing rules)
-    # -------------------------------------------------------------------------
+    # (1c) drop bad ABIs
     bad_abi <- unique(church_relig[
       addr1_is_na %in% TRUE |
         addr1_is_pobox %in% TRUE |
@@ -839,16 +833,12 @@ for (i in seq_len(nrow(date_range))) {
     church_clean <- church_relig[!abi %in% bad_abi]
     if (nrow(church_clean) == 0L) next
     
-    # Years actually present after cleaning
     yrs_present <- sort(unique(church_clean$year))
     if (!length(yrs_present)) next
     
-    # Print all decennial periods explicitly (e.g., "2000, 2010, 2020")
     message("  Group: ", relig_value, " | decennial periods: ", paste(yrs_present, collapse = ", "))
     
-    # -------------------------------------------------------------------------
-    # (1d) Closures by year: compute closures_all + closures_no_moves and merge
-    # -------------------------------------------------------------------------
+    # (1d) closures by year (compute closures_all + closures_no_moves)
     closures_by_year <- lapply(yrs_present, function(yr) {
       dt_y <- church_clean[year == yr]
       if (nrow(dt_y) == 0L) return(NULL)
@@ -856,11 +846,7 @@ for (i in seq_len(nrow(date_range))) {
       closures_all <- suppressWarnings(suppressMessages({
         tmp <- NULL
         capture.output(
-          tmp <- calculate_closure(
-            DT = dt_y,
-            min_zero_run = 4L,
-            multi_addr_mode = "compress"
-          ),
+          tmp <- calculate_closure(DT = dt_y, min_zero_run = 4L, multi_addr_mode = "compress"),
           file = NULL
         )
         tmp
@@ -869,17 +855,12 @@ for (i in seq_len(nrow(date_range))) {
       closures_no_moves <- suppressWarnings(suppressMessages({
         tmp <- NULL
         capture.output(
-          tmp <- calculate_closure(
-            DT = dt_y,
-            min_zero_run = 4L,
-            multi_addr_mode = "skip"
-          ),
+          tmp <- calculate_closure(DT = dt_y, min_zero_run = 4L, multi_addr_mode = "skip"),
           file = NULL
         )
         tmp
       }))
       
-      # Keep both closure versions (no_moves as base; bring all in via join)
       closures <- closures_no_moves[closures_all, on = "abi"]
       closures[, year := yr]
       closures
@@ -888,9 +869,7 @@ for (i in seq_len(nrow(date_range))) {
     closures_dt <- data.table::rbindlist(closures_by_year, fill = TRUE, use.names = TRUE)
     if (nrow(closures_dt) == 0L) next
     
-    # -------------------------------------------------------------------------
-    # (1e) Add join identifiers (window metadata + religion label)
-    # -------------------------------------------------------------------------
+    # (1e) add window metadata + religion label
     flag_counts[, `:=`(start_y = start_y, end_y = end_y, label = lab, religion = relig_value)]
     closures_dt[, `:=`(start_y = start_y, end_y = end_y, label = lab, religion = relig_value)]
     
@@ -901,28 +880,20 @@ for (i in seq_len(nrow(date_range))) {
       "zcta_pop",  "zcta_sqMiles"
     )])
     
-    # Attach denominators + IDs to flags and closures
     flag_counts_aug <- flag_counts[church_join, on = .(geoid, zcta)]
     closures_aug    <- closures_dt[church_join,  on = .(abi, year)]
     
-    # Make sure religion is present on both sides
     flag_counts_aug[, religion := relig_value]
     closures_aug[,    religion := relig_value]
     
-    # -------------------------------------------------------------------------
-    # (1f) Suffix metric columns by window label (so windows can be merged later)
-    # -------------------------------------------------------------------------
+    # (1f) suffix metric columns by window label
     id_keep_flags <- c(
       "geoid","zcta","start_y","end_y","label","religion",
       "abi","year","geoid_pop","geoid_sqMiles","zcta_pop","zcta_sqMiles"
     )
     metric_cols_flags <- setdiff(names(flag_counts_aug), id_keep_flags)
     if (length(metric_cols_flags)) {
-      data.table::setnames(
-        flag_counts_aug,
-        metric_cols_flags,
-        paste0(metric_cols_flags, "__", lab)
-      )
+      data.table::setnames(flag_counts_aug, metric_cols_flags, paste0(metric_cols_flags, "__", lab))
     }
     
     id_keep_clos <- c(
@@ -931,17 +902,10 @@ for (i in seq_len(nrow(date_range))) {
     )
     metric_cols_clos <- setdiff(names(closures_aug), id_keep_clos)
     if (length(metric_cols_clos)) {
-      data.table::setnames(
-        closures_aug,
-        metric_cols_clos,
-        paste0(metric_cols_clos, "__", lab)
-      )
+      data.table::setnames(closures_aug, metric_cols_clos, paste0(metric_cols_clos, "__", lab))
     }
     
-    # -------------------------------------------------------------------------
-    # (1g) Compute n_move__<lab> (count ABIs whose closures_no_moves is NA) by
-    #      geoid/zcta and attach to the flags table.
-    # -------------------------------------------------------------------------
+    # (1g) n_move__<lab> = count ABIs with NA closures_no_moves__<lab>
     cnm    <- paste0("closures_no_moves__", lab)
     n_move <- paste0("n_move__", lab)
     
@@ -951,9 +915,7 @@ for (i in seq_len(nrow(date_range))) {
       flag_counts_aug <- n_move_by_geo[flag_counts_aug, on = .(geoid, zcta)]
     }
     
-    # -------------------------------------------------------------------------
-    # (1h) Join closures + flags → ABI-year discrete_results
-    # -------------------------------------------------------------------------
+    # (1h) Join closures + flags -> ABI-year discrete_results
     discrete_results <- closures_aug[
       flag_counts_aug,
       on = .(
@@ -963,19 +925,13 @@ for (i in seq_len(nrow(date_range))) {
       )
     ]
     
-    # Drop window metadata columns if you don’t want them in the discrete output
+    # drop window metadata if you don't want them in ABI-year output
     drop_cols <- intersect(c("start_y", "end_y", "label"), names(discrete_results))
     if (length(drop_cols)) discrete_results[, (drop_cols) := NULL]
     
-    # -------------------------------------------------------------------------
-    # (1i) Column order rules inside ABI-year discrete_results
-    #     - n_open__<lab> before closures_no_moves__<lab>
-    #     - n_move__<lab> after reopenings_no_moves__<lab>
-    #     - rates immediately after their base closure columns
-    # -------------------------------------------------------------------------
-    
-    # n_open before closures_no_moves
+    # ABI-year ordering (keep only the ABI-year rules; NO rate ordering here)
     n_open <- paste0("n_open__", lab)
+    
     if (all(c(n_open, cnm) %chin% names(discrete_results))) {
       cur <- names(discrete_results)
       cur <- cur[cur != n_open]
@@ -986,7 +942,6 @@ for (i in seq_len(nrow(date_range))) {
       }
     }
     
-    # n_move after reopenings_no_moves
     reopen_nm <- paste0("reopenings_no_moves__", lab)
     if (all(c(reopen_nm, n_move) %chin% names(discrete_results))) {
       cur <- names(discrete_results)
@@ -998,19 +953,6 @@ for (i in seq_len(nrow(date_range))) {
       }
     }
     
-    # rates immediately after their base closure columns
-    cnm10 <- paste0("closures_no_moves_per_10k__",  lab)
-    cnmsq <- paste0("closures_no_moves_per_sqmi__", lab)
-    ca    <- paste0("closures_all__", lab)
-    ca10  <- paste0("closures_all_per_10k__",  lab)
-    casq  <- paste0("closures_all_per_sqmi__", lab)
-    
-    discrete_results <- move_col_after(discrete_results, cnm10, cnm)
-    discrete_results <- move_col_after(discrete_results, cnmsq, cnm)
-    discrete_results <- move_col_after(discrete_results, ca10,  ca)
-    discrete_results <- move_col_after(discrete_results, casq,  ca)
-    
-    # Store for this religion mode
     k <- k + 1L
     discrete_list[[k]] <- discrete_results
   }
@@ -1024,134 +966,121 @@ for (i in seq_len(nrow(date_range))) {
   discrete_window <- data.table::rbindlist(discrete_list, fill = TRUE, use.names = TRUE)
   
   # ---------------------------------------------------------------------------
-  # (3) Roll up to geoid levels + zcta
+  # (3) Roll up (creates *_any/_avg/_max + rates)
   # ---------------------------------------------------------------------------
   message("    Rollup: ", lab, " | all relig groups")
   rollups <- rollup_results(discrete_window)
   
   # ---------------------------------------------------------------------------
-  # (4) Rollup column ordering (CRITICAL ORDER: denom pass first, then rate pass)
-  #
-  # Why:
-  #   If you reorder the “front block” (IDs + religion + denominators) after you
-  #   place *_per_* columns, that front-block reorder can push rate columns away
-  #   from closures_no_moves__<lab> / closures_all__<lab>.
+  # (4) REORDER ROLLUP COLUMNS (this is the part you asked to implement)
+  #     Requires reorder_rollup_cols(dt, lab, id=...) to exist.
   # ---------------------------------------------------------------------------
   
-  # These are the exact base + rate column names for this window label
-  cnm   <- paste0("closures_no_moves__", lab)
-  cnm10 <- paste0("closures_no_moves_per_10k__",  lab)
-  cnmsq <- paste0("closures_no_moves_per_sqmi__", lab)
-  
-  ca    <- paste0("closures_all__", lab)
-  ca10  <- paste0("closures_all_per_10k__",  lab)
-  casq  <- paste0("closures_all_per_sqmi__", lab)
-  
-  # ---------------------------------------------------------------------------
-  # (4A) Denominator ordering pass
-  #   - GEOID tables: geoid, religion, geoid_pop, geoid_sqMiles(/sqmi), ...
-  #   - ZCTA table : zcta,  religion, zcta_pop,  zcta_sqMiles(/sqmi),  ...
-  # ---------------------------------------------------------------------------
+  if (!is.null(rollups$by_zcta) && nrow(rollups$by_zcta)) {
+    rollups$by_zcta <- reorder_rollup_cols(rollups$by_zcta, lab, id = "zcta")
+  }
   
   if (!is.null(rollups$by_geoid) && length(rollups$by_geoid)) {
     rollups$by_geoid <- lapply(rollups$by_geoid, function(dt) {
-      if (is.null(dt) || !nrow(dt)) return(dt)
-      data.table::setDT(dt)
-      
-      front <- c("geoid", "religion", "geoid_pop", "geoid_sqMiles", "geoid_sqmi")
-      front <- front[front %chin% names(dt)]
-      data.table::setcolorder(dt, c(front, setdiff(names(dt), front)))
-      
-      dt
+      reorder_rollup_cols(dt, lab, id = "geoid")
     })
-  }
-  
-  if (!is.null(rollups$by_zcta) && nrow(rollups$by_zcta)) {
-    dt <- rollups$by_zcta
-    data.table::setDT(dt)
-    
-    front <- c("zcta", "religion", "zcta_pop", "zcta_sqMiles", "zcta_sqmi")
-    front <- front[front %chin% names(dt)]
-    data.table::setcolorder(dt, c(front, setdiff(names(dt), front)))
-    
-    rollups$by_zcta <- dt
-  }
-  
-  # ---------------------------------------------------------------------------
-  # (4B) Rate ordering pass (must happen AFTER denom pass)
-  #   - closures_no_moves__<lab> followed immediately by its per_10k and per_sqmi
-  #   - closures_all__<lab>      followed immediately by its per_10k and per_sqmi
-  # ---------------------------------------------------------------------------
-  
-  if (!is.null(rollups$by_geoid) && length(rollups$by_geoid)) {
-    rollups$by_geoid <- lapply(rollups$by_geoid, function(dt) {
-      if (is.null(dt) || !nrow(dt)) return(dt)
-      data.table::setDT(dt)
-      
-      dt <- move_col_after(dt, cnm10, cnm)
-      dt <- move_col_after(dt, cnmsq, cnm)
-      
-      dt <- move_col_after(dt, ca10, ca)
-      dt <- move_col_after(dt, casq, ca)
-      
-      dt
-    })
-  }
-  
-  if (!is.null(rollups$by_zcta) && nrow(rollups$by_zcta)) {
-    dt <- rollups$by_zcta
-    data.table::setDT(dt)
-    
-    dt <- move_col_after(dt, cnm10, cnm)
-    dt <- move_col_after(dt, cnmsq, cnm)
-    
-    dt <- move_col_after(dt, ca10, ca)
-    dt <- move_col_after(dt, casq, ca)
-    
-    rollups$by_zcta <- dt
   }
   
   # ---------------------------------------------------------------------------
   # (5) Accumulate rollups across windows (merge by id + religion)
-  #     - by_geoid is a named list of DTs (state/county/tract/block_group/block)
-  #     - by_zcta is a single DT
   # ---------------------------------------------------------------------------
   
   if (is.null(rollups_accum)) {
     rollups_accum <- rollups
+    
   } else {
     
-    # Merge each geoid level table
+    if (is.null(rollups_accum$by_geoid)) rollups_accum$by_geoid <- list()
+    if (is.null(rollups$by_geoid))       rollups$by_geoid       <- list()
+    
     for (lvl in union(names(rollups_accum$by_geoid), names(rollups$by_geoid))) {
+      
       a <- rollups_accum$by_geoid[[lvl]]
       b <- rollups$by_geoid[[lvl]]
       
-      if (is.null(a)) {
+      if (is.null(a) || !nrow(a)) {
         rollups_accum$by_geoid[[lvl]] <- b
-      } else if (!is.null(b)) {
-        
-        key_cols <- intersect(c("geoid", "religion"), names(a))
-        
-        # Avoid duplicate metric columns when merging windows
-        overlap <- intersect(setdiff(names(a), key_cols), setdiff(names(b), key_cols))
-        if (length(overlap)) b[, (overlap) := NULL]
-        
-        rollups_accum$by_geoid[[lvl]] <- merge(a, b, by = key_cols, all = TRUE)
+        next
       }
+      if (is.null(b) || !nrow(b)) next
+      
+      key_cols <- intersect(c("geoid", "year", "religion"), union(names(a), names(b)))
+      
+      denom_cols <- intersect(c("geoid_pop", "geoid_sqMiles"), names(a))
+      denom_drop <- intersect(denom_cols, names(b))
+      if (length(denom_drop)) data.table::set(b, j = denom_drop, value = NULL)
+      
+      overlap <- intersect(setdiff(names(a), key_cols), setdiff(names(b), key_cols))
+      if (length(overlap)) data.table::set(b, j = overlap, value = NULL)
+      
+      data.table::setkeyv(a, key_cols)
+      data.table::setkeyv(b, key_cols)
+      
+      out <- data.table::copy(a)
+      new_cols <- setdiff(names(b), key_cols)
+      
+      if (length(new_cols)) {
+        out[b, (new_cols) := mget(paste0("i.", new_cols))]
+      }
+      
+      b_only <- b[!out, on = key_cols]
+      rollups_accum$by_geoid[[lvl]] <- data.table::rbindlist(list(out, b_only),
+                                                             use.names = TRUE, fill = TRUE)
     }
     
-    # Merge the zcta table
+    # zcta
     {
       a <- rollups_accum$by_zcta
       b <- rollups$by_zcta
       
-      key_cols <- intersect(c("zcta", "religion"), names(a))
-      
-      overlap <- intersect(setdiff(names(a), key_cols), setdiff(names(b), key_cols))
-      if (length(overlap)) b[, (overlap) := NULL]
-      
-      rollups_accum$by_zcta <- merge(a, b, by = key_cols, all = TRUE)
+      if (is.null(a) || !nrow(a)) {
+        rollups_accum$by_zcta <- b
+        
+      } else if (!is.null(b) && nrow(b)) {
+        
+        key_cols <- intersect(c("zcta", "year", "religion"), union(names(a), names(b)))
+        
+        denom_cols <- intersect(c("zcta_pop", "zcta_sqMiles"), names(a))
+        denom_drop <- intersect(denom_cols, names(b))
+        if (length(denom_drop)) data.table::set(b, j = denom_drop, value = NULL)
+        
+        overlap <- intersect(setdiff(names(a), key_cols), setdiff(names(b), key_cols))
+        if (length(overlap)) data.table::set(b, j = overlap, value = NULL)
+        
+        data.table::setkeyv(a, key_cols)
+        data.table::setkeyv(b, key_cols)
+        
+        out <- data.table::copy(a)
+        new_cols <- setdiff(names(b), key_cols)
+        
+        if (length(new_cols)) {
+          out[b, (new_cols) := mget(paste0("i.", new_cols))]
+        }
+        
+        b_only <- b[!out, on = key_cols]
+        rollups_accum$by_zcta <- data.table::rbindlist(list(out, b_only),
+                                                       use.names = TRUE, fill = TRUE)
+      }
     }
+  }
+  
+  # ---------------------------------------------------------------------------
+  # (6) REORDER ACCUMULATED TABLES TOO (merge can reshuffle)
+  # ---------------------------------------------------------------------------
+  
+  if (!is.null(rollups_accum$by_zcta) && nrow(rollups_accum$by_zcta)) {
+    rollups_accum$by_zcta <- reorder_rollup_cols(rollups_accum$by_zcta, lab, id = "zcta")
+  }
+  
+  if (!is.null(rollups_accum$by_geoid) && length(rollups_accum$by_geoid)) {
+    rollups_accum$by_geoid <- lapply(rollups_accum$by_geoid, function(dt) {
+      reorder_rollup_cols(dt, lab, id = "geoid")
+    })
   }
 }
 
@@ -1159,26 +1088,120 @@ for (i in seq_len(nrow(date_range))) {
 #' @description
 #' Codebook 
 #'
-#' @field n_open
-#' @field closures_[no_moves|all] 
-#' @field closures_[no_moves|all]_per_sqmi 
-#' @field closures_[no_moves|all]_per_10k 
-#' @field reopenings_[no_moves|all] 
-#' @field n_move 
-#' @field moves_total 
-#' @field wavg_dist_km 
-#' @field max_dist_km 
-#' @field move_gt_[5|10|25]mi
-#' @field addr1_na 
-#' @field addr1_pobox
-#' @field `[geoid|zcta]_na`
+#' @field `[geoid|zcta]` The Census boundary unit to which all metrics in this
+#'                       row have been aggregated: block group, tract, county,
+#'                       or state GEOID, or ZIP Code Tabulation Area (ZCTA).
+#' 
+#' @field religion The religious classification represented by this row's
+#'                 metrics: e.g. \code{"Christian Churches"},
+#'                 \code{"Other Religion"}, \code{"All Religions"}.
+#' 
+#' @field year Decennial census reference year: \code{2000}, \code{2010},
+#'             or \code{2020}.
+#' 
+#' @field `[geoid|zcta]_pop` Total resident population for the corresponding
+#'                           decennial census year, assigned to each GEOID or
+#'                           ZCTA. GEOID-level counts were aggregated to match
+#'                           the census boundary granularity.
+#'
+#' @field `[geoid|zcta]_sqMiles` Total land area in square miles for the
+#'                               corresponding decennial census year, assigned
+#'                               to each GEOID or ZCTA. GEOID-level values
+#'                               were aggregated to match the census boundary 
+#'                               granularity.
+#' 
+#' @field n_open Total number of ABIs located within the geographic unit and
+#'               time window. Includes ABIs subsequently excluded by a
+#'               missingness flag.
+#' 
+#' @field closures_[no_moves|all]_any Count of ABIs with at least one
+#'                                    qualifying closure event, defined as
+#'                                    four or more consecutive inactive years
+#'                                    following at least one active year.
+#'                                    \code{no_moves} indicates ABIs appearing
+#'                                    under multiple addresses within the
+#'                                    selected date range were excluded prior
+#'                                    to analysis. \code{all} indicates all
+#'                                    ABIs were retained and compressed: 
+#'                                    year-activity indicators across all
+#'                                    addresses were summed colum-wise before 
+#'                                    event detection.
+#' 
+#' @field closures_[no_moves|all]_per_sqmi Count of ABIs with at least one
+#'                                         qualifying closure event, normalised
+#'                                         by the total land area (square
+#'                                         miles) of the census boundary unit
+#'                                         in the corresponding decennial
+#'                                         period.
+#' 
+#' @field closures_[no_moves|all]_per_10k Count of ABIs with at least one
+#'                                        qualifying closure event, normalised
+#'                                        by the total resident population of
+#'                                        the census boundary unit in the
+#'                                        corresponding decennial period,
+#'                                        expressed per 10,000 residents.
+#'                                        
+#' @field closures_[no_moves|all]_avg Mean number of closure events recorded by
+#'                                    any singe ABI within the selected 
+#'                                    geographic unit and time window.
+#' 
+#' @field closures_[no_moves|all]_max Maximum number of closure events
+#'                                    recorded by any single ABI within the
+#'                                    selected geographic unit and time window.
+#'                                    
+#' @field reopenings_[no_moves|all]_[any|avg|max] Reopening-event counterparts
+#'                                                to the closure fields above,
+#'                                                sharing identical
+#'                                                \code{no_moves}/\code{all}
+#'                                                and \code{any}/\code{avg}/
+#'                                                \code{max} semantics. A
+#'                                                reopening event is defined as
+#'                                                two or more consecutive active
+#'                                                years immediately following a
+#'                                                qualifying closure.
+#' 
+#' @field n_move Count of ABIs within the geographic unit that relocated at
+#'               least once during the selected time window.
+#' 
+#' @field moves_total Mean number of relocations per ABI within the selected
+#'                    geographic unit and time window.
+#' 
+#' @field wavg_dist_km Mean across all ABIs of each ABI's move-count-weighted
+#'                     average relocation distance (km). The per-ABI weighted
+#'                     average uses number of moves at each recorded distance
+#'                     as weights; this field reports the mean of those per-ABI
+#'                     values across the geographic unit.
+#' 
+#' @field max_dist_km Greatest single-move distance (km) recorded among all
+#'                    ABIs within the geographic unit and time window.
+#' 
+#' @field move_gt_[5|10|25]mi Count of ABIs within the geographic unit that
+#'                            made at least one relocation exceeding the stated
+#'                            distance threshold (5, 10, or 25 miles).
+#' 
+#' @field addr1_na Missingness flag. \code{address_line_1} is \code{NA},
+#'                 preventing address-based geocoding.
+#'                 
+#' @field addr1_pobox Missingness flag. \code{address_line_1} contains a PO
+#'                    Box value; the physical location cannot be determined.
+#'                    
+#' @field `[geoid|zcta]_na` Missingness flag. The GEOID or ZCTA value is
+#'                          \code{NA}, preventing assignment to a geographic
+#'                          unit.
 
-# Save result.
-write_parquet(rollups_accum$by_geoid$block_group, "./Data/Results/KEEP LOCAL/From Generate the Metrics/2010 to 2015 Subset/metrics_2010to2015_blockgroup_08.25.2026.parquet")
-write_parquet(rollups_accum$by_geoid$tract, "./Data/Results/KEEP LOCAL/From Generate the Metrics/2010 to 2015 Subset/metrics_2010to2015_tract_08.25.2026.parquet")
-write_parquet(rollups_accum$by_geoid$county, "./Data/Results/KEEP LOCAL/From Generate the Metrics/2010 to 2015 Subset/metrics_2010to2015_county_08.25.2026.parquet")
-write_parquet(rollups_accum$by_geoid$state, "./Data/Results/KEEP LOCAL/From Generate the Metrics/2010 to 2015 Subset/metrics_2010to2015_state_08.25.2026.parquet")
-write_parquet(rollups_accum$by_zcta, "./Data/Results/KEEP LOCAL/From Generate the Metrics/2010 to 2015 Subset/metrics_2010to2015_zcta_08.25.2026.parquet")
+# Save result for select time window.
+write_parquet(rollups_accum$by_geoid$block_group, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_blockgroup_08.26.2026.parquet")
+write_parquet(rollups_accum$by_geoid$tract, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_tract_08.26.2026.parquet")
+write_parquet(rollups_accum$by_geoid$county, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_county_08.26.2026.parquet")
+write_parquet(rollups_accum$by_geoid$state, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_state_08.26.2026.parquet")
+write_parquet(rollups_accum$by_zcta, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_zcta_08.26.2026.parquet")
+
+# # Save result for all time windows.
+# write_parquet(rollups_accum$by_geoid$block_group, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_blockgroup_08.26.2026.parquet")
+# write_parquet(rollups_accum$by_geoid$tract, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_tract_08.26.2026.parquet")
+# write_parquet(rollups_accum$by_geoid$county, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_county_08.26.2026.parquet")
+# write_parquet(rollups_accum$by_geoid$state, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_state_08.26.2026.parquet")
+# write_parquet(rollups_accum$by_zcta, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_zcta_08.26.2026.parquet")
 
 
 
@@ -1186,8 +1209,378 @@ write_parquet(rollups_accum$by_zcta, "./Data/Results/KEEP LOCAL/From Generate th
 ## ----------------------------------------------------------------
 ## PART D: Make GeoJSON
 
-# Algorithm - Make GEOJSON
+## --------------------
+## SUBSECTION D1: Confirm Deliverables with Subset
+
+# The metric calculation algorithm is time-intensive; most processing time is
+# spent generating metrics across new time windows. Subsetting the data does
+# not reduce processing time.
+# 
+# A single representative time window was calculated and joined with geographic
+# boundaries for dashboard testing and deliverable validation.
+
+
+# --- 1) Read in the TIGER/Line Shapefiles for WI -----------------------------
+# --- 1) Read in the TIGER/Line Shapefiles for WI -----------------------------
+
+subset_timeframe <- read_parquet("./Data/Results/KEEP LOCAL/From Generate the Metrics/2010 to 2015 Subset/metrics_2010to2015_tract_08.25.2026.parquet")
+setDT(subset_timeframe)
+
+
+# --- 1) Read in the TIGER/Line Shapefiles for WI -----------------------------
+
+block_geography <- "blocks"   # Optionally geography level = c("blocks", "block groups")
+states_present <- "WI"
+
+# Import the relevant states' GeoPackages for this division only (memory-safe).
+blocks_by_state <- read_state_gpkgs_for_data(
+  states_present, "./Data/Results/Census Bureau TIGER Line Shapefiles/",
+  geography = block_geography
+)
 
 
 
+
+# --- 2) Retrieve the Census Tract Details for Milwaukee, WI ------------------
+
+# Part of the validation involved creating visualizations and summary metrics
+# for a presentation on religious organization closures in Milwaukee, WI
+# between 2010 and 2015.
+# 
+# The current dataset does not include census boundaries at the city level.
+# Instead, the Milwaukee, WI Census PLACE boundary was crosswalked to its
+# constituent census tracts.
+
+
+# Milwaukee city place polygon (PLACEFP = 53000) in Wisconsin (STATEFP = 55)
+mil_place <- places(state = "WI", year = 2023, class = "sf") %>%
+  filter(PLACEFP == "53000") %>%
+  st_make_valid()
+
+# All Wisconsin tracts (or you can restrict to county = 079 for speed, see below)
+wi_tracts <- tracts(state = "WI", year = 2023, class = "sf") %>%
+  st_make_valid()
+
+# Use a projected CRS for area calculations (EPSG:5070 is good for CONUS)
+mil_place_5070 <- st_transform(mil_place, 5070)
+wi_tracts_5070 <- st_transform(wi_tracts, 5070)
+
+# Intersect tracts with the Milwaukee place polygon
+x <- st_intersection(
+  wi_tracts_5070 %>% select(GEOID),
+  mil_place_5070 %>% select(PLACEFP)
+)
+
+# Relationship table: tract GEOID -> PLACEFP, with area share (optional)
+tract_place_rel <- x %>%
+  mutate(
+    inter_area = as.numeric(st_area(geometry))
+  ) %>%
+  group_by(GEOID) %>%
+  mutate(
+    tract_area = as.numeric(st_area(st_geometry(wi_tracts_5070[match(GEOID, wi_tracts_5070$GEOID), ]))),
+    place_area_share_of_tract = inter_area / tract_area
+  ) %>%
+  ungroup() %>%
+  st_drop_geometry() %>%
+  arrange(desc(place_area_share_of_tract))
+
+
+
+
+# If you just want the list of tract GEOIDs that touch the city at all:
+milwaukee_tract_geoids <- tract_place_rel %>%
+  distinct(GEOID) %>%
+  pull(GEOID)
+
+milwaukee_tract_geoids
+
+blocks_mke <- blocks_by_state$WI$blocks_2010 %>%
+  mutate(geoid_tract = substr(geoid_block, 1, 11)) %>%
+  filter(geoid_tract %in% milwaukee_tract_geoids)
+
+
+subset_timeframe %>%
+  filter(geoid %in% blocks_mke$geoid_tract) %>%
+  (\(x) {write.csv(x,
+          file = "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/milwaukee_tract_closures_2010to2015.csv",
+          row.names = FALSE)})()
+
+milwaukee_tract_closures <- subset_timeframe %>%
+  filter(geoid %in% blocks_mke$geoid_tract, religion == "all_religions") %>%
+  filter(year == 2010)
+
+
+blocks_mke_joined <- blocks_mke[, c("geoid_tract", "geom")] |>
+  dplyr::left_join(
+    milwaukee_tract_closures,
+    by = c("geoid_tract" = "geoid")
+  )
+
+# --- 3) Plot (example: closures_no_moves_any__2010_2015) ---------------------
+
+# Project to an equal-area CRS for nicer-looking city maps
+blocks_mke_plot <- st_transform(blocks_mke_joined, 5070)
+
+ggplot() +
+  geom_sf(
+    data = blocks_mke_plot,
+    fill = NA,
+    color = "black",
+    linewidth = 0.2
+  ) +
+  geom_sf(
+    data = blocks_mke_plot,
+    aes(fill = closures_all_any__2010_2015),
+    color = NA
+  ) +
+  # monotone BLUE: low = light, high = dark
+  scale_fill_gradient(
+    low  = "#deebf7",   # very light blue
+    high = "#08519c",   # dark blue
+    na.value = "grey85",
+    name = "# ABIs",
+    labels = scales::label_comma()
+  ) +
+  coord_sf(crs = sf::st_crs(5070), datum = NA) +
+  labs(
+    title    = "Place of worship closures, 2010 - 2015",
+    subtitle = "Milwaukee, WI"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    panel.grid = element_blank(),
+    axis.title = element_blank(),
+    axis.text  = element_blank(),
+    axis.ticks = element_blank(),
+    plot.title    = element_text(size = 14),
+    plot.subtitle = element_text(size = 11),
+    legend.title  = element_text(size = 11),
+    legend.text   = element_text(size = 10)
+  )
+
+
+# --- 4) Metrics --------------------------------------------------------------
+
+mean(milwaukee_tract_closures$addr1_na__2010_2015, na.rm = TRUE)
+max(milwaukee_tract_closures$addr1_na__2010_2015, na.rm = TRUE)
+
+mean(milwaukee_tract_closures$addr1_pobox__2010_2015, na.rm = TRUE)
+max(milwaukee_tract_closures$addr1_pobox__2010_2015, na.rm = TRUE)
+
+mean(milwaukee_tract_closures$geoid_na__2010_2015, na.rm = TRUE)
+max(milwaukee_tract_closures$geoid_na__2010_2015, na.rm = TRUE)
+
+mean(milwaukee_tract_closures$zcta_na__2010_2015, na.rm = TRUE)
+max(milwaukee_tract_closures$zcta_na__2010_2015, na.rm = TRUE)
+
+
+mean(milwaukee_tract_closures$n_move__2010_2015/milwaukee_tract_closures$n_open__2010_2015, na.rm = TRUE)
+mean(milwaukee_tract$n_move__2010_2015/milwaukee_tract$n_open__2010_2015, na.rm = TRUE)
+
+mean(milwaukee_tract_closures$moves_total__2010_2015, na.rm = TRUE)
+max(milwaukee_tract_closures$moves_total__2010_2015, na.rm = TRUE)
+mean(milwaukee_tract_closures$wavg_dist_km__2010_2015, na.rm = TRUE)
+mean(milwaukee_tract_closures$max_dist_km__2010_2015, na.rm = TRUE)
+
+mean(milwaukee_tract_closures$closures_all_any__2010_2015, na.rm = TRUE)
+sd(milwaukee_tract_closures$closures_all_any__2010_2015, na.rm = TRUE)
+mean(milwaukee_tract$closures_all_any__2010_2015, na.rm = TRUE)
+sd(milwaukee_tract$closures_all_any__2010_2015, na.rm = TRUE)
+
+
+## --------------------
+## SUBSECTION D2: 
+
+# To efficiently handle block-level GEOID data, state-level shapefiles will be 
+# imported by census division (1–9), each grouping as many as 9 states. These 
+# will then be compiled into a single lookup table containing both metrics.
+
+# Associate FIPS codes with their corresponding state abbreviations.
+fips_lu <- data.table(
+  abbr = names(f <- c(AL="01",AK="02",AZ="04",AR="05",CA="06",CO="08",CT="09",DE="10",DC="11",FL="12",
+                      GA="13",HI="15",ID="16",IL="17",IN="18",IA="19",KS="20",KY="21",LA="22",ME="23",
+                      MD="24",MA="25",MI="26",MN="27",MS="28",MO="29",MT="30",NE="31",NV="32",NH="33",
+                      NJ="34",NM="35",NY="36",NC="37",ND="38",OH="39",OK="40",OR="41",PA="42",RI="44",
+                      SC="45",SD="46",TN="47",TX="48",UT="49",VT="50",VA="51",WA="53",WV="54",WI="55",WY="56")),
+  fips = unname(f)
+)
+
+# Compile the state-to-division lookup table.
+state_fips_division <- data.table(
+  state = c(state.name, "District of Columbia"),
+  abbr  = c(state.abb,  "DC"),
+  division = c(as.character(state.division), "South Atlantic")
+)[fips_lu, on = "abbr"][order(fips), .(state, abbr, fips, division)]
+
+block_geography <- "block groups"   # Optionally geography level = c("blocks", "block groups")
+divisions <- unique(state_fips_division$division)
+
+# Load the functions required to compile the lookup tables. If the lookup
+# tables have already been produced, this step can be skipped.
+source("./Code/Support Functions/For Step 2_2026 Format.R")
+
+data_root <- "./Data/Results/KEEP LOCAL/From Generate the Metrics/2010 to 2015 Subset"
+
+
+# -- Process GEOIDs ----------------------------------
+
+
+subset_timeframe <- read_parquet(file.path(data_root, "metrics_2010to2015_blockgroup_08.25.2026.parquet"))
+setDT(subset_timeframe)
+
+# Ensure expected key names exist (no normalization, just naming)
+# If your df uses geoid_block / decennial_year already, skip this renaming.
+if (!("geoid" %in% names(subset_timeframe)) && "geoid_block" %in% names(subset_timeframe)) {
+  setnames(subset_timeframe, "geoid_block", "geoid")
+}
+if (!("year" %in% names(subset_timeframe)) && "decennial_year" %in% names(subset_timeframe)) {
+  setnames(subset_timeframe, "decennial_year", "year")
+}
+
+# subset_timeframe is your data.table with keys geoid, year
+setDT(subset_timeframe)
+
+divisions <- unique(state_fips_division$division)
+out_by_div <- vector("list", length(divisions))
+names(out_by_div) <- divisions
+
+pb <- progress_bar$new(
+  format = "Divisions [:bar] :current/:total (:percent) | :message",
+  total  = length(divisions),
+  clear  = FALSE,
+  width  = 80
+)
+
+for (div in divisions) {
+  
+  pb$tick(tokens = list(message = div))
+  
+  states_present <- state_fips_division |>
+    filter(division == div) |>
+    pull(abbr) |>
+    unique()
+  
+  polys_by_state <- read_state_gpkgs_for_data(
+    states_present,
+    "./Data/Results/Census Bureau TIGER Line Shapefiles/",
+    geography = block_geography
+  )
+  
+  poly_div <- bind_rows(lapply(polys_by_state, function(st_list) {
+    bind_rows(lapply(st_list, function(x) {
+      if (!inherits(x, "sf")) return(NULL)
+      x |>
+        transmute(
+          geoid = geoid,
+          year  = as.integer(decennial_year),
+          geometry = sf::st_geometry(x)
+        )
+    }))
+  })) |>
+    distinct(geoid, year, .keep_all = TRUE)
+  
+  # keep each division result as data.table (faster to rbind later)
+  out_by_div[[div]] <- as.data.table(
+    as_tibble(subset_timeframe) |>
+      left_join(poly_div, by = c("geoid", "year"))
+  )
+  
+  rm(polys_by_state, poly_div); gc()
+}
+
+# fast row-bind at the end (data.table)
+result_dt <- rbindlist(out_by_div, use.names = TRUE, fill = TRUE)
+
+
+
+
+
+
+tiger_root <- "./Data/Results/Census Bureau TIGER Line Shapefiles/"
+
+# levels to run (edit the "geography" values to match read_state_gpkgs_for_data())
+levels <- data.table(
+  level     = c("blockgroup", "tract", "county", "state"),
+  parquet   = c("metrics_2010to2015_blockgroup_08.25.2026.parquet",
+                "metrics_2010to2015_tract_08.25.2026.parquet",
+                "metrics_2010to2015_county_08.25.2026.parquet",
+                "metrics_2010to2015_state_08.25.2026.parquet"),
+  geography = c("block groups", "tracts", "counties", "states")
+)
+
+divisions <- unique(state_fips_division$division)
+
+pb <- progress_bar$new(
+  format = "Level :level | Division [:bar] :current/:total (:percent) | :message",
+  total  = nrow(levels) * length(divisions),
+  clear  = FALSE,
+  width  = 90
+)
+
+for (i in seq_len(nrow(levels))) {
+  
+  lvl      <- levels$level[i]
+  pq_file  <- levels$parquet[i]
+  geog     <- levels$geography[i]
+  
+  # ---- read metrics for this level
+  subset_timeframe <- read_parquet(file.path(data_root, pq_file))
+  setDT(subset_timeframe)
+  
+  # standardize key names (names only)
+  if (!("geoid" %in% names(subset_timeframe)) && "geoid_block" %in% names(subset_timeframe)) {
+    setnames(subset_timeframe, "geoid_block", "geoid")
+  }
+  if (!("year" %in% names(subset_timeframe)) && "decennial_year" %in% names(subset_timeframe)) {
+    setnames(subset_timeframe, "decennial_year", "year")
+  }
+  stopifnot(all(c("geoid", "year") %in% names(subset_timeframe)))
+  
+  # ---- per-level output dir (so no slow rbind at the end)
+  out_dir <- file.path(data_root, paste0("joined_geom_", lvl))
+  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  for (div in divisions) {
+    
+    pb$tick(tokens = list(level = lvl, message = div))
+    
+    states_present <- state_fips_division |>
+      filter(division == div) |>
+      pull(abbr) |>
+      unique()
+    
+    polys_by_state <- read_state_gpkgs_for_data(
+      states_present,
+      tiger_root,
+      geography = geog
+    )
+    
+    # IMPORTANT: assumes each sf already has columns: geoid, decennial_year
+    poly_div <- bind_rows(lapply(polys_by_state, function(st_list) {
+      bind_rows(lapply(st_list, function(x) {
+        if (!inherits(x, "sf")) return(NULL)
+        x |>
+          transmute(
+            geoid = geoid,
+            year  = as.integer(decennial_year),
+            geometry = sf::st_geometry(x)
+          )
+      }))
+    })) |>
+      distinct(geoid, year, .keep_all = TRUE)
+    
+    div_joined <- as.data.table(
+      as_tibble(subset_timeframe) |>
+        left_join(poly_div, by = c("geoid", "year"))
+    )
+    
+    out_path <- file.path(out_dir, paste0("joined_", gsub("[^A-Za-z0-9]+", "_", div), ".parquet"))
+    write_parquet(div_joined, out_path)
+    
+    rm(polys_by_state, poly_div, div_joined); gc()
+  }
+  
+  rm(subset_timeframe); gc()
+}
 
