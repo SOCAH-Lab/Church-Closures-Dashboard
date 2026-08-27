@@ -754,6 +754,13 @@ church_2026_form_analysis[, `:=`(
 ## --------------------
 ## SUBSECTION C2: 
 
+out_dir <- "./Data/Results/KEEP LOCAL/From Generate the Metrics/Intermitent Results"
+dir.create(file.path(out_dir, "by_zcta"),  recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path(out_dir, "by_geoid"), recursive = TRUE, showWarnings = FALSE)
+
+CHUNK_SIZE <- 10L   # flush to disk every N windows; tune to your RAM budget
+
+
 date_range <- build_year_windows(church_2026_form_analysis, min_span = 5L) #%>%
   #filter(label %in% c("2010_2015", "2012_2018", "2010_2019"))
 
@@ -766,6 +773,7 @@ pb <- utils::txtProgressBar(min = 0, max = nrow(date_range), style = 3)
 on.exit(close(pb), add = TRUE)
 
 rollups_accum <- NULL
+chunk_id      <- 0L
 
 for (i in seq_len(nrow(date_range))) {
   
@@ -773,7 +781,7 @@ for (i in seq_len(nrow(date_range))) {
   # (0) Window setup
   # ---------------------------------------------------------------------------
   
-  NO_FILTER_SENTINEL <- "__NO_FILTER__"
+  NO_FILTER_SENTINEL       <- "__NO_FILTER__"
   NO_FILTER_RELIGION_VALUE <- "all_religions"
   
   start_y <- date_range$start[i]
@@ -831,6 +839,8 @@ for (i in seq_len(nrow(date_range))) {
     ])
     
     church_clean <- church_relig[!abi %in% bad_abi]
+    rm(church_relig, bad_abi)   # free filtered universe + bad ABI vector
+    
     if (nrow(church_clean) == 0L) next
     
     yrs_present <- sort(unique(church_clean$year))
@@ -867,6 +877,8 @@ for (i in seq_len(nrow(date_range))) {
     })
     
     closures_dt <- data.table::rbindlist(closures_by_year, fill = TRUE, use.names = TRUE)
+    rm(closures_by_year)   # free per-year closure list now that it's bound
+    
     if (nrow(closures_dt) == 0L) next
     
     # (1e) add window metadata + religion label
@@ -879,9 +891,11 @@ for (i in seq_len(nrow(date_range))) {
       "geoid_pop", "geoid_sqMiles",
       "zcta_pop",  "zcta_sqMiles"
     )])
+    rm(church_clean)   # free cleaned church data; church_join holds what we need
     
     flag_counts_aug <- flag_counts[church_join, on = .(geoid, zcta)]
-    closures_aug    <- closures_dt[church_join,  on = .(abi, year)]
+    closures_aug    <- closures_dt[church_join, on = .(abi, year)]
+    rm(flag_counts, closures_dt, church_join)   # free pre-join tables
     
     flag_counts_aug[, religion := relig_value]
     closures_aug[,    religion := relig_value]
@@ -913,6 +927,7 @@ for (i in seq_len(nrow(date_range))) {
       n_move_by_geo <- closures_aug[, .(tmp_nm = sum(is.na(get(cnm)))), by = .(geoid, zcta)]
       data.table::setnames(n_move_by_geo, "tmp_nm", n_move)
       flag_counts_aug <- n_move_by_geo[flag_counts_aug, on = .(geoid, zcta)]
+      rm(n_move_by_geo)   # free intermediate geo-level move counts
     }
     
     # (1h) Join closures + flags -> ABI-year discrete_results
@@ -924,6 +939,7 @@ for (i in seq_len(nrow(date_range))) {
         start_y, end_y, label, religion
       )
     ]
+    rm(closures_aug, flag_counts_aug)   # free both sides of the join
     
     # drop window metadata if you don't want them in ABI-year output
     drop_cols <- intersect(c("start_y", "end_y", "label"), names(discrete_results))
@@ -955,21 +971,31 @@ for (i in seq_len(nrow(date_range))) {
     
     k <- k + 1L
     discrete_list[[k]] <- discrete_results
+    rm(discrete_results)   # now safely stored in discrete_list; free the standalone copy
   }
   
+  rm(church_by_years)   # free the full window extract before the bind + rollup
+  
   # ---------------------------------------------------------------------------
-  # (2) Bind all religion-mode discrete tables into one “window-wide” table
+  # (2) Bind all religion-mode discrete tables into one "window-wide" table
   # ---------------------------------------------------------------------------
   discrete_list <- discrete_list[seq_len(k)]
-  if (!length(discrete_list)) next
+  if (!length(discrete_list)) {
+    gc()
+    next
+  }
   
   discrete_window <- data.table::rbindlist(discrete_list, fill = TRUE, use.names = TRUE)
+  rm(discrete_list)   # free the list of per-religion tables now that they're bound
+  gc()
   
   # ---------------------------------------------------------------------------
   # (3) Roll up (creates *_any/_avg/_max + rates)
   # ---------------------------------------------------------------------------
   message("    Rollup: ", lab, " | all relig groups")
   rollups <- rollup_results(discrete_window)
+  rm(discrete_window)   # free the largest per-window object immediately after rollup
+  gc()
   
   # ---------------------------------------------------------------------------
   # (4) REORDER ROLLUP COLUMNS (this is the part you asked to implement)
@@ -1031,6 +1057,7 @@ for (i in seq_len(nrow(date_range))) {
       b_only <- b[!out, on = key_cols]
       rollups_accum$by_geoid[[lvl]] <- data.table::rbindlist(list(out, b_only),
                                                              use.names = TRUE, fill = TRUE)
+      rm(a, b, out, b_only)   # free merge intermediates for this geo level
     }
     
     # zcta
@@ -1065,9 +1092,12 @@ for (i in seq_len(nrow(date_range))) {
         b_only <- b[!out, on = key_cols]
         rollups_accum$by_zcta <- data.table::rbindlist(list(out, b_only),
                                                        use.names = TRUE, fill = TRUE)
+        rm(a, b, out, b_only)   # free merge intermediates for zcta
       }
     }
   }
+  
+  rm(rollups)   # free the per-window rollup; accum now holds everything
   
   # ---------------------------------------------------------------------------
   # (6) REORDER ACCUMULATED TABLES TOO (merge can reshuffle)
@@ -1081,6 +1111,47 @@ for (i in seq_len(nrow(date_range))) {
     rollups_accum$by_geoid <- lapply(rollups_accum$by_geoid, function(dt) {
       reorder_rollup_cols(dt, lab, id = "geoid")
     })
+  }
+  
+  # ---------------------------------------------------------------------------
+  # (7) Flush accumulated rollups to parquet every CHUNK_SIZE windows
+  # ---------------------------------------------------------------------------
+  is_last   <- (i == nrow(date_range))
+  chunk_end <- (i %% CHUNK_SIZE == 0L)
+  
+  if (chunk_end || is_last) {
+    chunk_id  <- chunk_id + 1L
+    chunk_tag <- sprintf("chunk_%04d", chunk_id)
+    message("\n>>> Flushing chunk ", chunk_id, " to parquet (windows up to i=", i, ") ...")
+    
+    # -- by_zcta --
+    if (!is.null(rollups_accum$by_zcta) && nrow(rollups_accum$by_zcta) > 0L) {
+      arrow::write_parquet(
+        rollups_accum$by_zcta,
+        file.path(out_dir, "by_zcta", paste0(chunk_tag, ".parquet"))
+      )
+    }
+    
+    # -- by_geoid (one file per geo level) --
+    if (!is.null(rollups_accum$by_geoid)) {
+      for (lvl in names(rollups_accum$by_geoid)) {
+        dt_lvl <- rollups_accum$by_geoid[[lvl]]
+        if (!is.null(dt_lvl) && nrow(dt_lvl) > 0L) {
+          lvl_dir <- file.path(out_dir, "by_geoid", lvl)
+          dir.create(lvl_dir, recursive = TRUE, showWarnings = FALSE)
+          arrow::write_parquet(
+            dt_lvl,
+            file.path(lvl_dir, paste0(chunk_tag, ".parquet"))
+          )
+        }
+      }
+    }
+    
+    # -- clear accumulator and force GC --
+    rm(rollups_accum)
+    rollups_accum <- NULL
+    gc()
+    message("    Chunk ", chunk_id, " flushed and memory cleared.\n")
   }
 }
 
@@ -1195,13 +1266,6 @@ write_parquet(rollups_accum$by_geoid$tract, "./Data/Results/KEEP LOCAL/From Gene
 write_parquet(rollups_accum$by_geoid$county, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_county_08.26.2026.parquet")
 write_parquet(rollups_accum$by_geoid$state, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_state_08.26.2026.parquet")
 write_parquet(rollups_accum$by_zcta, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_zcta_08.26.2026.parquet")
-
-# # Save result for all time windows.
-# write_parquet(rollups_accum$by_geoid$block_group, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_blockgroup_08.26.2026.parquet")
-# write_parquet(rollups_accum$by_geoid$tract, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_tract_08.26.2026.parquet")
-# write_parquet(rollups_accum$by_geoid$county, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_county_08.26.2026.parquet")
-# write_parquet(rollups_accum$by_geoid$state, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_state_08.26.2026.parquet")
-# write_parquet(rollups_accum$by_zcta, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_zcta_08.26.2026.parquet")
 
 
 
