@@ -1067,13 +1067,16 @@ rollup_results <- function(
   # can also cause type errors. We force numeric outputs to double for safety.
   agg_one <- function(nm, x) {
     
-    # --- (2) Move-threshold columns: count flagged ABIs, not raw sums ----------
-    # We expect one row per ABI in discrete_results; this returns an INTEGER count
-    # for each rollup group.
+    # Move-threshold columns: count flagged ABIs, not raw sums
     if (grepl("^move_gt_(5mi|10mi|25mi)__", nm)) {
       if (all(is.na(x))) return(NA_integer_)
-      # Count entries that evaluate to TRUE (works for logical, 0/1, or any nonzero)
       return(as.integer(sum(as.logical(x), na.rm = TRUE)))
+    }
+    
+    # moves_total: average, not sum
+    if (grepl("^moves_total(__|$)", nm)) {
+      if (all(is.na(x))) return(NA_real_)
+      return(as.numeric(round(mean(x, na.rm = TRUE), 4)))
     }
     
     if (grepl("^wavg_dist_km__", nm)) {
