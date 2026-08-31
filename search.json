@@ -7,25 +7,18 @@
     "text": "The Yale School of Public Health Society Connectedness & Health Lab’s (SOCAH Lab) premier Church Closure Dashboard is designed to dynamically display metrics describing church closures down to the block group level over user-provided date ranges. Users can select regions to explore socioeconomic information alongside church closure metrics, or apply institutional filters to refine their view.\nShelby Golden, MS from the Yale School of Public Health Data Science and Data Equity team was contracted to review and update the data cleaning, validation, and harmonization methods previously employed by Dr. Insang Song to generate data compatible with dynamic visualization on the dashboard map.\nThis codebase includes a GitHub Pages website outlining the development process and describing the pipeline for researchers interested in replicating results or preparing the raw data for their own work. Scripts include detailed annotations explaining the code and provide guidelines to help subsequent analysts reproduce results or adapt the process for improvements or other applications.\nProject Principal Investigator (PI): Yusuf Ransome, MPH, DrPH\nProject Manager: Katelyn Kostakis, MPH\nDeveloper and Analyst: Shelby Golden, MS\n\nOur Collaborators\nThe Church Closure Dashboard is a collaborative effort led by the Yale School of Public Health Society Connectedness & Health Lab’s (SOCAH Lab).\n\n\nAccess Restrictions and Requirements\nUnder the Data Use Agreements (DUAs) with Data Axle and the USPS API license, raw data cannot be publicly distributed and is stored locally in ~/KEEP LOCAL directories. Some code or results may also be restricted. All publicly distributed results are summarized, and publicly distributed code has been constructed to avoid referencing individual-level data. Executing the code below requires access to the raw data and results.\nAPI keys are user-specific and, where applicable, instructions have been provided to help users obtain their own and configure them locally or on a High Performance Computer (HPC).\n\n\nData Disclaimer\nThis dashboard is intended for research and informational purposes. These data are provided “as is”, without warranty of any kind, explicit or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement. While every effort has been made to ensure the accuracy and completeness of the data, errors or omissions may occur due to limitations in the underlying data sources or data processing methods. If you believe a data point is inaccurate or have information that may improve the dataset, please contact the project team at socah.lab@yale.edu. In no event shall the authors, contributors, or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the data or the use or other dealings in the data. We welcome feedback and will review all reported discrepancies.”\n\n\n\n\n Back to top"
   },
   {
-    "objectID": "Pages/Metric Calculation.html",
-    "href": "Pages/Metric Calculation.html",
-    "title": "Metric Calculations",
-    "section": "",
-    "text": "ImportantTHIS PAGES IS IN PROGRESS\n\n\n\n\n\n\nPersistence\n\nmethod = “lookahead” – the original method the team used. Entries that ended with a 1 OR was open during the date range AND after the date range was determined to be persistent.\nmethod = “ratio” – the new method I proposed. This function calculates the persistence ratio of a church being open in a subset period compared to the full span of time recorded.\n\nClosures\n\nThe previous string detection mechanism did not correctly label all simulated strings of 20 years of responses. Also did not county occurrences, only binary detection.\nModified the string detection functions to be more robust; i.e. does not classify “00000100000” as a closure, since reopening’s must be two consecutive 1’s.\n\nReopening’s\n\nReopening’s were defined but did not seem to be calculated. Also used to give the closures count to contain the reopening’s outcome so they make sense relative to each other; i.e. reopening can only be one less or the same as number of closures.\n\n\n\n\n Back to top"
-  },
-  {
     "objectID": "Pages/Development.html",
     "href": "Pages/Development.html",
     "title": "Pipeline Development Documentation",
     "section": "",
-    "text": "Last Updated: August 11th, 2026"
+    "text": "Last Updated: August 30th, 2026"
   },
   {
     "objectID": "Pages/Development.html#format",
     "href": "Pages/Development.html#format",
     "title": "Pipeline Development Documentation",
     "section": "2023 Format",
-    "text": "2023 Format\n Raw Data Review   Data Preparation"
+    "text": "2023 Format\n Raw Data Review   Data Preparation   Metric Generation"
   },
   {
     "objectID": "Pages/Development.html#format-1",
