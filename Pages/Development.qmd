@@ -4,7 +4,7 @@ bibliography: references.bib
 csl: ../Scripts/nature.csl
 ---
 
-<small>Last Updated: August 11<sup>th</sup>, 2026</small>
+<small>Last Updated: August 30<sup>th</sup>, 2026</small>
 
 # Overview
 
@@ -28,7 +28,7 @@ Additionally, the project pipeline should be reasonably reproducible for future 
 
 ## 2023 Format
 
-{{< downloadthis "Reports/Review_2023 Format.pdf" dname="Review_2023 Format" label="Raw Data Review" type=light >}} {{< downloadthis "Reports/Preparation_2023 Format.pdf" dname="Preparation_2023 Format" label="Data Preparation" type=light >}}
+{{< downloadthis "Reports/Review_2023 Format.pdf" dname="Review_2023 Format" label="Raw Data Review" type=light >}} {{< downloadthis "Reports/Preparation_2023 Format.pdf" dname="Preparation_2023 Format" label="Data Preparation" type=light >}} {{< downloadthis "Reports/Metrics_2023 Format.pdf" dname="Metrics_2023 Format" label="Metric Generation" type=light >}}
 
 ## 2026 Format
 
