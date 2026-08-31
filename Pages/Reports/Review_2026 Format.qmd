@@ -45,7 +45,7 @@ suppressPackageStartupMessages({
 \tableofcontents
 \newpage
 
-# Review of the 2023 Format Raw Data
+# Review of the 2026 Format Raw Data
 
 **Prepared By:** [Shelby Golden, M.S.](https://www.linkedin.com/in/shelby-golden) from the Yale School of Public Health [Data Science and Data Equity](https://ysph.yale.edu/research/research-centers-and-initiatives/public-health-data-science-and-data-equity/) team
 
@@ -72,7 +72,7 @@ This document provides an overview of the challenges associated with the 2026 Fo
 
 # Important Considerations
 
-Selected code excerpts are referenced below. The complete code used to generate this report can be found in ["Code/Process Data Update.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Process%20Data%20Update.R).
+Selected code excerpts are referenced below. The complete code used to generate this report can be found in ["Code/Process Data Update.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Process%20Data%20Update.R) with all packages required documented in the **SET UP THE ENVIRONMENT** section. Custom functions used throughout the script are in ["Code/Support Functions/For Processing New Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Support%20Functions/For%20Processing%20New%20Data.R).
 
 ## Ignored Files
 
@@ -632,7 +632,7 @@ other\_cols \op{<-} \func{setdiff}(sic\_cols, \str{"primary\_sic\_code + sic6\_d
     \end{Verbatim}
   \end{codebox}
 
-  \vspace{-2.5ex}
+  \vspace{-4ex}
   \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
 \end{list}
 
@@ -1136,21 +1136,42 @@ Results over `vars_for_loc` were written to `"./Data/Results/KEEP LOCAL/From Pro
 \vspace{2ex}
 
 \begingroup
-\captionof{table}{Codebook for Evaluation Output Fields}
-\label{tab:codebook-1}
-\begin{tabular}{l p{0.72\linewidth}}
+\renewcommand{\arraystretch}{1.05}
+\setlength{\LTpre}{0pt}
+\setlength{\LTpost}{0pt}
+
+\begin{longtable}{l p{0.72\linewidth}}
+\caption{Codebook for Evaluation Output Fields}
+\label{tab:codebook-1}\\
+
+\toprule
 \textbf{Field} & \textbf{Description} \\
 \midrule
+\endfirsthead
+
+\toprule
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{2}{r}{\emph{Continued on next page}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
 \texttt{\_ranges\_OK} & Logical. \texttt{TRUE} when the \texttt{*\_ranges} field (e.g., \texttt{census\_tract\_ranges}) assigns a value for every year listed in \texttt{available\_year\_ranges}, has no overlapping year conflicts (a year mapped to more than one distinct value), and all available years map to exactly one unique value overall. \texttt{NA} when \texttt{available\_year\_ranges} is missing or cannot be parsed. \\
-\addlinespace[10pt]
+\addlinespace[6pt]
 \texttt{\_ranges\_decade\_ok} & Logical or \texttt{NA}. Only evaluated when \texttt{*\_ranges\_ok} is \texttt{FALSE}. \texttt{TRUE} when, within each decade that has any mapped available years, all mapped years in that decade share the same value (i.e., $\le 1$ distinct value per decade). This check ignores gaps (missing years) within decades. \texttt{NA} when \texttt{*\_ranges\_ok} is \texttt{TRUE} or when \texttt{available\_year\_ranges} is missing/unparseable. \\
-\addlinespace[10pt]
+\addlinespace[6pt]
 \texttt{\_values\_seen} & Character. Comma-separated list of distinct values observed for available years in the \texttt{*\_ranges} mapping (restricted to years in \texttt{available\_year\_ranges}). Empty string if none are observed. \\
-\addlinespace[10pt]
+\addlinespace[6pt]
 \texttt{\_missing\_years} & Character. Years present in \texttt{available\_year\_ranges} that are not covered by the \texttt{*\_ranges} mapping. Empty string if none are missing. \texttt{NA} when \texttt{available\_year\_ranges} is missing/unparseable. \\
-\addlinespace[10pt]
+\addlinespace[6pt]
 \texttt{\_conflict\_years} & Character. Years that are assigned more than one distinct value due to overlapping segments in the \texttt{*\_ranges} mapping, compressed as runs in the form \texttt{"YYYY:YYYY"} and separated by \texttt{", "}. Empty string if no conflicts. \\
-\end{tabular}
+
+\end{longtable}
 \endgroup
 
 # References

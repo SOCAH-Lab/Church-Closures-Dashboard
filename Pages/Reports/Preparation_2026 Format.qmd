@@ -85,7 +85,7 @@ Following receipt of the raw data in Summer 2025, a review was conducted and fin
 
 This document provides an overview of the methodological changes implemented following the initial prototype developed using the 2023 Format, and to accommodate the differences identified in the 2026 Format Review. While many of the fundamental methods were retained, notable changes to the step-wise ordering and consideration of edge cases were implemented in light of the prototype's algorithm performance and access to the High Performance Computer (HPC).
 
-Results generated from this pipeline were used for the Fall 2026 [dashboard](https://www.socahlab.org/church-closures) developed by [Gordon Tu](https://gordontu.com/).
+Results generated from this pipeline were used for the Fall 2026 [dashboard](https://www.socahlab.org/church-closures) developed by [Gordon Tu](https://gordontu.com/) with demographics by [Nick Begotka](https://geospatial.yale.edu/profile/nicolas-begotka).
 
 # Important Considerations
 
@@ -969,6 +969,14 @@ For the implementation of data variable assessments relevant to the cleaning alg
 Additional details regarding the algorithm's performance outcomes can be found in [Results - Step 2: Clean and Validate Addresses and Geolocation, and Annotate Records with Census Boundaries](#results-2), which includes results specifically assessing the outcomes of the three quality control assessments.
 
 ## Step 3: Standardize and Reshape Metadata to Wide Format
+
+:::{.callout-tip}
+# Computational Dependencies and Custom Functions
+
+All packages required for this step are documented in the **SET UP THE ENVIRONMENT** section of ["Clean Raw Data_Step 3_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%203_2026%20Format.R). Custom functions used throughout the script are in ["Support Functions/For Step 3_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Support%20Functions/For%20Step%203_2026%20Format.R).
+:::
+
+\vspace{1em}
 
 At this stage, the cleaned and validated data is prepared for dashboard metric generation. A critical structural transformation required for this involves reshaping records from long format (years open represented as rows) to wide format (years-open/years-closed encoded as binary columns), such that each record is unique to a given ABI and address combination.
 
@@ -2421,7 +2429,7 @@ For the implementation, refer to **SUBSECTION A4: Build Precompiled TIGER/Line G
 
 ## Step 2 Final Result {#code-results-source-9}
 
-For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). The standardized records generated in **Step 1** were run through the sequential cleaning and validation steps outlined in **Step 2**. Results were compiled across a batch's array outputs and aggregated between batches into a single complete file in **PART C: RECOMPILE RESULTS FROM THE HPC**, then written to `"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2_2026 Format/Compiled by Batches/church_2026_form_validated_08.03.2026.db`.
+For the implementation, refer to ["Code/Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R). The standardized records generated in **Step 1** were run through the sequential cleaning and validation steps outlined in **Step 2**. Results were compiled across a batch's array outputs and aggregated between batches into a single complete file in **PART C: RECOMPILE RESULTS FROM THE HPC**, then written to \texttt{"./Data/Results/KEEP LOCAL/From Clean Raw Data/Step 2\_2026 Format/Compiled by Batches/church\_2026\_form\_validated\_\allowbreak 08.03.2026.db"}.
 
 \vspace{2ex}
 

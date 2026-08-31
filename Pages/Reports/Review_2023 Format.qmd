@@ -71,7 +71,7 @@ This document provides an overview of the challenges associated with the 2023 Fo
 
 # Important Considerations
 
-Selected code excerpts are referenced below. The complete code used to generate this report can be found in ["Code/Explore the Raw Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Explore%20the%20Raw%20Data.R).
+Selected code excerpts are referenced below. The complete code used to generate this report can be found in ["Code/Explore the Raw Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Explore%20the%20Raw%20Data.R) with all packages required documented in the **SET UP THE ENVIRONMENT** section. Custom functions used throughout the script are in ["Code/Support Functions/For Explore the Raw Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Support%20Functions/For%20Explore%20the%20Raw%20Data.R).
 
 ## Ignored Files
 
@@ -813,14 +813,14 @@ All 50 states are represented, along with D.C. and five U.S. territories. Confir
 
 ## ABI Reduplicates {#code-results-source-1}
 
-For the implementation, refer to section ***AMERICAN BUSINESS IDENTIFIER (ABI) REDUPLICATES*** in ["Code/Explore the Raw Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Explore\%20the\%20Raw\%20Data.R). The data processed consisted of all ABI records for which a duplication was identified (i.e., multiple entries sharing the same ABI). Results were written to `"Data/Results/KEEP LOCAL/From Explore the Raw Data/ABI Duplicates Test\_05.16.2025.csv"`.
+For the implementation, refer to section ***AMERICAN BUSINESS IDENTIFIER (ABI) REDUPLICATES*** in ["Code/Explore the Raw Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Explore\%20the\%20Raw\%20Data.R). The data processed consisted of all ABI records for which a duplication was identified (i.e., multiple entries sharing the same ABI). Results were written to `"Data/Results/KEEP LOCAL/From Explore the Raw Data/ABI Duplicates Test_05.16.2025.csv"`.
 
 \vspace{2ex}
 
 \begingroup
 \captionof{table}{Codebook for Evaluation Output Fields}
 \label{tab:codebook-1}
-\begin{tabular}{l p{0.78\linewidth}}
+\begin{tabular}{l p{0.76\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
 \texttt{abi}             & Unique business identifier over which the evaluation is performed. \\
@@ -845,14 +845,14 @@ For the implementation, refer to section ***AMERICAN BUSINESS IDENTIFIER (ABI) R
 
 ## Evaluate Metadata in Assumptions #2 {#code-results-source-2}
 
-For the implementation, refer to subsection **Identify Source of Reduplicated Entries** in ["Code/Explore the Raw Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Explore\%20the\%20Raw\%20Data.R). The data processed were from `"Data/Results/KEEP LOCAL/From Explore the Raw Data/ABI Duplicates Test\_05.16.2025.csv"`. Results were written to `"Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same\_04.10.2026.csv"`.
+For the implementation, refer to subsection **Identify Source of Reduplicated Entries** in ["Code/Explore the Raw Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Explore\%20the\%20Raw\%20Data.R). The data processed were from `"Data/Results/KEEP LOCAL/From Explore the Raw Data/ABI Duplicates Test_05.16.2025.csv"`. Results were written to `"Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same_04.10.2026.csv"`.
 
 \vspace{2ex}
 
 \begingroup
 \captionof{table}{Codebook for Evaluation Output Fields}
 \label{tab:codebook-2}
-\begin{tabular}{p{0.18\linewidth} p{0.78\linewidth}}
+\begin{tabular}{p{0.18\linewidth} p{0.76\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
 \texttt{abi}   & Unique business identifier. Evaluation is performed over each unique
@@ -877,14 +877,14 @@ For the implementation, refer to subsection **Identify Source of Reduplicated En
 
 ## Compare Reported City Against ZIP Code Reference {#code-results-source-3}
 
-For the implementation, refer to subsection **Source of Reduplicated Entries - Assumptions #2** in ["Code/Explore the Raw Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Explore\%20the\%20Raw\%20Data.R). The data processed were from `"Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same\_04.10.2026.csv"`. Results were written to `"Data/Results/KEEP LOCAL/From Explore the Raw Data/City Name Variation\_04.10.2026.csv"`.
+For the implementation, refer to subsection **Source of Reduplicated Entries - Assumptions #2** in ["Code/Explore the Raw Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Explore\%20the\%20Raw\%20Data.R). The data processed were from \texttt{"Data/Results/KEEP LOCAL/From Explore the Raw Data/Metadata that Should Be the Same\_04.10.\allowbreak 2026.csv"}. Results were written to `"Data/Results/KEEP LOCAL/From Explore the Raw Data/City Name Variation_04.10.2026.csv"`.
 
 \vspace{2ex}
 
 \begingroup
 \captionof{table}{Codebook for Evaluation Output Fields}
 \label{tab:codebook-3}
-\begin{tabular}{l p{0.70\linewidth}}
+\begin{tabular}{l p{0.68\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
 \texttt{abi}                    & Unique business identifier. Evaluation is performed over each unique
@@ -924,14 +924,14 @@ For the implementation, refer to subsection **Source of Reduplicated Entries - A
 
 ## Impact Assessment of PO Box Removal {#code-results-source-4}
 
-For the implementation, refer to subsection **ASSUMPTION TO REMOVE PO BOX'S** in ["Code/Explore the Raw Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Explore\%20the\%20Raw\%20Data.R). The data were subset to include only ABIs associated with at least one PO Box address at any point in the observation period. Results were written to "Data/Results/KEEP LOCAL/From Explore the Raw Data/PO Box Geolocation\_04.10.2026.csv".
+For the implementation, refer to subsection **ASSUMPTION TO REMOVE PO BOX'S** in ["Code/Explore the Raw Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Explore\%20the\%20Raw\%20Data.R). The data were subset to include only ABIs associated with at least one PO Box address at any point in the observation period. Results were written to `"Data/Results/KEEP LOCAL/From Explore the Raw Data/PO Box Geolocation_04.10.2026.csv"`.
 
 \vspace{2ex}
 
 \begingroup
 \captionof{table}{Codebook for Evaluation Output Fields}
 \label{tab:codebook-4}
-\begin{tabular}{p{0.35\linewidth} p{0.61\linewidth}}
+\begin{tabular}{p{0.35\linewidth} p{0.59\linewidth}}
 \textbf{Field} & \textbf{Description} \\
 \midrule
 \texttt{abi}             & Unique business identifier. Evaluation is performed over each

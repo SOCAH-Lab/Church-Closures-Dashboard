@@ -827,7 +827,7 @@ grid.arrange(mb_p1, mb_p2, nrow = 1)
 
 Overall, processing a large data frame using the `data.table` class proved to be the most computationally efficient approach (@fig-optimization). Additionally, applying `data.table::rbindlist()` after a loop was found to be more efficient than base R's `do.call()`, while sequentially applying `data.table::rbindlist()` within a loop yielded comparable results to the latter.
 
-Refer to [Appendix - Optimizing Data Subsetting](#code-results-source-1) and [Appendix - Optimizing Data Combination](#code-results-source-1) for information on where to find the code that generates these results, as well as the results codebook.
+Refer to Appendix - [Optimizing Data Subsetting](#code-results-source-1) and [Optimizing Data Combination](#code-results-source-2) for information on where to find the code that generates these results, as well as the results codebook.
 
 # Results
 

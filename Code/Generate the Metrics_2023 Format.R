@@ -1,10 +1,20 @@
 ## ----------------------------------------------------------------
-## 
+## Calculate Dashboard Map Metrics Across All Strata
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: May 15th, 2025
+## Date Modified: June 3rd, 2025
 ## 
-## Description: 
+## Description: With the data cleaned, validated, and annotated, it is ready 
+##              for metric generation for the dashboard. Four metrics are 
+##              calculated over all possible date range selections, with any 
+##              additional data preparation steps, such as filling in zeros 
+##              with ones, described at the time of calculation. 
+## 
+##              Counts data are first calculated, then aggregated to the county 
+##              or state census boundary level, with rates derived from the 
+##              aggregated values and their respective denominators. Final 
+##              results are saved as GeoJSON files.
 ## 
 ## NOTE: Under the Data Use Agreements (DUAs) with Data Axle and the USPS API 
 ##       license, raw data cannot be publicly distributed and is stored locally 
@@ -95,6 +105,11 @@
 ##        * SUBSECTION C1: Retrieve the Census Populations and Boundary Area
 ##        * SUBSECTION C2: Generate Rate Per 10,000 Persons
 ##        * SUBSECTION C3: Generate Rate Per Square Miles
+## 
+##    - PART D: COMPILE RESULTS AND FORMAT FOR THE DASHBOARD
+##        * SUBSECTION D1: Combine and Organize Tables by Geography
+##        * SUBSECTION D2: Standardizing Decennial Year Shapefile Variable Names
+##        * SUBSECTION D3: Add Polygons and Save as GeoJSON
 
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
@@ -379,14 +394,14 @@ df <- data_with_fips %>%
 # The first metric represents a simple count of churches closed within a given
 # area. The remaining three were calculated using modified versions of the
 # definitions developed by Dr. Insang Song. Refer to
-# "data/church_tabulation_5year_periods.R" in his GitHub repository for
+# "code/church_tabulation_5year_periods.R" in his GitHub repository for
 # further details.
 # 
-# The non-rate metrics were calculated first, as the denominator information
-# required for the rate metrics is introduced at the time of calculation.
-# The rate metrics are computed later under "PART C: CALCULATE THE RATE METRICS
-# Some sections also discuss and demonstrate the modifications made to Dr. 
-# Song's metric definitions and formulas.
+# The non-rate metrics were calculated first, as the denominator information 
+# required for the rate metrics is not introduced until the time of their 
+# calculation. The rate metrics are computed in **PART C: CALCULATE THE RATE 
+# METRICS**. Select sections also discuss and demonstrate modifications made to 
+# Dr. Song's original metric definitions and formulas.
 
 
 ## --------------------
@@ -396,9 +411,9 @@ df <- data_with_fips %>%
 #     "Persistence, defined as the sum of institutions during the period.
 #      A higher value indicates fewer closures."
 # 
-# Persistence was calculated by Dr. Insang Song using a "lookahead" approach,
-# where an entry was considered persistent if it closed with a status of 1,
-# or if it remained open during or after the specified date range.
+# It was calculated using a lookahead, where entries that ended with a 1 OR was 
+# open during the date range AND after the date range was determined to be 
+# persistent.
 #
 # 
 # Scenarios to consider:
@@ -589,7 +604,7 @@ df_county <- df %>%
 #' Codebook for the new output fields produced by the evaluation. All other 
 #' fields were present in the Step 5 form of the data.
 #'              
-#' NO NEW FIELDS ADDED
+#' ADDED FIELDS ARE THE SAME AS INDIVIDUAL-LEVEL RESULTS
 
 # # Commit results.
 # write.csv(df, file = "./Data/Results/KEEP LOCAL/From Generate the Metrics/Summer 2025 Dashboard Prototype_ARCHIVED/Counts and Persistence By County_05.29.2025.csv")
@@ -629,7 +644,7 @@ df_state <- df %>%
 #' Codebook for the new output fields produced by the evaluation. All other 
 #' fields were present in the Step 5 form of the data.
 #'              
-#' NO NEW FIELDS ADDED
+#' ADDED FIELDS ARE THE SAME AS INDIVIDUAL-LEVEL RESULTS
 
 # # Commit results.
 # write.csv(df, file = "./Data/Results/KEEP LOCAL/From Generate the Metrics/Summer 2025 Dashboard Prototype_ARCHIVED/Counts and Persistence By State_05.29.2025.csv")
@@ -652,11 +667,12 @@ census_key <- Sys.getenv("CENSUS_API_KEY")
 ## --------------------
 ## SUBSECTION C1: Retrieve the Census Populations and Boundary Area
 
-# In "Clean Raw Data.R", tidycensus was used to pull the census tract, county, 
-# and state associated with an address, longitude, and latitude for a given 
-# decennial year. However, these results do not appear to align with the 
-# population data sourced from the same package. The previous method has been 
-# reviewed and is expected to accurately reflect the available sf data.
+# In "Clean Raw Data_Step 5_2023 Format.R", tidycensus was used to pull the 
+# census tract, county, and state associated with an address, longitude, and 
+# latitude for a given decennial year. However, these results do not also 
+# correctly retrieve the population data sourced from the same package. The 
+# previous method has been reviewed and is expected to accurately reflect the 
+# available sf data.
 # 
 # Two approaches can be taken to address the misalignment:
 #   1. Set the affected entries to NA.
@@ -690,7 +706,7 @@ df_county[, 1:3] %>%
 # )
 #
 # The function iterates over the two alternatives in order. If both are
-# exhausted, population is set to NA. This behaviour can be disabled by
+# exhausted, population is set to NA. This behavior can be disabled by
 # setting allow_alternative = FALSE.
 
 
@@ -719,8 +735,10 @@ df_10Krate_county <- calculate_closure_rates(
 #'                   combination. The decennial year used depends on whether
 #'                   the API call found a match in the tidycensus database;
 #'                   if not, an alternative decennial year may have been used.
+#'                   
 #' @field alternative_used Boolean. TRUE if an alternative decennial year was
 #'                         used to source the population count, FALSE otherwise.
+#'                         
 #' @field closure_rate_per_10000_YYYY-YYYY Closure rate calculated by dividing
 #'                                         the closure count by `population`,
 #'                                         scaled per 10,000.
@@ -740,9 +758,9 @@ df_10Krate_county <- read_csv("./Data/Results/KEEP LOCAL/From Generate the Metri
 # About one third of population results used an alternative decennial year.
 round(prop.table(table(df_10Krate_county$alternative_used, useNA = "ifany"))*100, digits = 2)
 
-# The API successfully returned 2020 population values, but an alternative
-# decennial source was used for all entries associated with the 2000 and
-# 2010 periods.
+# The API successfully returned 2000 and 2010 population values, but an 
+# alternative decennial source was used for all entries associated with the 
+# 2020 decennial period.
 round(prop.table(table(
   df_10Krate_county$decennial_census,
   "Alternative Used?" = df_10Krate_county$alternative_used,
@@ -771,7 +789,7 @@ df_10Krate_state <- calculate_closure_rates(
 #' fields were present following the aggregation of "SUBSECTION B3: Generate
 #' the Openings, Closures, and Persistence Counts" results to the county level.
 #' 
-#' NO NEW FIELDS ADDED
+#' ADDED FIELDS ARE THE SAME AS COUNTY AGGREGATIONS
 #' 
 #' @note The suffix \code{YYYY-YYYY} represents the start and end years of
 #'   possible date range selections ("SUBSECTION A1: Define the Date Ranges"), 
@@ -788,9 +806,9 @@ df_10Krate_state <- read_csv("./Data/Results/KEEP LOCAL/From Generate the Metric
 # About one third of population results used an alternative decennial year.
 round(prop.table(table(df_10Krate_state$alternative_used, useNA = "ifany"))*100, digits = 2)
 
-# The API successfully returned 2020 population values, but an alternative
-# decennial source was used for all entries associated with the 2000 and
-# 2010 periods.
+# The API successfully returned 2000 and 2010 population values, but an 
+# alternative decennial source was used for all entries associated with the 
+# 2020 decennial period.
 round(prop.table(table(
   df_10Krate_state$decennial_census,
   "Alternative Used?" = df_10Krate_state$alternative_used,
@@ -827,8 +845,10 @@ df_sqMilerate_county <- calculate_closure_rates_per_sq_mile(
 #'                  year used depends on whether the API call found a match
 #'                  in the tidycensus database; if not, an alternative
 #'                  decennial year may have been used.
+#'                  
 #' @field alternative_used Boolean. TRUE if an alternative decennial year was
 #'                         used to source the land area, FALSE otherwise.
+#'                         
 #' @field closure_rate_per_sq_mile_YYYY-YYYY Closure rate calculated by dividing
 #'                                           the closure count by `land_area`
 #'                                           (square miles).
@@ -871,7 +891,7 @@ df_sqMilerate_state <- calculate_closure_rates_per_sq_mile(
 #' fields were present following the aggregation of "SUBSECTION B3: Generate
 #' the Openings, Closures, and Persistence Counts" results to the county level.
 #' 
-#' NO NEW FIELDS ADDED
+#' ADDED FIELDS ARE THE SAME AS COUNTY AGGREGATIONS
 #' 
 #' @note The suffix \code{YYYY-YYYY} represents the start and end years of
 #'   possible date range selections ("SUBSECTION A1: Define the Date Ranges"), 
@@ -948,7 +968,7 @@ metrics_vector <- c(
 )
 
 # Build a table of the unique date windows. "Combined" is a convenient key/label 
-# like "YYYY-MM-DD_YYYY-MM-DD".
+# like "YYYY_YYYY" for the start and end year selected.
 dates_table <- all_ranges %>%
   mutate(Combined = str_c(startDate, endDate, sep = "-"))
 
@@ -996,7 +1016,7 @@ colnames(final_state)
 
 
 ## --------------------
-## SUBSECTION D2: 
+## SUBSECTION D2: Standardizing Decennial Year Shapefile Variable Names
 
 # Queries the US Census Bureau TIGER/Line Shapefile database via tigris to
 # retrieve county and state geometries by decennial year, then left-joins
@@ -1098,31 +1118,40 @@ combined_data_county <- combined_data_county %>%
 #' @field decennial_census The decennial census period: 2000, 2010, or 2020.
 #'                         Each value is replicated across all rows, as rows
 #'                         represent distinct census boundary metadata records.
+#'                         
 #' @field state_fips State-level Federal Information Processing Standard (FIPS)
 #'                   code representing the census boundary level to which the
 #'                   data was aggregated.
+#'                   
 #' @field county_fips County-level Federal Information Processing Standard
 #'                    (FIPS) code representing the census boundary level to
 #'                    which the data was aggregated. This variable is absent if 
 #'                    the data were aggregated to a higher geographic level.
+#'                    
 #' @field geoid The GEOID for the census boundary level, representing a
 #'              mutually exclusive boundary designation that may include a
 #'              combination of state and county FIPS, tract, block group,
 #'              and block IDs.
+#'              
 #' @field geometry Multipolygon representation of the GEOID boundary, plotted
 #'                 in the mapped component containing the relevant outcome
 #'                 results.
+#'                 
 #' @field closure_count_YYYY-YYYY Integer. The count of closures observed
 #'                                between the specified start and end years.
+#'                                
 #' @field reopening_count_YYYY-YYYY Integer. The count of reopenings observed
 #'                                  between the specified start and end years.
+#'                                  
 #' @field persistence_YYYY-YYYY Integer. A binary indicator of whether
 #'                              persistence was observed between the specified
 #'                              start and end years, where \code{1} indicates
 #'                              persistence and \code{0} indicates none.
+#'                              
 #' @field closure_rate_per_10000_YYYY-YYYY Closure rate calculated by dividing
 #'                                         the closure count by \code{population},
 #'                                         scaled per 10,000.
+#'                                         
 #' @field closure_rate_per_sq_mile_YYYY-YYYY Closure rate calculated by dividing
 #'                                           the closure count by \code{land_area}
 #'                                           (square miles).
@@ -1135,6 +1164,7 @@ combined_data_county <- combined_data_county %>%
 # NOTE: Geometry columns are not supported in CSV format; use GeoJSON
 #       (*.geojson) or Shapefile (*.shp) instead, both writable via st_write() 
 #       from the sf package.
+
 st_write(combined_data_county, "./Data/Results/Dashboard Datasets/All Metrics By County_06.04.2025.geojson")
 st_write(combined_data_state, "./Data/Results/Dashboard Datasets/All Metrics By State_06.04.2025.geojson")
 
