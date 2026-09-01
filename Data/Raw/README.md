@@ -2,7 +2,7 @@
 
 **Date Created:** May 19<sup>th</sup>, 2026
 
-**Date Updated:** August 19<sup>th</sup>, 2026
+**Date Updated:** September 1<sup>st</sup>, 2026
 
 **Purpose:**
 
@@ -58,20 +58,24 @@ All census boundary files, both the downloaded raw shapefiles and the compiled G
 
 **References:**
 
-1.  US Census Bureau, “TIGER/Line Shapefiles Database,” TIGER/Line Shapefiles. Accessed: Jul. 01, 2026. \[Online\]. Available: https://www.census.gov/cgi-bin/geo/shapefiles/index.php
+1. U.S. Census Bureau, "2010 Relationship Files," Census.gov. Accessed: Aug. 18, 2026. [Online]. Available: https://www.census.gov/geographies/reference-files/time-series/geo/relationship-files.html
 
-2.  US Census Bureau, “TIGER/Line Shapefiles,” Census.gov. Accessed: Jul. 01, 2026. \[Online\]. Available: https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html
+2 .U.S. Census Bureau, "Census Regions and Divisions of the United States." Washington, D.C. [Online]. Available: https://www2.census.gov/geo/pdfs/maps-data/maps/reference/us_regdiv.pdf
 
-3.  US Census Bureau, “Metropolitan and Micropolitan Statistical Area Glossary,” Census.gov. Accessed: Jul. 01, 2026. \[Online\]. Available: https://www.census.gov/programs-surveys/metro-micro/about/glossary.html
+3. U.S. Census Bureau, "Explanation of the 2010 ZIP Code Tabulation Area (ZCTA) to County Relationship File," Washington, D.C. 20503, 2020. Accessed: Jul. 01, 2026. [Online]. Available: https://www2.census.gov/geo/pdfs/maps-data/data/rel/explanation_zcta_county_rel_10.pdf
 
-4.  U.S. Census Bureau, “2010 Relationship Files,” Census.gov. Accessed: Aug. 18, 2026. \[Online\]. Available: https://www.census.gov/geographies/reference-files/time-series/geo/relationship-files.html
+4. U.S. Census Bureau, "Metropolitan and Micropolitan Statistical Area Glossary," Census.gov. Accessed: Jul. 01, 2026. [Online]. Available: https://www.census.gov/programs-surveys/metro-micro/about/glossary.html
 
-5.  U.S. Department of Commerce, Economics and Statistics Administration, and US Census Bureau, “Chapter 11: Census Blocks and Block Groups,” in *Geographic Areas Reference Manual (GARM)*, 1994. Accessed: Jul. 06, 2026. \[E-book\]. Available: https://www2.census.gov/geo/pdfs/reference/GARM/
+5. U.S. Census Bureau, "TIGER/Line Shapefiles," Census.gov. Accessed: Jul. 01, 2026. [Online]. Available: https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html
 
-6.  K. Walker and B. Rudis, tigris: Load Census TIGER/Line Shapefiles. (Apr. 16, 2025). Accessed: Jul. 01, 2026. \[Online\]. Available: https://cran.r-project.org/web/packages/tigris/index.html
+6. U.S. Census Bureau, "TIGER/Line Shapefiles Database," TIGER/Line Shapefiles. Accessed: Jul. 01, 2026. [Online]. Available: https://www.census.gov/cgi-bin/geo/shapefiles/index.php
 
-7.  SimpleMaps, “United States Cities Database.” Accessed: Jul. 01, 2026. \[Online\]. Available: https://simplemaps.com/data/us-cities
+7. U.S. Department of Commerce, Economics and Statistics Administration, and U.S. Census Bureau, "Chapter 11: Census Blocks and Block Groups," in Geographic Areas Reference Manual (GARM), 1994. Accessed: Jul. 06, 2026. [E-book]. Available: https://www2.census.gov/geo/pdfs/reference/GARM/
 
-8.  T. R. Knoedl, Library of Congress, and US Congress, “Core Based Statistical Areas,” Congressional Research Service (CRS) Products. Accessed: Jul. 01, 2026. \[Online\]. Available: https://www.congress.gov/crs-product/IF12704
+8. Executive Office of the President and Office of Management and Budget (OMB), "Revised Definitions of Metropolitan Statistical Areas, New Definitions of Micropolitan Statistical Areas and Combined Statistical Areas, and Guidance on Uses of the Statistical Definitions of These Areas," Washington, D.C. 20503, Jun. 06, 2023. Accessed: Jul. 01, 2026. [Online]. Available: https://www.whitehouse.gov/wp-content/uploads/2017/11/bulletins_b03-04.pdf
 
-9.  Executive Office of the President and Office of Management and Budget (OMB), “Revised Definitions of Metropolitan Statistical Areas, New Definitions of Micropolitan Statistical Areas and Combined Statistical Areas, and Guidance on Uses of the Statistical Definitions of These Areas.” Washington, D.C. 20503, Jun. 06, 2023. Accessed: Jul. 01, 2026. \[Online\]. Available: https://www.whitehouse.gov/wp-content/uploads/2017/11/bulletins_b03-04.pdf
+9. K. Walker and B. Rudis, tigris: Load Census TIGER/Line Shapefiles. (Apr. 16, 2025). Accessed: Jul. 01, 2026. [Online]. Available: https://cran.r-project.org/web/packages/tigris/index.html
+
+10. SimpleMaps, "United States Cities Database." Accessed: Jul. 01, 2026. [Online]. Available: https://simplemaps.com/data/us-cities
+
+11. T. R. Knoedl, Library of Congress, and U.S. Congress, "Core Based Statistical Areas," Congressional Research Service (CRS) Products. Accessed: Jul. 01, 2026. [Online]. Available: https://www.congress.gov/crs-product/IF12704
