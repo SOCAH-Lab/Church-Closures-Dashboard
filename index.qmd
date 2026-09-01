@@ -19,6 +19,28 @@ This codebase includes a [GitHub Pages website](https://socah-lab.github.io/Chur
 
 The  Church Closure Dashboard is a collaborative effort led by the Yale School of Public Health Society Connectedness & Health Lab's (SOCAH Lab).
 
+<div class="logo-grid">
+  <figure>
+    <img src="Images/Collaborator Logos/YSPH-wordmark-stacked-blues.png" alt="Yale School of Public Health">
+  </figure>
+  <figure class="wide">
+    <img src="Images/Collaborator Logos/Wordmark-SOCAH_Lab-blues.png" alt="Yale School of Public Health, Society, Connectedness, and Health Lab">
+  </figure>
+  <figure>
+    <img src="Images/Collaborator Logos/ycgs_logo.png" alt="Yale Center for Geospatial Solutions">
+  </figure>
+  <figure class="wide">
+    <img src="Images/Collaborator Logos/Wordmark-Data-Science-and-Data-Equity-blues.png" alt="Yale School of Public Health, Data Science and Data Equity">
+  </figure>
+  <figure class="wide dissc">
+    <img src="Images/Collaborator Logos/dissc_logo.png" alt="Yale Data-Intensive Social Science Center">
+  </figure>
+  <figure class="ycrc">
+    <img src="Images/Collaborator Logos/ycrc_logo.png" alt="Yale Center for Research Computing">
+    <figcaption>Yale Center for Research Computing</figcaption>
+  </figure>
+</div>
+
 # Access Restrictions and Requirements
 
 Under the Data Use Agreements (DUAs) with Data Axle and the USPS API license, raw data cannot be publicly distributed and is stored locally in `~/KEEP LOCAL` directories. Some code or results may also be restricted. All publicly distributed results are summarized, and publicly distributed code has been constructed to avoid referencing individual-level data. Executing the code below requires access to the raw data and results.

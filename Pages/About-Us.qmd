@@ -1,0 +1,26 @@
+---
+listing:
+  - id: contributors
+    template: ../Scripts/Listing_About-Us/about-us-formatting.ejs
+    contents: ../Scripts/Listing_About-Us/about-us-listings.yml
+    categories: false
+    sort-ui: false
+    filter-ui: false
+---
+
+::: column-screen
+```{=html}
+<div class="subheader" style="margin-bottom: 30px">
+    <div class="blob"></div>
+    <div class="header-content">
+        <h2>About Us</h2>
+        <p style="text-align: left;">The  Church Closure Dashboard is a collaborative effort led by the Yale School of Public Health Society Connectedness & Health Lab's (SOCAH Lab). Below are some of the people on the team who contributed to the effort.</p>
+    </div>
+</div>
+```
+:::
+
+::: {#contributors .column-screen-inset}
+:::
+
+

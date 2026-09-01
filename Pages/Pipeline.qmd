@@ -4,8 +4,39 @@ bibliography: references.bib
 csl: ../Scripts/nature.csl
 ---
 
-<small>Last Updated: July 22<sup>nd</sup>, 2026</small>
+<small>Last Updated: September 1<sup>st</sup>, 2026</small>
 
-:::{.callout-important}
-## COMING SOON
+:::{.column-page-inset}
+
+```{=html}
+<div class="pipeline">
+  <div class="blob"></div>
+
+  <div class="phase-card">
+    <div class="phase-number">PHASE 1</div>
+    <div class="step-columns">
+      <div class="step-col">
+        <h3>Identify Closures</h3>
+        <p>Compile church closure records across the study period.</p>
+      </div>
+      <div class="step-col">
+        <h3>Gather Covariates</h3>
+        <p>Assemble demographic and community-level covariates.</p>
+      </div>
+      <div class="step-col">
+        <h3>Validate &amp; Label</h3>
+        <p>Cross-check records and label the dataset for benchmarking.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase-card">
+    <div class="phase-number">PHASE 2</div>
+    <h3>Algorithm Benchmarking</h3>
+    <p>Run candidate detection algorithms against the labeled dataset and compare performance.</p>
+  </div>
+
+</div>
+```
+
 :::

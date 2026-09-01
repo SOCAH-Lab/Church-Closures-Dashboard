@@ -53,41 +53,125 @@
 
 items:
   tiles:
-    - name: Bhramar Mukherjee, PhD
+    - name: Yusuf Ransome, M.P.H., Dr.P.H.
+      date-added: 2026-009-01
+      date-updated: 2026-09-01
+      titles: |
+        Associate Professor of Public Health at the Yale School of Public Health, Founder and Director of the Society, Connectedness and Health (SOCAH) Lab 
+      bio: |
+        Transforming public health through a holistic well-being approach. Dr. Ransome's research integrates social connectedness, contemplative practices, and digital technology to address complex public health challenges. As a leading researcher at Yale School of Public Health, his innovative work focuses on creating sustainable pathways to health, wealth, and prosperity for historically underserved communities both in the United States and globally.
+      image: /Images/Collaborator Headshots/yusuf-ransome.jpeg
+      email: yusuf.ransome@yale.edu
+      ysph-site: https://ysph.yale.edu/profile/yusuf-ransome/
+      group: https://www.socahlab.org/
+      linkedin: https://www.linkedin.com/in/dryusufransome/
+    - name: Jennifer Marlon, Ph.D.
+      date-added: 2026-009-01
+      date-updated: 2026-09-01
+      titles: |
+        Executive Director of the Yale Center for Geospatial Solutions and a Senior Research Scientist at the Yale School of the Environment
+      bio: |
+        Jennifer Marlon, Ph.D., is a climate science researcher and communicator with 20+ years of experience translating complex environmental data into actionable insights. She leads interdisciplinary efforts at the intersection of geospatial science, public opinion, and climate communication to inform policy, increase resilience, and drive public engagement. Dr. Marlon holds positions as a Senior Research Scientist and Lecturer at the Yale School of the Environment and the Yale Program on Climate Change Communication (YPCCC), and currently serves as the Executive Director of the Yale Center for Geospatial Solutions. Her interdisciplinary research examines risk and decision-making around climate change and extreme weather, as well as the physical science behind climate-wildfire interactions.
+      image: /Images/Collaborator Headshots/jennifer-marlon.jpeg
+      email: jennifer.marlon@yale.edu
+      ysph-site: https://environment.yale.edu/directory/faculty/jennifer-marlon
+      group: https://geospatial.yale.edu/
+      google_scholar: https://scholar.google.com/citations?user=piwDt9kAAAAJ&hl=en
+      linkedin: https://www.linkedin.com/in/jennifer-marlon-45483651/
+    - name: Miriam Olivares, G.I.S.P.
+      date-added: 2026-009-01
+      date-updated: 2026-09-01
+      titles: |
+        Head of Geospatial Support Services at the Yale Center for Geospatial Solutions
+      bio: |
+        With 22 years of geospatial experience, Miriam Olivares coordinates GIS support services in higher education at Yale University, and previously at Texas A&M University. Her main role has been to GeoEmpower current and potential GIS users to promote teaching and cutting-edge research. She connects experts, teaches and consults GIS, enabling others to harness the power of geospatial technology. Miriam has published peer-reviewed journal articles and book chapters, participated in international GIS panels, and collaborated in projects based in the Americas, Australia, and Somalia. Her collaborations include interdisciplinary research and consulting, covering topics such as geospatial data management, GIScience, supply chain, crime analysis, natural hazards, and marine conservation, among other subjects.
+      image: /Images/Collaborator Headshots/miriam-olivares.jpeg
+      email: miriam.olivares@yale.edu
+      ysph-site: https://geospatial.yale.edu/profile/miriam-olivares
+      linkedin: https://www.linkedin.com/in/miriamo/
+      group: https://geospatial.yale.edu/
+    - name: Bhramar Mukherjee, Ph.D.
       date-added: 2025-06-11
       date-updated: 2025-06-11
       titles: |
         Senior Associate Dean of Public Health Data Science and Data Equity; Anna M.R. Lauder Professor of Biostatistics; Professor of Epidemiology (Chronic Diseases) and of Statistics and Data Science; Affiliated Faculty, Yale Institute for Global Health
       bio: |
         Professor Bhramar Mukherjee is the Anna M.R. Lauder Professor of Biostatistics and Professor of Chronic Disease Epidemiology at the Yale School of Public Health (YSPH). Professor Mukherjee serves as the inaugural Senior Associate Dean of Public Health Data Science and Data Equity at YSPH. She holds a secondary appointment in the Department of Statistics and Data Science and is affiliated with the MacMillan Center and the Institute for the Foundations of Data Science. She serves on the Yale Cancer Center Director’s cabinet.
-      image: ../Images/People/bhramar-mukherjee.jpeg
+      image: /Images/Collaborator Headshots/bhramar-mukherjee.jpeg
       email: bhramar.mukherjee@yale.edu
       phone: 203-737-8644
       ysph-site: https://ysph.yale.edu/profile/bhramar-mukherjee/
       group: https://ysph-dsde.github.io/mukherjee-lab/
       linkedin: https://www.linkedin.com/in/bhramar-mukherjee-483810320/
-    - name: Michaela Dinan, PhD
-      date-added: 2025-06-11
-      date-updated: 2025-06-11
-      titles: |
-        Associate Professor Tenure; Co-Leader, Cancer Prevention and Control, Yale Cancer Center; Associate Director for Research Training and Education, Yale Cancer Center
-      bio: |
-        Dr. Michaela Dinan is an Associate Professor of Epidemiology in the Yale School of Public Health, and Co-Leader of the Cancer Prevention and Control Research Program at the Yale Comprehensive Cancer Center, Yale School of Medicine. She is also a member of the Cancer Outcomes, Public Policy, and Effectiveness Research (COPPER) Center. Dr. Dinan has extensive research expertise in leveraging existing real-world data sources as well as novel data linkages to examine oncology outcomes.
-      image: ../Images/People/michaela-dinan.jpeg
-      email: michaela.dinan@yale.edu
-      phone: 203-785-7124
-      ysph-site: https://ysph.yale.edu/profile/michaela-dinan/
-    - name: Shelby Golden, M.S.
-      date-added: 2025-06-11
-      date-updated: 2025-06-11
+    - name: Katelyn Kostakis, M.P.H.
+      date-added: 2026-009-01
+      date-updated: 2026-09-01
       titles: | 
-        Data Scientist I
+        Program Administrator at the Yale School of Public Health, Society, Connectedness and Health (SOCAH) Lab
+      bio: |
+        Katelyn Kostakis is a Program Administrator at the Yale School of Public Health. Upon earning her Master of Public Health from Yale in May 2024, she transitioned into a full-time role with The Society, Connectedness, and Health (SOCAH) group. Prior to joining Yale, Katelyn gained experience in diverse public health environments, including community health centers and local health departments, where she focused on planning and evaluating interventions. At SOCAH, Katelyn contributes to various projects and initiatives in the realm of social connectedness. She is committed to improving community access to public health information and ensuring that communities have opportunities to engage with public health initiatives.
+      image: /Images/Collaborator Headshots/katelyn-kostakis.jpeg
+      linkedin: https://www.linkedin.com/in/katelyn-kostakis/
+      group: https://www.socahlab.org/teambios
+    - name: Magalí P. Bazzano, M.S.
+      date-added: 2026-009-01
+      date-updated: 2026-09-01
+      titles: | 
+        Program Manager at the Yale Center for Geospatial Solutions
+      bio: |
+        Magalí Bazzano joined Yale University in 2023, initially supporting various initiatives established and managed by the Office of the Vice Provost for Research. Today, she is fully devoted to the Yale Center for Geospatial Solutions, supporting the center’s continued development. She is integral to the functioning of the center, overseeing and streamlining a wide range of operations.  She ensures that all activities within the center run efficiently by aligning team efforts with strategic objectives, and providing consistent support to ensure smooth day-to-day operations.  In collaboration with leadership, Magalí helps drive operational improvements and ensures the recruitment of the necessary talent to meet the center’s dynamic needs. One of her first major accomplishments was bringing the center’s digital presence to life through the development and launch of its website, which went live on February 19, 2024. She continues to shape and maintain the site in collaboration with the media team, ensuring it reflects the center’s evolving work.
+      image: /Images/Collaborator Headshots/magalí-bazzano.jpeg
+      ysph-site: https://geospatial.yale.edu/profile/magali-bazzano
+      group: https://geospatial.yale.edu/
+      email: magali.bazzano@yale.edu
+    - name: Shelby Golden, M.S.
+      date-added: 2026-009-01
+      date-updated: 2026-09-01
+      titles: | 
+        Fomer Data Scientist at the Yale School of Public Health, Data Science and Data Equity (DSDE) Department
       bio: |
         Shelby Golden is a data scientist with a background in computational mathematics, molecular biology, and biochemistry. She holds a Master of Science in Applied Computational Mathematics from Johns Hopkins University and dual Bachelor of Science degrees in Molecular, Cellular, Developmental Biology and Biochemistry with a minor in Engineering in Applied Mathematics.
-      image: ../Images/People/shelby-golden.jpeg
-      email: shelby.golden@yale.edu
-      phone: 203-737-8644
-      ysph-site: https://ysph.yale.edu/profile/shelby-golden/
-      group: https://ysph-dsde.github.io/mukherjee-lab/
+      image: /Images/Collaborator Headshots/shelby-golden.jpeg
+      email: sgolde13@alumni.jh.edu
       linkedin: https://www.linkedin.com/in/shelby-golden/
-      
+    - name: Yukun (Gordon) Tu
+      date-added: 2026-009-01
+      date-updated: 2026-09-01
+      titles: | 
+        Data Visualization Consultant at Yale Center for Geospatial Solutions 
+      bio: |
+        Gordon Tu is a data visualization designer and developer whose work bridges design and software engineering. As a Data Visualization Consultant at the Yale Center for Geospatial Solutions, he creates interactive tools for communicating environmental hazards and risk-modeling data. He is constantly exploring new tools (recently including Blender, Aerialod, and Houdini) to find new ways to create compelling visuals. Previously, Gordon developed custom visualizations and enterprise visualization libraries for organizations including Visa, Coca-Cola, Nissan, Al Gore’s office, and UC Berkeley’s Terner Center. Outside of work, he practices Taiji and is learning to play guitar.
+      image: /Images/Collaborator Headshots/gordon-tu.png
+      ysph-site: https://gordontu.com/
+      linkedin: https://www.linkedin.com/in/gordon-tu/
+    - name: Nicolas Begotka
+      date-added: 2026-009-01
+      date-updated: 2026-09-01
+      titles: | 
+        Data Scientist at the Yale Center for Geospatial Solutions
+      bio: |
+        Nick Begotka is a data scientist contractor at YCGS using geospatial analysis and machine learning to solve climate problems. He previously worked as a data scientist at the Yale Program on Climate Change Communication, where he modeled climate risk perception and developed frameworks to identify populations vulnerable to extreme heat. Nick hopes to use advancements in machine learning and AI to improve climate solutions. In his free time, he enjoys staying active, touching grass, and experimenting with new recipes.
+      image: /Images/Collaborator Headshots/nicolas-begotka.jpeg
+      linkedin: https://www.linkedin.com/in/nick-begotka/
+      group: https://geospatial.yale.edu/people
+      email: nick.begotka@yale.edu
+    - name: Insang Song, Ph.D.
+      date-added: 2026-009-01
+      date-updated: 2026-09-01
+      titles: | 
+        Assistant Professor in the Department of Geography, College of Social Sciences at Seoul National University
+      bio: |
+        In the Department of Geography, Dr. Song's role is to teach and research geographic information science, quantitative geography, machine learning, and parallel computing in geospatial applications. Current projects include developing reproducible high-resolution spatiotemporal air pollution models in Korea and the U.S., impact of environmental subregions in effect estimation of green space on mental illness, spatiotemporal imputation, missing value mechanisms, and others.
+      image: /Images/Collaborator Headshots/insang-song.jpeg
+      ysph-site: https://sigmafelix.wixsite.com/mysite
+    - name: Hui (Henry) Luan, Ph.D.
+      date-added: 2026-009-01
+      date-updated: 2026-09-01
+      titles: | 
+        Assistant Professor at the UT Southwestern School of Public Health
+      bio: |
+        As a spatial epidemiologist and spatial data scientist, Dr. Luan investigates two major questions. First, how do health phenomena vary over space, time, and race/ethnicity? Second, what environmental factors (social, physical, and built) contribute to these spatial, temporal, and racial/ethnic variations? He uses Bayesian spatiotemporal statistics and Geographical Information Science (GIS) to answer these questions. The goal of Dr. Luan's research is to advance Bayesian probabilistic inferences in spatial health data analysis, promote the application of GIS and spatial analysis in public health, inform the development of geographically tailored, evidence-based health intervention programs, and ultimately improve population health.
+      image: /Images/Collaborator Headshots/hui-luan.jpeg
+      ysph-site: https://profiles.utsouthwestern.edu/profile/230334/hui-luan.html
+      group: https://h3luan.github.io/
+      email: hui.luan@utsouthwestern.edu
