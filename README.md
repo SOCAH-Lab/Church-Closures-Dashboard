@@ -22,103 +22,10 @@ This codebase includes a [GitHub Pages website](https://socah-lab.github.io/Chur
 
 The Church Closure Dashboard is a collaborative effort led by the Yale School of Public Health Society Connectedness & Health Lab's (SOCAH Lab).
 
-<style>
-  /*-- scss: collaborator logos --*/
-  
-  .logo-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1.5rem;
-    margin: 2rem 0;
-  }
-  .logo-grid figure {
-    margin: 0;
-    height: 180px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: #ffffff;
-    border: 1px solid #e2e2e2;
-    padding: 1rem;
-  }
-  .logo-grid figure.wide {
-    grid-column: span 2;
-    padding-bottom: 0rem !important;
-  }
-  .logo-grid img {
-    max-width: 100%;
-    max-height: 100%;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-  }
-  .logo-grid figcaption {
-    margin-top: 0.75rem;
-    font-size: 0.8rem;
-    color: #555;
-    text-align: center;
-  }
-  .logo-grid figure.dissc img {
-    max-height: 70%;
-    max-width: 70%;
-  }
-  @media (max-width: 600px) {
-    .logo-grid {
-      grid-template-columns: 1fr;
-    }
-    .logo-grid figure.wide,
-    .logo-grid figure.dissc {
-      grid-column: span 1;
-      max-width: none;
-      justify-self: stretch;
-    }
-    .logo-grid figure.wide {
-      padding-bottom: 0rem !important;
-    }
-    .logo-grid figure:not(.wide) {
-      max-width: 220px;
-      justify-self: center;
-    }
-    .logo-grid figcaption {
-      margin-top: 0.75rem;
-    }
-    .logo-grid figure.ycrc img {
-      max-height: 75%;
-      max-width: 75%;
-    }
-    .logo-grid figure.dissc img {
-      max-height: 68%;
-      max-width: 68%;
-    }
-    .logo-grid figure.wide {
-      grid-column: span 1;
-      height: 100px;
-    }
-  }
-</style>
-
-<div class="logo-grid">
-  <figure>
-    <img src="Images/Collaborator Logos/YSPH-wordmark-stacked-blues.png" alt="Yale School of Public Health">
-  </figure>
-  <figure class="wide">
-    <img src="Images/Collaborator Logos/Wordmark-SOCAH_Lab-blues.png" alt="Yale School of Public Health, Society, Connectedness, and Health Lab">
-  </figure>
-  <figure>
-    <img src="Images/Collaborator Logos/ycgs_logo.png" alt="Yale Center for Geospatial Solutions">
-  </figure>
-  <figure class="wide">
-    <img src="Images/Collaborator Logos/Wordmark-Data-Science-and-Data-Equity-blues.png" alt="Yale School of Public Health, Data Science and Data Equity">
-  </figure>
-  <figure class="wide dissc">
-    <img src="Images/Collaborator Logos/dissc_logo.png" alt="Yale Data-Intensive Social Science Center">
-  </figure>
-  <figure class="ycrc">
-    <img src="Images/Collaborator Logos/ycrc_logo.png" alt="Yale Center for Research Computing">
-    <figcaption>Yale Center for Research Computing</figcaption>
-  </figure>
-</div>
+| | | |
+|:---:|:---:|:---:|
+| ![Yale School of Public Health](Collaborator%20Logos/YSPH-wordmark-stacked-blues.png) | ![Society, Connectedness, and Health Lab](Collaborator%20Logos/Wordmark-SOCAH_Lab-blues.png) | ![Yale Center for Geospatial Solutions](Collaborator%20Logos/ycgs_logo.png) |
+| ![Data Science and Data Equity](Collaborator%20Logos/Wordmark-Data-Science-and-Data-Equity-blues.png) | ![Yale Data-Intensive Social Science Center](Collaborator%20Logos/dissc_logo.png) | ![Yale Center for Research Computing](Collaborator%20Logos/ycrc_logo.png) |
 
 # Access Restrictions and Requirements
 
