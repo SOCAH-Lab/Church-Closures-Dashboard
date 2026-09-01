@@ -1,11 +1,28 @@
 ## ----------------------------------------------------------------
-## 
+## Calculate Dashboard Map Metrics Across All Strata
 ## 
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: August 17th, 2026
-## Date Modified: August 20th, 2026
+## Date Modified: September 1st, 2026
 ## 
-## Description: 
+## Description: With the data cleaned, validated, and annotated, it is ready
+##              for metric generation for the dashboard. Three metrics are
+##              calculated across all possible date range selections. While not
+##              intended for visualisation on the map, four additional outcomes
+##              were calculated, including the tracking of relocations, which
+##              was not featured in the prototype.
+## 
+##              All values were calculated together, with counts generated
+##              first, followed by rates where aggregation (rollup) was
+##              required. All metrics were calculated at the smallest census
+##              boundary level, block group, prior to aggregation, with
+##              specific outcomes summed, averaged, or maxed during each
+##              aggregation step. ZCTA was not aggregated, as its values do
+##              not crosswalk to census boundaries.
+## 
+##              Finally, a selection of date ranges was used to inspect results,
+##              and specific outcomes and plots were generated for the city of 
+##              Milwaukee, WI.
 ## 
 ## NOTE: Under the Data Use Agreements (DUAs) with Data Axle and the USPS API 
 ##       license, raw data cannot be publicly distributed and is stored locally 
@@ -87,8 +104,17 @@
 ##        * SUBSECTION B2: Aggregate Block-Level GEOIDs to Dataset Boundary Level
 ##        * SUBSECTION B3: Join Reference Denominators
 ## 
-##    - PART C:
-##    - PART D:
+##    - PART C: 
+##        * SUBSECTION C1: Exclude Entries with Critical Missing Information
+##        * SUBSECTION C2: Generate the Metrics in Chunks 
+##        * SUBSECTION C3: Validate Chunk Coverage
+## 
+##    - PART D: CONFIRM DELIVERABLES WITH SUBSET
+##        * SUBSECTION D1: Tract Details for Milwaukee, WI
+##        * SUBSECTION D2: Use the TIGER/Line Shapefiles for WI
+##        * SUBSECTION D3: Compile Results for Three Date Ranges
+##        * SUBSECTION D4: Plot Results
+##        * SUBSECTION D5: Calculate Metrics
 
 ## ----------------------------------------------------------------
 ## SET UP THE ENVIRONMENT
@@ -100,21 +126,23 @@ renv::restore()
 suppressPackageStartupMessages({
   library("readr")            # Reads in CSV and other delimited files
   library("arrow")            # Parquet/Feather & fast I/O (Arrow)
+  library("DBI")              # Standard database interface for R (dbConnect, dbWriteTable, dbGetQuery)
+  library("duckdb")           # DuckDB database engine + DBI backend (local .duckdb files, in-memory DBs)
   library("tidyr")            # Tidies/reshapes data (pivot, separate/unnest)
   library("dplyr")            # Data manipulation and transformation
   library("stringr")          # String operations
-  library("tidycensus")
+  library("tidycensus")       # Census API access + tidy wrappers for decennial/ACS retrieval
   library("ggplot2")          # Graphics and visualization
   library("scales")           # Scale/label helpers for plots (percent/number/date formatting, breaks)
   library("tibble")           # Manipulate data frames in tidyverse
   library("purrr")            # Functional programming tools
-  library("lubridate")
+  library("lubridate")        # Date-time parsing/manipulation (ymd, floor_date, intervals)
   library("future.apply")     # Parallel processing
   library("progress")         # Progress bars
   library("data.table")       # High-performance data manipulation
   library("sf")               # Simple Features for spatial data (geometry + CRS operations)
   library("tigris")           # Download/read US Census TIGER/Line shapefiles
-  library("units")
+  library("units")            # Measurement units support (set_units, conversion, unit-aware math)
 })
 
 # Set up the plan for parallel processing
@@ -123,6 +151,7 @@ plan(multisession, workers = 4)
 # Load in the functions
 source("./Code/Support Functions/General.R")
 source("./Code/Support Functions/For Generate the Metrics_2026 Format.R")
+source("./Code/Support Functions/For Step 2_2026 Format.R")
 
 # Define the "not in" operation
 "%!in%" <- function(x,y)!("%in%"(x,y))
@@ -159,27 +188,11 @@ church_2026_form_analysis <- read_parquet("./Data/Results/KEEP LOCAL/From Genera
 setDT(church_2026_form_analysis)
 
 
-
-
-## ----------------------------------------------------------------
-## PART A: CONSTRUCT THE DENOMINATOR REFERENCE TABLES
-
-# Two metrics require denominators that vary across census boundaries and
-# decennial years. To improve the efficiency of downstream calculations,
-# these denominators are pre-compiled into a lookup table. If the
-# corresponding output files already exist, this section can be skipped.
-# 
-# Additionally, processing each census boundary level independently is 
-# unnecessary, as population and square mileage can be summed for higher-level 
-# aggregated GEOIDs. The only exception is ZCTAs, which must be calculated 
-# independently since their polygon boundaries do not cleanly align with GEOIDs. 
-# Under this approach, the smallest GEOID, block, will be annotated to maximize 
-# future metric generation.
-
-
-# To efficiently handle block-level GEOID data, state-level shapefiles will be 
-# imported by census division (1–9), each grouping as many as 9 states. These 
-# will then be compiled into a single lookup table containing both metrics.
+# To efficiently handle block-level GEOID GeoPackages and write block group-
+# and tract-level data (as Parquet or GeoJSON files), state-level shapefiles
+# and metric results will be handled by U.S. Census Bureau division (1–9),
+# each grouping as many as nine states. These will then be compiled into a
+# single lookup table containing both metrics.
 
 # Associate FIPS codes with their corresponding state abbreviations.
 fips_lu <- data.table(
@@ -197,6 +210,24 @@ state_fips_division <- data.table(
   abbr  = c(state.abb,  "DC"),
   division = c(as.character(state.division), "South Atlantic")
 )[fips_lu, on = "abbr"][order(fips), .(state, abbr, fips, division)]
+
+
+
+
+## ----------------------------------------------------------------
+## PART A: CONSTRUCT THE DENOMINATOR REFERENCE TABLES
+
+# Two metrics require denominators that vary across census boundaries and
+# decennial years. To improve the efficiency of downstream calculations,
+# these denominators are pre-compiled into a lookup table. If the
+# corresponding output files already exist, this section can be skipped.
+# 
+# Additionally, processing each census boundary level independently is 
+# unnecessary, as population and square mileage can be summed for higher-level 
+# aggregated GEOIDs. The only exception is ZCTAs, which must be calculated 
+# independently since their polygon boundaries do not cleanly align with GEOIDs. 
+# Under this approach, the smallest GEOID, block, will be annotated to maximize 
+# future metric generation.
 
 
 ## --------------------
@@ -222,10 +253,6 @@ state_fips_division <- data.table(
 block_geography <- "blocks"   # Optionally geography level = c("blocks", "block groups")
 divisions <- unique(state_fips_division$division)
 sigfigs   <- 4
-
-# Load the functions required to compile the lookup tables. If the lookup
-# tables have already been produced, this step can be skipped.
-source("./Code/Support Functions/For Step 2_2026 Format.R")
 
 
 # -- Process GEOIDs ----------------------------------
@@ -387,8 +414,8 @@ area_master <- reduce(year_tables, full_join, by = "area_code") %>%
 ## --------------------
 ## SUBSECTION A2: Get Population Counts
 
-# Total population counts are retrieved via the tidycensus API, which queries
-# the US Census Bureau using a specified table and variable. As with square
+# Total population counts are retrieved via tidycensus, which queries the US 
+# Census Bureau API using a specified table and variable. As with square 
 # mileage, data are fetched at the smallest available geographic unit (block
 # or block group) and then aggregated by summing up to larger GEOID census
 # boundaries.
@@ -396,6 +423,8 @@ area_master <- reduce(year_tables, full_join, by = "area_code") %>%
 # ZCTAs follow the same retrieval method but are handled separately and are
 # not rolled up into other census boundaries, as their polygon extents do not
 # align cleanly with standard GEOID hierarchies.
+# 
+# 
 # Census Bureau API query note (copied):
 # 
 # Note: 2020 decennial Census data use differential privacy, a technique that
@@ -404,12 +433,13 @@ area_master <- reduce(year_tables, full_join, by = "area_code") %>%
 # ℹ See https://www.census.gov/library/fact-sheets/2021/protecting-the-confidentiality-of-the-2020-census-redistricting-data.html for additional guidance.
 
 
-# Define the variable IDs and reference tables used by tidycensus.
-spec <- tibble::tribble(
+# Define the variable IDs and reference tables used by tidycensus to pull total
+# population for each decennial year.
+spec <- tribble(
   ~year, ~sumfile, ~var_totpop,
-  2000,  "sf1",    "P001001",  # 2000 SF1 total population
-  2010,  "sf1",    "P001001",  # 2010 SF1 total population
-  2020,  "dhc",    "P1_001N"   # 2020 DHC total population
+  2000,  "sf1",    "P001001",  # 2000 Summary File 1 ("sf1")
+  2010,  "sf1",    "P001001",  # 2010 Summary File 1 ("sf1")
+  2020,  "dhc",    "P1_001N"   # 2020 Demographic and Housing Characteristics File ("dhc"), Table P1
 )
 
 
@@ -752,28 +782,42 @@ church_2026_form_analysis[, `:=`(
 
 
 ## --------------------
-## SUBSECTION C2: 
+## SUBSECTION C2: Generate the Metrics in Chunks
 
-out_dir <- "./Data/Results/KEEP LOCAL/From Generate the Metrics/Intermitent Results"
+# Generating all metric combinations across every possible date range produces
+# files too large to hold in memory. Instead, this process iterates over subsets
+# of metrics, downloads each resulting chunk, and clears the environment before
+# moving on to the next.
+
+
+# Set storage location for intermediate “chunk” outputs.
+out_dir <- "./Data/Results/KEEP LOCAL/From Generate the Metrics/All Metric Results"
+
+# Create separate subfolders for outputs keyed by ZCTA vs GEOID.
 dir.create(file.path(out_dir, "by_zcta"),  recursive = TRUE, showWarnings = FALSE)
 dir.create(file.path(out_dir, "by_geoid"), recursive = TRUE, showWarnings = FALSE)
 
-CHUNK_SIZE <- 10L   # flush to disk every N windows; tune to your RAM budget
+# How often to flush results to disk (in number of date windows processed).
+# Increase if you have more RAM and want fewer disk writes; decrease if you hit 
+# memory limits.
+CHUNK_SIZE <- 8L
 
+# Build the rolling/decade-style year windows used to compute metrics.
+# min_span = 5 means windows are at least 5 years wide.
+date_range <- build_year_windows(church_2026_form_analysis, min_span = 5L)
 
-date_range <- build_year_windows(church_2026_form_analysis, min_span = 5L) #%>%
-  #filter(label %in% c("2010_2015", "2012_2018", "2010_2019"))
-
+# Available religion classifiers.
 relig_cols <- c(
   "buddhist_temple", "christian_church", "hindu_mandir", "jewish_synagogue",
   "muslim_mosque", "sikh_gurdwara", "other_religion", "interfaith", "unspecified"
 )
 
-pb <- utils::txtProgressBar(min = 0, max = nrow(date_range), style = 3)
+# Initialize progress bar
+pb <-txtProgressBar(min = 0, max = nrow(date_range), style = 3)
 on.exit(close(pb), add = TRUE)
 
-rollups_accum <- NULL
-chunk_id      <- 0L
+rollups_accum <- NULL  # Accumulator for results for the current chunk
+chunk_id <- 0L  # Initialize an empty list
 
 for (i in seq_len(nrow(date_range))) {
   
@@ -1157,8 +1201,10 @@ for (i in seq_len(nrow(date_range))) {
 
 
 #' @description
-#' Codebook 
-#'
+#' Codebook for all values generated during the metric calculation algorithm.
+#' Each set of metrics is calculated across all possible date ranges selectable
+#' by the user. A separate output file is produced for each census boundary type.
+#' 
 #' @field `[geoid|zcta]` The Census boundary unit to which all metrics in this
 #'                       row have been aggregated: block group, tract, county,
 #'                       or state GEOID, or ZIP Code Tabulation Area (ZCTA).
@@ -1170,111 +1216,266 @@ for (i in seq_len(nrow(date_range))) {
 #' @field year Decennial census reference year: \code{2000}, \code{2010},
 #'             or \code{2020}.
 #' 
-#' @field `[geoid|zcta]_pop` Total resident population for the corresponding
-#'                           decennial census year, assigned to each GEOID or
-#'                           ZCTA. GEOID-level counts were aggregated to match
-#'                           the census boundary granularity.
+#' @field `[geoid|zcta]_pop__YYYY_YYYY` Total resident population for the
+#'                                      corresponding decennial census year,
+#'                                      assigned to each GEOID or ZCTA.
+#'                                      GEOID-level counts were aggregated to
+#'                                      match the census boundary granularity.
 #'
-#' @field `[geoid|zcta]_sqMiles` Total land area in square miles for the
-#'                               corresponding decennial census year, assigned
-#'                               to each GEOID or ZCTA. GEOID-level values
-#'                               were aggregated to match the census boundary 
-#'                               granularity.
+#' @field `[geoid|zcta]_sqMiles__YYYY_YYYY` Total land area in square miles
+#'                                          for the corresponding decennial
+#'                                          census year, assigned to each
+#'                                          GEOID or ZCTA. GEOID-level values
+#'                                          were aggregated to match the
+#'                                          census boundary granularity.
+#'
+#' @field n_open__YYYY_YYYY Total number of ABIs located within the geographic
+#'                          unit and time window. Includes ABIs subsequently
+#'                          excluded by a missingness flag.
+#'
+#' @field closures_[no_moves|all]_any__YYYY_YYYY Count of ABIs with at least
+#'   one qualifying closure event, defined as four or more consecutive inactive
+#'   years following at least one active year. \code{no_moves} indicates ABIs
+#'   appearing under multiple addresses within the selected date range were
+#'   excluded prior to analysis. \code{all} indicates all ABIs were retained
+#'   and compressed: year-activity indicators across all addresses were summed
+#'   column-wise before event detection.
+#'
+#' @field closures_[no_moves|all]_per_sqmi__YYYY_YYYY Count of ABIs with at
+#'   least one qualifying closure event, normalised by the total land area
+#'   (square miles) of the census boundary unit in the corresponding decennial
+#'   period.
+#'
+#' @field closures_[no_moves|all]_per_10k__YYYY_YYYY Count of ABIs with at
+#'   least one qualifying closure event, normalised by the total resident
+#'   population of the census boundary unit in the corresponding decennial
+#'   period, expressed per 10,000 residents.
+#'
+#' @field closures_[no_moves|all]_avg__YYYY_YYYY Mean number of closure events
+#'   recorded by any single ABI within the selected geographic unit and time
+#'   window.
+#'
+#' @field closures_[no_moves|all]_max__YYYY_YYYY Maximum number of closure
+#'   events recorded by any single ABI within the selected geographic unit
+#'   and time window.
+#'
+#' @field reopenings_[no_moves|all]_[any|avg|max]__YYYY_YYYY Reopening-event
+#'   counterparts to the closure fields above, sharing identical
+#'   \code{no_moves}/\code{all} and \code{any}/\code{avg}/\code{max} semantics.
+#'   A reopening event is defined as two or more consecutive active years
+#'   immediately following a qualifying closure.
+#'
+#' @field n_move__YYYY_YYYY Count of ABIs within the geographic unit that
+#'                          relocated at least once during the selected time
+#'                          window.
 #' 
-#' @field n_open Total number of ABIs located within the geographic unit and
-#'               time window. Includes ABIs subsequently excluded by a
-#'               missingness flag.
+#' @field moves_total__YYYY_YYYY Mean number of relocations per ABI within
+#'                               the selected geographic unit and time window.
 #' 
-#' @field closures_[no_moves|all]_any Count of ABIs with at least one
-#'                                    qualifying closure event, defined as
-#'                                    four or more consecutive inactive years
-#'                                    following at least one active year.
-#'                                    \code{no_moves} indicates ABIs appearing
-#'                                    under multiple addresses within the
-#'                                    selected date range were excluded prior
-#'                                    to analysis. \code{all} indicates all
-#'                                    ABIs were retained and compressed: 
-#'                                    year-activity indicators across all
-#'                                    addresses were summed colum-wise before 
-#'                                    event detection.
-#' 
-#' @field closures_[no_moves|all]_per_sqmi Count of ABIs with at least one
-#'                                         qualifying closure event, normalised
-#'                                         by the total land area (square
-#'                                         miles) of the census boundary unit
-#'                                         in the corresponding decennial
-#'                                         period.
-#' 
-#' @field closures_[no_moves|all]_per_10k Count of ABIs with at least one
-#'                                        qualifying closure event, normalised
-#'                                        by the total resident population of
-#'                                        the census boundary unit in the
-#'                                        corresponding decennial period,
-#'                                        expressed per 10,000 residents.
-#'                                        
-#' @field closures_[no_moves|all]_avg Mean number of closure events recorded by
-#'                                    any singe ABI within the selected 
-#'                                    geographic unit and time window.
-#' 
-#' @field closures_[no_moves|all]_max Maximum number of closure events
-#'                                    recorded by any single ABI within the
-#'                                    selected geographic unit and time window.
-#'                                    
-#' @field reopenings_[no_moves|all]_[any|avg|max] Reopening-event counterparts
-#'                                                to the closure fields above,
-#'                                                sharing identical
-#'                                                \code{no_moves}/\code{all}
-#'                                                and \code{any}/\code{avg}/
-#'                                                \code{max} semantics. A
-#'                                                reopening event is defined as
-#'                                                two or more consecutive active
-#'                                                years immediately following a
-#'                                                qualifying closure.
-#' 
-#' @field n_move Count of ABIs within the geographic unit that relocated at
-#'               least once during the selected time window.
-#' 
-#' @field moves_total Mean number of relocations per ABI within the selected
-#'                    geographic unit and time window.
-#' 
-#' @field wavg_dist_km Mean across all ABIs of each ABI's move-count-weighted
-#'                     average relocation distance (km). The per-ABI weighted
-#'                     average uses number of moves at each recorded distance
-#'                     as weights; this field reports the mean of those per-ABI
-#'                     values across the geographic unit.
-#' 
-#' @field max_dist_km Greatest single-move distance (km) recorded among all
-#'                    ABIs within the geographic unit and time window.
-#' 
-#' @field move_gt_[5|10|25]mi Count of ABIs within the geographic unit that
-#'                            made at least one relocation exceeding the stated
-#'                            distance threshold (5, 10, or 25 miles).
-#' 
-#' @field addr1_na Missingness flag. \code{address_line_1} is \code{NA},
-#'                 preventing address-based geocoding.
-#'                 
-#' @field addr1_pobox Missingness flag. \code{address_line_1} contains a PO
-#'                    Box value; the physical location cannot be determined.
-#'                    
-#' @field `[geoid|zcta]_na` Missingness flag. The GEOID or ZCTA value is
-#'                          \code{NA}, preventing assignment to a geographic
-#'                          unit.
+#' @field wavg_dist_km__YYYY_YYYY Mean across all ABIs of each ABI's
+#'                                move-count-weighted average relocation
+#'                                distance (km). The per-ABI weighted average
+#'                                uses number of moves at each recorded
+#'                                distance as weights; this field reports the
+#'                                mean of those per-ABI values across the
+#'                                geographic unit.
+#'
+#' @field max_dist_km__YYYY_YYYY Greatest single-move distance (km) recorded
+#'                               among all ABIs within the geographic unit
+#'                               and time window.
+#'
+#' @field move_gt_[5|10|25]mi__YYYY_YYYY Count of ABIs within the geographic
+#'   unit that made at least one relocation exceeding the stated distance
+#'   threshold (5, 10, or 25 miles).
+#'
+#' @field addr1_na__YYYY_YYYY Missingness flag. \code{address_line_1} is
+#'                            \code{NA}, preventing address-based geocoding.
+#'
+#' @field addr1_pobox__YYYY_YYYY Missingness flag. \code{address_line_1}
+#'                               contains a PO Box value; the physical
+#'                               location cannot be determined.
+#'
+#' @field `[geoid|zcta]_na__YYYY_YYYY` Missingness flag. The GEOID or ZCTA
+#'                                     value is \code{NA}, preventing
+#'                                     assignment to a geographic unit.
+#'                          
+#' @note The suffix \code{YYYY_YYYY} represents the start and end years of
+#'   possible date range selections, where each year is a value between 2000 
+#'   and 2025 (e.g., \code{2004_2017}).
 
-# Save result for select time window.
-write_parquet(rollups_accum$by_geoid$block_group, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_blockgroup_08.26.2026.parquet")
-write_parquet(rollups_accum$by_geoid$tract, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_tract_08.26.2026.parquet")
-write_parquet(rollups_accum$by_geoid$county, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_county_08.26.2026.parquet")
-write_parquet(rollups_accum$by_geoid$state, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_state_08.26.2026.parquet")
-write_parquet(rollups_accum$by_zcta, "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/metrics_3timeframes_zcta_08.26.2026.parquet")
+# # Save the result for the selected time window if the run stopped before a reset.
+# chunk_to_save <- "chunk_0001.parquet"
+# 
+# write_parquet(rollups_accum$by_geoid$block_group, file.path(out_dir, "by_geoid/block_group", chunk_to_save))
+# write_parquet(rollups_accum$by_geoid$tract, file.path(out_dir, "by_geoid/tract", chunk_to_save))
+# write_parquet(rollups_accum$by_geoid$county, file.path(out_dir, "by_geoid/county", chunk_to_save))
+# write_parquet(rollups_accum$by_geoid$state, file.path(out_dir, "by_geoid/state", chunk_to_save))
+# write_parquet(rollups_accum$by_zcta, file.path(out_dir, "by_zcta", chunk_to_save))
+
+
+
+
+## --------------------
+## SUBSECTION C3: Validate Chunk Coverage
+
+# -- 0. Shared Setup ---------------------------------
+
+base_in <- "./Data/Results/KEEP LOCAL/From Generate the Metrics/All Metric Results"
+
+# Dedicated spill-to-disk folder for DuckDB temp files; isolated from
+# the OS default /tmp for easier monitoring and cleanup.
+duck_tmp <- file.path(Sys.getenv("HOME"), "tmp", "duckdb")
+dir.create(duck_tmp, recursive = TRUE, showWarnings = FALSE) # no-op if already exists
+
+keys_geoid <- c("geoid", "year", "religion", "geoid_pop", "geoid_sqMiles")
+keys_zcta  <- c("zcta",  "year", "religion", "zcta_pop",  "zcta_sqMiles")
+
+div_split_tags <- c("block_group", "tract")  # Census boundaries compiled by division
+
+geo_levels <- list(
+  list(tag = "block_group", in_folder = file.path(base_in, "by_geoid", "block_group"), keys = keys_geoid, id_col = "geoid", id_len = 12L),
+  list(tag = "tract",       in_folder = file.path(base_in, "by_geoid", "tract"),       keys = keys_geoid, id_col = "geoid", id_len = 11L),
+  list(tag = "county",      in_folder = file.path(base_in, "by_geoid", "county"),      keys = keys_geoid, id_col = "geoid", id_len =  5L),
+  list(tag = "state",       in_folder = file.path(base_in, "by_geoid", "state"),       keys = keys_geoid, id_col = "geoid", id_len =  2L),
+  list(tag = "zcta",        in_folder = file.path(base_in, "by_zcta"),                 keys = keys_zcta,  id_col = "zcta",  id_len =  5L)
+)
+
+metric_order <- c(
+  "n_open",
+  "closures_no_moves_any",
+  "closures_no_moves_per_sqmi",
+  "closures_no_moves_per_10k",
+  "closures_no_moves_avg",
+  "closures_no_moves_max",
+  "reopenings_no_moves_any",
+  "reopenings_no_moves_avg",
+  "reopenings_no_moves_max",
+  "n_move",
+  "closures_all_any",
+  "closures_all_per_sqmi",
+  "closures_all_per_10k",
+  "closures_all_avg",
+  "closures_all_max",
+  "reopenings_all_any",
+  "reopenings_all_avg",
+  "reopenings_all_max",
+  "moves_total",
+  "wavg_dist_km",
+  "max_dist_km",
+  "move_gt_5mi",
+  "move_gt_10mi",
+  "move_gt_25mi",
+  "addr1_na",
+  "addr1_pobox",
+  "geoid_na",
+  "zcta_na"
+)
+
+date_order <- date_range$label
+
+# Wrap a column/table name in double-quotes and escape any interior 
+# double-quotes by doubling them (ANSI SQL standard).
+quote_ident <- function(x) paste0('"', gsub('"', '""', x), '"')
+
+
+# -- DuckDB Performance Settings ---------------------
+
+# DuckDB is configured to optimize performance for large-scale data processing. 
+# An in-memory connection is established with a temporary directory assigned for 
+# spillover storage, four threads allocated for parallel query execution, a 24 
+# GB memory limit, and a 200 GB maximum temporary directory size. Preservation 
+# of insertion order is disabled to prioritize query performance over row 
+# ordering.
+
+
+# Number of threads allocated for parallel query execution
+duck_threads        <- 4
+
+# Maximum RAM allocated to DuckDB before spilling to disk
+duck_memory         <- "24GB"
+
+# Maximum disk space allocated for temporary storage when RAM is exceeded
+duck_temp_max       <- "200GB"
+
+# Disable preservation of insertion order to prioritize query performance
+duck_preserve_order <- "false"
+
+
+# Opens an in-memory DuckDB connection and applies the configuration settings
+# defined above. Returns the configured connection object for use in queries.
+open_con <- function() {
+  
+  # Establish an in-memory DuckDB connection
+  con <- dbConnect(duckdb(), dbdir = ":memory:")
+  
+  # Set the temporary directory for spillover when data exceeds the memory limit
+  dbExecute(con, sprintf("SET temp_directory='%s';",          duck_tmp))
+  
+  # Set the number of threads for parallel query execution
+  dbExecute(con, sprintf("SET threads=%d;",                   duck_threads))
+  
+  # Set the maximum RAM usage before spilling to the temporary directory
+  dbExecute(con, sprintf("SET memory_limit='%s';",            duck_memory))
+  
+  # Set the maximum disk space for the temporary directory
+  dbExecute(con, sprintf("SET max_temp_directory_size='%s';", duck_temp_max))
+  
+  # Disable preservation of insertion order to improve query performance
+  dbExecute(con, sprintf("SET preserve_insertion_order=%s;",  duck_preserve_order))
+  
+  # Return the configured connection object
+  con
+}
+
+
+# -- Division lookup ---------------------------------
+
+# Block group- and tract-level results are too large to handle together in a
+# single file. To address this, they are saved by U.S. Census Bureau division
+# (1–9), each grouping as many as nine states. All other results are compiled
+# into a single file.
+
+divisions <- unique(state_fips_division$division)
+
+div_fips <- setNames(
+  lapply(divisions, function(d)
+    state_fips_division$fips[state_fips_division$division == d]
+  ),
+  divisions
+)
+
+div_slug <- function(d) gsub("[^a-z0-9]+", "_", tolower(trimws(d)))
+
+
+# -- Run Pre-Flights ---------------------------------
+
+# Pre-flights A, B, and C confirm that the chunks written by the previous
+# metric generation function covered all expected combinations: metrics,
+# metrics × date range, etc.
+# 
+#   - Pre-flight A confirms that the date labels embedded in every folder's 
+#     column names match date_range$label exactly.
+# 
+#   - Pre-flight B confirms that every metric x date column pair expected from 
+#     metric_order x date_order is present in each folder's schema, with no 
+#     duplicates. 
+# 
+#   - Pre-flight C confirms that every geoid / zcta value is exactly the 
+#     Census-standard character length for its geography.
+
+all_keys <- unique(c(keys_geoid, keys_zcta))
+
+con <- open_con()
+preflight_a_log <- preflight_a_date_labels(geo_levels, date_order, all_keys, con)
+preflight_b_log <- preflight_b_metric_pairs(geo_levels, metric_order, date_order, con)
+preflight_c_log <- preflight_c_id_lengths(geo_levels, con)
+dbDisconnect(con, shutdown = TRUE)
 
 
 
 
 ## ----------------------------------------------------------------
-## PART D: Make GeoJSON
-
-## --------------------
-## SUBSECTION D1: Confirm Deliverables with Subset
+## PART D: CONFIRM DELIVERABLES WITH SUBSET
 
 # The metric calculation algorithm is time-intensive; most processing time is
 # spent generating metrics across new time windows. Subsetting the data does
@@ -1284,28 +1485,8 @@ write_parquet(rollups_accum$by_zcta, "./Data/Results/KEEP LOCAL/From Generate th
 # boundaries for dashboard testing and deliverable validation.
 
 
-# --- 1) Read in the TIGER/Line Shapefiles for WI -----------------------------
-# --- 1) Read in the TIGER/Line Shapefiles for WI -----------------------------
-
-subset_timeframe <- read_parquet("./Data/Results/KEEP LOCAL/From Generate the Metrics/2010 to 2015 Subset/metrics_2010to2015_tract_08.25.2026.parquet")
-setDT(subset_timeframe)
-
-
-# --- 1) Read in the TIGER/Line Shapefiles for WI -----------------------------
-
-block_geography <- "blocks"   # Optionally geography level = c("blocks", "block groups")
-states_present <- "WI"
-
-# Import the relevant states' GeoPackages for this division only (memory-safe).
-blocks_by_state <- read_state_gpkgs_for_data(
-  states_present, "./Data/Results/Census Bureau TIGER Line Shapefiles/",
-  geography = block_geography
-)
-
-
-
-
-# --- 2) Retrieve the Census Tract Details for Milwaukee, WI ------------------
+## --------------------
+## SUBSECTION D1: Tract Details for Milwaukee, WI
 
 # Part of the validation involved creating visualizations and summary metrics
 # for a presentation on religious organization closures in Milwaukee, WI
@@ -1316,13 +1497,13 @@ blocks_by_state <- read_state_gpkgs_for_data(
 # constituent census tracts.
 
 
-# Milwaukee city place polygon (PLACEFP = 53000) in Wisconsin (STATEFP = 55)
-mil_place <- places(state = "WI", year = 2023, class = "sf") %>%
+# Pull Milwaukee city place polygon (PLACEFP = 53000) in Wisconsin (STATEFP = 55)
+mil_place <- places(state = "WI", year = 2011, class = "sf") %>%
   filter(PLACEFP == "53000") %>%
   st_make_valid()
 
-# All Wisconsin tracts (or you can restrict to county = 079 for speed, see below)
-wi_tracts <- tracts(state = "WI", year = 2023, class = "sf") %>%
+# Pull all Wisconsin tracts
+wi_tracts <- tracts(state = "WI", year = 2011, class = "sf") %>%
   st_make_valid()
 
 # Use a projected CRS for area calculations (EPSG:5070 is good for CONUS)
@@ -1335,58 +1516,137 @@ x <- st_intersection(
   mil_place_5070 %>% select(PLACEFP)
 )
 
-# Relationship table: tract GEOID -> PLACEFP, with area share (optional)
-tract_place_rel <- x %>%
-  mutate(
-    inter_area = as.numeric(st_area(geometry))
-  ) %>%
-  group_by(GEOID) %>%
-  mutate(
-    tract_area = as.numeric(st_area(st_geometry(wi_tracts_5070[match(GEOID, wi_tracts_5070$GEOID), ]))),
-    place_area_share_of_tract = inter_area / tract_area
-  ) %>%
-  ungroup() %>%
-  st_drop_geometry() %>%
-  arrange(desc(place_area_share_of_tract))
-
-
-
-
-# If you just want the list of tract GEOIDs that touch the city at all:
-milwaukee_tract_geoids <- tract_place_rel %>%
+# List of tract GEOIDs that touch the Milwaukee city at all:
+milwaukee_tract_geoids <- x %>%
   distinct(GEOID) %>%
   pull(GEOID)
 
-milwaukee_tract_geoids
 
+## --------------------
+## SUBSECTION D2: Use the TIGER/Line Shapefiles for WI
+
+block_geography <- "blocks"   # Optionally geography level = c("blocks", "block groups")
+states_present <- "WI"
+
+# Import the relevant states' GeoPackages for this division only (memory-safe).
+blocks_by_state <- read_state_gpkgs_for_data(
+  states_present, "./Data/Results/Census Bureau TIGER Line Shapefiles/",
+  geography = block_geography
+)
+
+# Isolate the block group level polygons associated with Milwaukee city in the
+# 2010 decennial period.
 blocks_mke <- blocks_by_state$WI$blocks_2010 %>%
   mutate(geoid_tract = substr(geoid_block, 1, 11)) %>%
   filter(geoid_tract %in% milwaukee_tract_geoids)
 
 
-subset_timeframe %>%
+## --------------------
+## SUBSECTION D3: Compile Results for Three Date Ranges
+
+# The original request covers 2010 to 2015. Two additional date ranges are 
+# included here to practise navigating between chunk outputs across different 
+# date range selections.
+
+# Update the file path and output name to match the target census boundary
+data_dir    <- "./Data/Results/KEEP LOCAL/From Generate the Metrics/All Metric Results/by_geoid/tract"
+out_parquet <- "./Data/Results/KEEP LOCAL/From Generate the Metrics/PART D Confirm Deliverables/tract_combined.parquet"
+
+# Define the join keys for table merging
+keys         <- c("geoid", "year", "religion")
+# keys         <- c("zcta", "year", "religion")
+extra_cols   <- c("geoid_pop", "geoid_sqMiles")
+
+# Define the date ranges for compilation
+date_labels <- c("2000_2006", "2007_2024", "2010_2015")
+
+# Open a fresh DuckDB connection
+drv <- duckdb(dbdir = ":memory:")
+con <- dbConnect(drv)
+
+# Cap memory and set a spill-to-disk folder
+dbExecute(con, "SET memory_limit = '8GB';")
+dbExecute(con, sprintf("SET temp_directory='%s';",
+                       file.path(Sys.getenv("HOME"), "tmp", "duckdb")))
+
+# Get all column names across all files
+cols <- dbGetQuery(con, sprintf("
+  SELECT column_name
+  FROM (DESCRIBE SELECT * FROM read_parquet('%s/*.parquet', union_by_name = true));
+", data_dir))$column_name
+
+# Keep only key columns + columns matching the three date labels
+pattern     <- paste0("__(", paste(date_labels, collapse = "|"), ")$")
+metric_cols <- cols[grepl(pattern, cols)]
+keep        <- c(keys, cols[grepl(pattern, cols)])
+
+key_sql     <- paste(sprintf('"%s"', keys), collapse = ", ")
+extra_sql   <- paste(sprintf('MAX("%s") AS "%s"', extra_cols, extra_cols), collapse = ", \n")
+metric_sql  <- paste(sprintf('MAX("%s") AS "%s"', metric_cols, metric_cols), collapse = ", \n")
+having_sql  <- paste(sprintf('MAX("%s") IS NOT NULL', metric_cols), collapse = " OR ")
+
+# Update the ordering key between GEOID and ZCTA as needed
+dbExecute(con, sprintf("
+  COPY (
+    SELECT %s, %s
+    FROM read_parquet('%s/*.parquet', union_by_name = true)
+    GROUP BY %s
+    HAVING %s
+    ORDER BY geoid, year, religion
+  ) TO '%s' (FORMAT PARQUET);
+", key_sql, metric_sql, data_dir, key_sql, having_sql, out_parquet))
+
+# Close connection
+dbDisconnect(con, shutdown = TRUE)
+
+
+# Visualization is only required at the tract-level
+df_tract <- read_parquet("./Data/Results/KEEP LOCAL/From Generate the Metrics/PART D Confirm Deliverables/tract_combined.parquet")
+
+
+#' @description
+#' Codebook for the two exports in "~/PART D Confirm Deliverables". All census
+#' boundaries are exported as separate Parquet files, each restricted to one of
+#' three date range selections: 2000–2006, 2007–2024, and 2010–2015.
+#' Additionally, a CSV is provided representing the same dataset restricted to
+#' tract-level GEOIDs corresponding to Milwaukee, WI.
+#' 
+#' FIELDS ARE THE SAME AS THE FINAL RESULTS
+#'                          
+#' @note The suffix \code{YYYY_YYYY} represents the start and end years of
+#'   possible date range selections, where each year is a value between 2000 
+#'   and 2025 (e.g., \code{2004_2017}).
+
+# Save a CSV file for easier reviewing filtered to Milwaukee, WI
+df_tract %>%
   filter(geoid %in% blocks_mke$geoid_tract) %>%
   (\(x) {write.csv(x,
-          file = "./Data/Results/KEEP LOCAL/From Generate the Metrics/Three Timeframe Subset/milwaukee_tract_closures_2010to2015.csv",
+          file = "./Data/Results/KEEP LOCAL/From Generate the Metrics/PART D Confirm Deliverables/milwaukee_tract.csv",
           row.names = FALSE)})()
 
-milwaukee_tract_closures <- subset_timeframe %>%
-  filter(geoid %in% blocks_mke$geoid_tract, religion == "all_religions") %>%
-  filter(year == 2010)
+# Filter to Milwaukee, WI
+milwaukee_tract <- df_tract %>%
+  filter(
+    geoid %in% blocks_mke$geoid_tract, 
+    religion == "all_religions", 
+    year == 2010
+  )
 
-
+# Join with the polygons in preparation for plotting
 blocks_mke_joined <- blocks_mke[, c("geoid_tract", "geom")] |>
-  dplyr::left_join(
-    milwaukee_tract_closures,
+  left_join(
+    milwaukee_tract,
     by = c("geoid_tract" = "geoid")
   )
 
-# --- 3) Plot (example: closures_no_moves_any__2010_2015) ---------------------
+
+## --------------------
+## SUBSECTION D4: Plot Results
 
 # Project to an equal-area CRS for nicer-looking city maps
 blocks_mke_plot <- st_transform(blocks_mke_joined, 5070)
 
-ggplot() +
+p <- ggplot() +
   geom_sf(
     data = blocks_mke_plot,
     fill = NA,
@@ -1423,228 +1683,163 @@ ggplot() +
     legend.text   = element_text(size = 10)
   )
 
-
-# --- 4) Metrics --------------------------------------------------------------
-
-mean(milwaukee_tract_closures$addr1_na__2010_2015, na.rm = TRUE)
-max(milwaukee_tract_closures$addr1_na__2010_2015, na.rm = TRUE)
-
-mean(milwaukee_tract_closures$addr1_pobox__2010_2015, na.rm = TRUE)
-max(milwaukee_tract_closures$addr1_pobox__2010_2015, na.rm = TRUE)
-
-mean(milwaukee_tract_closures$geoid_na__2010_2015, na.rm = TRUE)
-max(milwaukee_tract_closures$geoid_na__2010_2015, na.rm = TRUE)
-
-mean(milwaukee_tract_closures$zcta_na__2010_2015, na.rm = TRUE)
-max(milwaukee_tract_closures$zcta_na__2010_2015, na.rm = TRUE)
-
-
-mean(milwaukee_tract_closures$n_move__2010_2015/milwaukee_tract_closures$n_open__2010_2015, na.rm = TRUE)
-mean(milwaukee_tract$n_move__2010_2015/milwaukee_tract$n_open__2010_2015, na.rm = TRUE)
-
-mean(milwaukee_tract_closures$moves_total__2010_2015, na.rm = TRUE)
-max(milwaukee_tract_closures$moves_total__2010_2015, na.rm = TRUE)
-mean(milwaukee_tract_closures$wavg_dist_km__2010_2015, na.rm = TRUE)
-mean(milwaukee_tract_closures$max_dist_km__2010_2015, na.rm = TRUE)
-
-mean(milwaukee_tract_closures$closures_all_any__2010_2015, na.rm = TRUE)
-sd(milwaukee_tract_closures$closures_all_any__2010_2015, na.rm = TRUE)
-mean(milwaukee_tract$closures_all_any__2010_2015, na.rm = TRUE)
-sd(milwaukee_tract$closures_all_any__2010_2015, na.rm = TRUE)
+# Save result
+ggsave(
+  filename = "./Data/Results/KEEP LOCAL/From Generate the Metrics/PART D Confirm Deliverables/milwaukee_tracts_plot.png",
+  plot     = p,
+  width    = 6,
+  height   = 8,
+  dpi      = 300
+)
 
 
 ## --------------------
-## SUBSECTION D2: 
+## SUBSECTION D5: Calculate Metrics
 
-# To efficiently handle block-level GEOID data, state-level shapefiles will be 
-# imported by census division (1–9), each grouping as many as 9 states. These 
-# will then be compiled into a single lookup table containing both metrics.
+setDT(df_tract)
+setDT(milwaukee_tract)
 
-# Associate FIPS codes with their corresponding state abbreviations.
-fips_lu <- data.table(
-  abbr = names(f <- c(AL="01",AK="02",AZ="04",AR="05",CA="06",CO="08",CT="09",DE="10",DC="11",FL="12",
-                      GA="13",HI="15",ID="16",IL="17",IN="18",IA="19",KS="20",KY="21",LA="22",ME="23",
-                      MD="24",MA="25",MI="26",MN="27",MS="28",MO="29",MT="30",NE="31",NV="32",NH="33",
-                      NJ="34",NM="35",NY="36",NC="37",ND="38",OH="39",OK="40",OR="41",PA="42",RI="44",
-                      SC="45",SD="46",TN="47",TX="48",UT="49",VT="50",VA="51",WA="53",WV="54",WI="55",WY="56")),
-  fips = unname(f)
-)
+# -- Missingness -------------------------------------
 
-# Compile the state-to-division lookup table.
-state_fips_division <- data.table(
-  state = c(state.name, "District of Columbia"),
-  abbr  = c(state.abb,  "DC"),
-  division = c(as.character(state.division), "South Atlantic")
-)[fips_lu, on = "abbr"][order(fips), .(state, abbr, fips, division)]
-
-block_geography <- "block groups"   # Optionally geography level = c("blocks", "block groups")
-divisions <- unique(state_fips_division$division)
-
-# Load the functions required to compile the lookup tables. If the lookup
-# tables have already been produced, this step can be skipped.
-source("./Code/Support Functions/For Step 2_2026 Format.R")
-
-data_root <- "./Data/Results/KEEP LOCAL/From Generate the Metrics/2010 to 2015 Subset"
-
-
-# -- Process GEOIDs ----------------------------------
-
-
-subset_timeframe <- read_parquet(file.path(data_root, "metrics_2010to2015_blockgroup_08.25.2026.parquet"))
-setDT(subset_timeframe)
-
-# Ensure expected key names exist (no normalization, just naming)
-# If your df uses geoid_block / decennial_year already, skip this renaming.
-if (!("geoid" %in% names(subset_timeframe)) && "geoid_block" %in% names(subset_timeframe)) {
-  setnames(subset_timeframe, "geoid_block", "geoid")
-}
-if (!("year" %in% names(subset_timeframe)) && "decennial_year" %in% names(subset_timeframe)) {
-  setnames(subset_timeframe, "decennial_year", "year")
-}
-
-# subset_timeframe is your data.table with keys geoid, year
-setDT(subset_timeframe)
-
-divisions <- unique(state_fips_division$division)
-out_by_div <- vector("list", length(divisions))
-names(out_by_div) <- divisions
-
-pb <- progress_bar$new(
-  format = "Divisions [:bar] :current/:total (:percent) | :message",
-  total  = length(divisions),
-  clear  = FALSE,
-  width  = 80
-)
-
-for (div in divisions) {
-  
-  pb$tick(tokens = list(message = div))
-  
-  states_present <- state_fips_division |>
-    filter(division == div) |>
-    pull(abbr) |>
-    unique()
-  
-  polys_by_state <- read_state_gpkgs_for_data(
-    states_present,
-    "./Data/Results/Census Bureau TIGER Line Shapefiles/",
-    geography = block_geography
-  )
-  
-  poly_div <- bind_rows(lapply(polys_by_state, function(st_list) {
-    bind_rows(lapply(st_list, function(x) {
-      if (!inherits(x, "sf")) return(NULL)
-      x |>
-        transmute(
-          geoid = geoid,
-          year  = as.integer(decennial_year),
-          geometry = sf::st_geometry(x)
-        )
-    }))
-  })) |>
-    distinct(geoid, year, .keep_all = TRUE)
-  
-  # keep each division result as data.table (faster to rbind later)
-  out_by_div[[div]] <- as.data.table(
-    as_tibble(subset_timeframe) |>
-      left_join(poly_div, by = c("geoid", "year"))
-  )
-  
-  rm(polys_by_state, poly_div); gc()
-}
-
-# fast row-bind at the end (data.table)
-result_dt <- rbindlist(out_by_div, use.names = TRUE, fill = TRUE)
+missingness_dt <- rbindlist(list(
+  milwaukee_tract[, .(
+    dataset = "Milwaukee, WI",
+    field   = "NA Address Line 1",
+    mean    = round(mean(addr1_na__2010_2015, na.rm = TRUE), digits = 2),
+    max     = suppressWarnings(max(addr1_na__2010_2015, na.rm = TRUE))
+  )],
+  milwaukee_tract[, .(
+    dataset = "Milwaukee, WI",
+    field   = "PO Box",
+    mean    = round(mean(addr1_pobox__2010_2015, na.rm = TRUE), digits = 2),
+    max     = suppressWarnings(max(addr1_pobox__2010_2015, na.rm = TRUE))
+  )],
+  milwaukee_tract[, .(
+    dataset = "Milwaukee, WI",
+    field   = "NA GEOID",
+    mean    = round(mean(geoid_na__2010_2015, na.rm = TRUE), digits = 2),
+    max     = suppressWarnings(max(geoid_na__2010_2015, na.rm = TRUE))
+  )],
+  milwaukee_tract[, .(
+    dataset = "Milwaukee, WI",
+    field   = "NA ZCTA",
+    mean    = round(mean(zcta_na__2010_2015, na.rm = TRUE), digits = 2),
+    max     = suppressWarnings(max(zcta_na__2010_2015, na.rm = TRUE))
+  )]
+), use.names = TRUE, fill = TRUE)
 
 
+# -- Move Ratio --------------------------------------
 
-
-
-
-tiger_root <- "./Data/Results/Census Bureau TIGER Line Shapefiles/"
-
-# levels to run (edit the "geography" values to match read_state_gpkgs_for_data())
-levels <- data.table(
-  level     = c("blockgroup", "tract", "county", "state"),
-  parquet   = c("metrics_2010to2015_blockgroup_08.25.2026.parquet",
-                "metrics_2010to2015_tract_08.25.2026.parquet",
-                "metrics_2010to2015_county_08.25.2026.parquet",
-                "metrics_2010to2015_state_08.25.2026.parquet"),
-  geography = c("block groups", "tracts", "counties", "states")
-)
-
-divisions <- unique(state_fips_division$division)
-
-pb <- progress_bar$new(
-  format = "Level :level | Division [:bar] :current/:total (:percent) | :message",
-  total  = nrow(levels) * length(divisions),
-  clear  = FALSE,
-  width  = 90
-)
-
-for (i in seq_len(nrow(levels))) {
-  
-  lvl      <- levels$level[i]
-  pq_file  <- levels$parquet[i]
-  geog     <- levels$geography[i]
-  
-  # ---- read metrics for this level
-  subset_timeframe <- read_parquet(file.path(data_root, pq_file))
-  setDT(subset_timeframe)
-  
-  # standardize key names (names only)
-  if (!("geoid" %in% names(subset_timeframe)) && "geoid_block" %in% names(subset_timeframe)) {
-    setnames(subset_timeframe, "geoid_block", "geoid")
-  }
-  if (!("year" %in% names(subset_timeframe)) && "decennial_year" %in% names(subset_timeframe)) {
-    setnames(subset_timeframe, "decennial_year", "year")
-  }
-  stopifnot(all(c("geoid", "year") %in% names(subset_timeframe)))
-  
-  # ---- per-level output dir (so no slow rbind at the end)
-  out_dir <- file.path(data_root, paste0("joined_geom_", lvl))
-  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-  
-  for (div in divisions) {
-    
-    pb$tick(tokens = list(level = lvl, message = div))
-    
-    states_present <- state_fips_division |>
-      filter(division == div) |>
-      pull(abbr) |>
-      unique()
-    
-    polys_by_state <- read_state_gpkgs_for_data(
-      states_present,
-      tiger_root,
-      geography = geog
+move_ratio_dt <- rbindlist(list(
+  milwaukee_tract[, list(
+    dataset = "Milwaukee, WI",
+    field   = "Percent ABI that Moved",
+    mean    = round(
+      100 * mean(
+        n_move__2010_2015 / pmax(
+          n_open__2010_2015
+          - addr1_na__2010_2015
+          - addr1_pobox__2010_2015
+          - geoid_na__2010_2015
+          - zcta_na__2010_2015,
+          1  # prevent division by 0 or negative denominators
+        ),
+        na.rm = TRUE
+      ),
+      2
     )
-    
-    # IMPORTANT: assumes each sf already has columns: geoid, decennial_year
-    poly_div <- bind_rows(lapply(polys_by_state, function(st_list) {
-      bind_rows(lapply(st_list, function(x) {
-        if (!inherits(x, "sf")) return(NULL)
-        x |>
-          transmute(
-            geoid = geoid,
-            year  = as.integer(decennial_year),
-            geometry = sf::st_geometry(x)
-          )
-      }))
-    })) |>
-      distinct(geoid, year, .keep_all = TRUE)
-    
-    div_joined <- as.data.table(
-      as_tibble(subset_timeframe) |>
-        left_join(poly_div, by = c("geoid", "year"))
+  )],
+  df_tract[, list(
+    dataset = "National",
+    field   = "Percent ABI that Moved",
+    mean    = round(
+      100 * mean(
+        n_move__2010_2015 / pmax(
+          n_open__2010_2015
+          - addr1_na__2010_2015
+          - addr1_pobox__2010_2015
+          - geoid_na__2010_2015
+          - zcta_na__2010_2015,
+          1
+        ),
+        na.rm = TRUE
+      ),
+      2
     )
-    
-    out_path <- file.path(out_dir, paste0("joined_", gsub("[^A-Za-z0-9]+", "_", div), ".parquet"))
-    write_parquet(div_joined, out_path)
-    
-    rm(polys_by_state, poly_div, div_joined); gc()
-  }
+  )]
+), use.names = TRUE, fill = TRUE)
+
+
+# -- Distance Moved ----------------------------------
+
+movement_dt <- rbindlist(list(
+  milwaukee_tract[, list(
+    dataset = "Milwaukee, WI",
+    field   = "Average # Moves",
+    mean    = round(mean(moves_total__2010_2015, na.rm = TRUE), 2),
+    max     = suppressWarnings(max(moves_total__2010_2015, na.rm = TRUE))
+  )],
+  df_tract[, list(
+    dataset = "National",
+    field   = "Average # Moves",
+    mean    = round(mean(moves_total__2010_2015, na.rm = TRUE), 2),
+    max     = suppressWarnings(max(moves_total__2010_2015, na.rm = TRUE))
+  )],
   
-  rm(subset_timeframe); gc()
-}
+  milwaukee_tract[, list(
+    dataset = "Milwaukee, WI",
+    field   = "Average Distance Moved (km)",
+    mean    = round(mean(wavg_dist_km__2010_2015, na.rm = TRUE), 2),
+    max     = suppressWarnings(max(wavg_dist_km__2010_2015, na.rm = TRUE))
+  )],
+  df_tract[, list(
+    dataset = "National",
+    field   = "Average Distance Moved (km)",
+    mean    = round(mean(wavg_dist_km__2010_2015, na.rm = TRUE), 2),
+    max     = suppressWarnings(max(wavg_dist_km__2010_2015, na.rm = TRUE))
+  )],
+  
+  milwaukee_tract[, list(
+    dataset = "Milwaukee, WI",
+    field   = "Maximum Distance Moved (km)",
+    mean    = round(mean(max_dist_km__2010_2015, na.rm = TRUE), 2),
+    max     = suppressWarnings(max(max_dist_km__2010_2015, na.rm = TRUE))
+  )],
+  df_tract[, list(
+    dataset = "National",
+    field   = "Maximum Distance Moved (km)",
+    mean    = round(mean(max_dist_km__2010_2015, na.rm = TRUE), 2),
+    max     = suppressWarnings(max(max_dist_km__2010_2015, na.rm = TRUE))
+  )]
+), use.names = TRUE, fill = TRUE)
+
+
+# -- Average and Spread of Closures ------------------
+
+closures_dt <- rbindlist(list(
+  milwaukee_tract[, .(
+    dataset = "Milwaukee, WI",
+    field   = "Any Closures",
+    mean    = round(mean(closures_all_any__2010_2015, na.rm = TRUE), digits = 2),
+    sd      = round(sd(closures_all_any__2010_2015, na.rm = TRUE), digits = 2)
+  )],
+  df_tract[, .(
+    dataset = "National",
+    field   = "Any Closures",
+    mean    = round(mean(closures_all_any__2010_2015, na.rm = TRUE), digits = 2),
+    sd      = round(sd(closures_all_any__2010_2015, na.rm = TRUE), digits = 2)
+  )]
+), use.names = TRUE, fill = TRUE)
+
+
+# -- Result Tables -----------------------------------
+
+missingness_dt[]
+move_ratio_dt[]
+movement_dt[]
+closures_dt[]
+
+
+
 

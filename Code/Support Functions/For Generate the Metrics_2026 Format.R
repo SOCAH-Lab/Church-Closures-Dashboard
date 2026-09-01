@@ -3,15 +3,15 @@
 ##
 ##       Authors: Shelby Golden, MS from Yale's YSPH DSDE group
 ##  Date Created: August 16th, 2026
-## Date Modified: August 18th, 2026
+## Date Modified: August 31st, 2026
 ## 
 ## Description: This script defines functions specific to the "Generate the 
 ##              Metrics" of the data cleaning and validation process. These 
 ##              supplement the general-purpose functions defined in a separate 
 ##              script, and were developed in response to findings from the 
 ##              initial exploratory data analysis, improvements identified from
-##              processing the 2023 Formatted data, and variations
-##              encountered in the process data update script.
+##              processing the 2023 Formatted data, and variations encountered 
+##              in the process data update script.
 ##
 ## NOTE: Much of this content was developed with the assistance of Yale's
 ##       AI Clarity.
@@ -101,11 +101,7 @@
 ##       Rates are computed off the *_any__<lab> columns (businesses with any 
 ##       event).
 ## 
-##   14. move_col_after: Reorder columns in a data.table so that a specified 
-##       column $$col$$ appears immediately after another column $$after$$. If 
-##       either column is missing, the input is returned unchanged.
-## 
-##   15. reorder_rollup_cols: Reorder rollup output columns into a stable, 
+##   14. reorder_rollup_cols: Reorder rollup output columns into a stable, 
 ##       human-readable layout. Pure presentation helper: does NOT change 
 ##       values, only column order.
 ## 
@@ -124,6 +120,72 @@
 ##          *_any__<lab> = count of ABIs with >0 events (binary per ABI: >0 -> 1)
 ##          *_avg__<lab> and *_max__<lab> are computed over ABIs with >0 events
 ##          (zeros excluded), so they summarize "eventful" ABIs only.
+## 
+##   15. preflight_a_date_labels: Validate date labels across all input parquet 
+##       folders (Pre-Flight A). Scans the column names of every geography's 
+##       input parquet chunks and extracts the date labels embedded after the 
+##       last double-underscore separator (e.g. \code{n_open__2000_2004} yields 
+##       \code{2000_2004}). Confirms that the union of all found labels matches 
+##       \code{date_order} exactly -- no labels missing, no labels extra -- 
+##       across every folder and in aggregate.
+## 
+##       The check is intentionally strict: a label present in \code{date_order}
+##       but absent from even one folder will trigger a hard stop, because the
+##       subsequent column-ordering and coverage logic assumes a complete,
+##       consistent label set.
+## 
+##   16. preflight_b_metric_pairs: Validate metric x date column pairs across 
+##       all input parquet folders (Pre-Flight B). For each geography, reads the 
+##       merged column schema from all input parquet chunks and verifies that 
+##       every combination of \code{metric_order} and \code{date_order} is 
+##       represented as exactly one column, named in the form 
+##       \code{<metric>__<date_label>}. Three distinct problems are detected:
+## 
+##             - Missing pairs: A \code{metric x date_label combination expected
+##               from the \code{metric_order} x \code{date_order} grid has no
+##               corresponding column in the folder. This would produce 
+##               \code{NA}-filled columns or silent data loss in the compiled 
+##               output.
+##             - Duplicate pairs: The same \code{metric x date_label combination
+##               appears more than once as a column name. This would cause 
+##               ambiguity in the downstream \code{SELECT} and is treated as a 
+##               hard failure.
+##             - Partial metrics A metric is present for some date labels but 
+##               not all. These are a subset of missing pairs and are reported 
+##               separately as an informational diagnostic to help distinguish a 
+##               fully absent metric from one that was only partially computed.
+## 
+##       Missing pairs and duplicates both trigger a hard stop; partial metrics 
+##       are informational only and do not independently stop execution (they 
+##       will already be captured by the missing-pairs check).
+## 
+##   17. preflight_c_id_lengths: Validate ID column character lengths across 
+##       all input parquet folders (Pre-Flight C). For each geography, queries 
+##       the full distribution of character lengths present in the identifier 
+##       column (\code{geoid} or \code{zcta}) across all input parquet chunks 
+##       and confirms that every value is exactly the expected Census Bureau 
+##       length for that geography level:
+## 
+##       \tabular{ll}{
+##          \strong{Geography} \tab \strong{Expected length} \cr
+##          block_group        \tab 12 \cr
+##          tract              \tab 11 \cr
+##          county             \tab  5 \cr
+##          state              \tab  2 \cr
+##          zcta               \tab  5 \cr
+##       }
+## 
+##       These lengths reflect standard Census FIPS/GEOID encoding where each
+##       component is zero-padded to a fixed width (e.g. a block group GEOID is
+##       composed of 2-digit state + 3-digit county + 6-digit tract + 1-digit
+##       block group = 12 characters total). Any deviation -- including IDs that
+##       are too short due to a missing leading zero -- is treated as a hard
+##       failure, because malformed IDs would corrupt the division-filter logic
+##       (\code{substring(geoid, 1, 2)}) and any downstream spatial joins.
+## 
+##       The full length distribution is reported on failure (not just a count
+##       of bad rows) so the user can distinguish, for example, a handful of
+##       truncated IDs from a systematic encoding error affecting a whole state.
 
 ## ----------------------------------------------------------------
 ## FUNCTIONS
@@ -1266,37 +1328,6 @@ rollup_results <- function(
 
 
 
-move_col_after <- function(DT, col, after) {
-  #' Reorder columns in a data.table so that a specified column $$col$$ appears
-  #' immediately after another column $$after$$. If either column is missing,
-  #' the input is returned unchanged.
-  #'
-  #' @param DT A data.table (or data.frame coercible to data.table) whose columns
-  #'   you want to reorder.
-  #' @param col A single character string: the column name to move.
-  #' @param after A single character string: the column name that $$col$$ should
-  #'   be placed after.
-  #'
-  #' @return The same data.table $$DT$$, with updated column order (in-place).
-  #'
-  #' @details
-  #'   This function is a safe, no-op reorder helper:
-  #'   - If $$col \notin names(DT)$$ or $$after \notin names(DT)$$, it returns $$DT$$
-  #'     without changes.
-  #'   - Otherwise, it removes $$col$$ from the current order and reinserts it
-  #'     immediately after $$after$$.
-  
-  if (!(col %chin% names(DT)) || !(after %chin% names(DT))) return(DT)
-  cur <- names(DT)
-  cur <- cur[cur != col]
-  pos <- match(after, cur)
-  data.table::setcolorder(DT, append(cur, col, after = pos))
-  DT
-}
-
-
-
-
 reorder_rollup_cols <- function(dt, lab, id = c("zcta", "geoid")) {
   #' Reorder rollup output columns into a stable, human-readable layout.
   #' Pure presentation helper: does NOT change values, only column order.
@@ -1385,4 +1416,562 @@ reorder_rollup_cols <- function(dt, lab, id = c("zcta", "geoid")) {
   data.table::setcolorder(dt, c(front, event_block, remaining))
   dt
 }
+
+
+
+
+preflight_a_date_labels <- function(geo_levels, date_order, all_keys, con) {
+  #' Validate date labels across all input parquet folders (Pre-Flight A).
+  #' Scans the column names of every geography's input parquet chunks and
+  #' extracts the date labels embedded after the last double-underscore
+  #' separator (e.g. \code{n_open__2000_2004} yields \code{2000_2004}).
+  #' Confirms that the union of all found labels matches \code{date_order}
+  #' exactly -- no labels missing, no labels extra -- across every folder
+  #' and in aggregate.
+  #'
+  #' The check is intentionally strict: a label present in \code{date_order}
+  #' but absent from even one folder will trigger a hard stop, because the
+  #' subsequent column-ordering and coverage logic assumes a complete,
+  #' consistent label set.
+  #'
+  #' @param geo_levels A named list of geography definitions. Each element
+  #'   must contain at minimum:
+  #'   \describe{
+  #'     \item{\code{tag}}{Character. Short geography name (e.g.
+  #'       \code{"tract"}).}
+  #'     \item{\code{in_folder}}{Character. Path to the folder containing
+  #'       the input \code{.parquet} chunks for this geography.}
+  #'   }
+  #' @param date_order Character vector of expected date-range labels in the
+  #'   desired output order (e.g. from \code{date_range$label}).
+  #' @param all_keys Character vector of all key/identifier column names
+  #'   across every geography (e.g. the union of \code{keys_geoid} and
+  #'   \code{keys_zcta}). These are excluded from the label scan so that
+  #'   columns such as \code{"geoid"} or \code{"year"} are never mistaken
+  #'   for metric columns.
+  #' @param con A live \code{DBI} connection to a DuckDB instance, opened
+  #'   and closed by the caller so that all three pre-flight checks can
+  #'   share a single connection.
+  #'
+  #' @return Invisibly returns a named list (one element per geography tag)
+  #'   of character vectors containing the unique date labels found in that
+  #'   geography's column names. Returned invisibly so routine use does not
+  #'   clutter the console; assign the result if you need it for later
+  #'   inspection (e.g. \code{preflight_a_log <- preflight_a_date_labels(...)}).
+  #'
+  #' @section Side effects:
+  #'   Prints a per-geography status table to the console. Calls
+  #'   \code{stop()} if any mismatch is detected, halting execution before
+  #'   any output files are written.
+  #'
+  #' @seealso \code{\link{preflight_b_metric_pairs}},
+  #'   \code{\link{preflight_c_id_lengths}}
+  
+  cat("\n", strrep("=", 60), "\n")
+  cat("  PRE-FLIGHT A: Validating date labels across all folders\n")
+  cat(strrep("=", 60), "\n")
+  
+  # -- 1. Collect found labels --------------------------------
+  # For each geography, read the merged column schema across all
+  # parquet chunks (union_by_name handles differing chunk schemas),
+  # keep only columns that contain a double-underscore separator and
+  # are not key/identifier columns, then extract the portion after the
+  # LAST double-underscore -- that is the date label.
+  found_labels <- lapply(geo_levels, function(geo) {
+    cols <- dbGetQuery(con, sprintf(
+      "DESCRIBE SELECT * FROM read_parquet('%s/*.parquet', union_by_name = true);",
+      geo$in_folder
+    ))$column_name
+    
+    # TRUE for metric columns of the form  <metric>__<date_label>;
+    # FALSE for key columns and any column without a separator.
+    has_sep <- grepl("__(?!.*__)", cols, perl = TRUE) & !(cols %in% all_keys)
+    
+    # Strip everything up to and including the last "__".
+    unique(sub("^.*__", "", cols[has_sep]))
+  })
+  names(found_labels) <- sapply(geo_levels, `[[`, "tag")
+  
+  # -- 2. Build aggregate sets --------------------------------
+  # Union of all labels found across every geography folder.
+  all_found             <- sort(unique(unlist(found_labels)))
+  expected              <- sort(date_order)
+  
+  # Labels in date_order that were not found anywhere in the folders.
+  in_expected_not_found <- setdiff(expected,  all_found)
+  
+  # Labels found in folders that are not in date_order.
+  in_found_not_expected <- setdiff(all_found, expected)
+  
+  cat("\n  date_range labels expected :", length(expected),  "\n")
+  cat(  "  Unique labels found        :", length(all_found), "\n")
+  
+  # -- 3. Per-geography status report -------------------------
+  # Report OK / MISMATCH for each folder individually so the user can
+  # immediately see which geography has the problem rather than only
+  # seeing the aggregate failure.
+  for (tag in names(found_labels)) {
+    geo_labels   <- sort(found_labels[[tag]])
+    missing_here <- setdiff(expected,   geo_labels)   # in date_order, not in folder
+    extra_here   <- setdiff(geo_labels, expected)     # in folder, not in date_order
+    status       <- if (length(missing_here) == 0 && length(extra_here) == 0) "OK" else "MISMATCH"
+    
+    cat(sprintf("  %-12s  labels found: %3d  [%s]\n", tag, length(geo_labels), status))
+    
+    if (length(missing_here) > 0)
+      cat("    Missing from folder       :", paste(missing_here, collapse = ", "), "\n")
+    if (length(extra_here)   > 0)
+      cat("    Extra (not in date_range) :", paste(extra_here,   collapse = ", "), "\n")
+  }
+  
+  # -- 4. Hard stop on any mismatch ---------------------------
+  # message() is used (not cat) so the error text goes to stderr and
+  # remains visible even when stdout is redirected to a log file.
+  if (length(in_expected_not_found) > 0 || length(in_found_not_expected) > 0) {
+    if (length(in_expected_not_found) > 0)
+      message("\n  MISSING from all folders (in date_range but not found):\n  ",
+              paste(in_expected_not_found, collapse = ", "))
+    if (length(in_found_not_expected) > 0)
+      message("\n  EXTRA labels found (not in date_range):\n  ",
+              paste(in_found_not_expected, collapse = ", "))
+    stop("Pre-flight A failed: date label mismatch. Resolve before compiling.")
+  }
+  
+  cat("\n  Pre-flight A PASSED: all date labels match date_range$label.\n")
+  
+  # Return the per-geography label lists invisibly so the caller can
+  # inspect them if needed without printing anything automatically.
+  invisible(found_labels)
+}
+
+
+
+
+preflight_b_metric_pairs <- function(geo_levels, metric_order, date_order, con) {
+  #' Validate metric x date column pairs across all input parquet folders 
+  #' (Pre-Flight B). For each geography, reads the merged column schema from all 
+  #' input parquet chunks and verifies that every combination of 
+  #' \code{metric_order} and \code{date_order} is represented as exactly one 
+  #' column, named in the form \code{<metric>__<date_label>}. Three distinct 
+  #' problems are detected:
+  #'
+  #' \describe{
+  #'   \item{Missing pairs}{A \code{metric x date_label} combination expected
+  #'     from the \code{metric_order} x \code{date_order} grid has no
+  #'     corresponding column in the folder. This would produce \code{NA}-filled
+  #'     columns or silent data loss in the compiled output.}
+  #'   \item{Duplicate pairs}{The same \code{metric x date_label} combination
+  #'     appears more than once as a column name. This would cause ambiguity in
+  #'     the downstream \code{SELECT} and is treated as a hard failure.}
+  #'   \item{Partial metrics}{A metric is present for some date labels but not
+  #'     all. These are a subset of missing pairs and are reported separately as
+  #'     an informational diagnostic to help distinguish a fully absent metric
+  #'     from one that was only partially computed.}
+  #' }
+  #'
+  #' Missing pairs and duplicates both trigger a hard stop; partial metrics are
+  #' informational only and do not independently stop execution (they will
+  #' already be captured by the missing-pairs check).
+  #'
+  #' @param geo_levels A named list of geography definitions. Each element
+  #'   must contain:
+  #'   \describe{
+  #'     \item{\code{tag}}{Character. Short geography name (e.g.
+  #'       \code{"tract"}).}
+  #'     \item{\code{in_folder}}{Character. Path to the folder containing
+  #'       the input \code{.parquet} chunks for this geography.}
+  #'     \item{\code{keys}}{Character vector. Key/identifier column names
+  #'       for this geography (e.g. \code{c("geoid", "year", "religion",
+  #'       "geoid_pop", "geoid_sqMiles")}). These are excluded from the
+  #'       metric column scan.}
+  #'   }
+  #' @param metric_order Character vector of expected metric names in the
+  #'   desired output order. Every element must appear as the prefix (before
+  #'   the last \code{__}) of at least one column in every folder.
+  #' @param date_order Character vector of expected date-range labels in the
+  #'   desired output order (e.g. from \code{date_range$label}). Every
+  #'   element must appear as the suffix (after the last \code{__}) of at
+  #'   least one column per metric in every folder.
+  #' @param con A live \code{DBI} connection to a DuckDB instance, opened
+  #'   and closed by the caller so that all three pre-flight checks can
+  #'   share a single connection.
+  #'
+  #' @return Invisibly returns a list with one element per geography,
+  #'   each containing:
+  #'   \describe{
+  #'     \item{\code{tag}}{Character. Geography tag.}
+  #'     \item{\code{n_expected}}{Integer. Total expected pairs:
+  #'       \code{length(metric_order) * length(date_order)}.}
+  #'     \item{\code{n_present}}{Integer. Unique \code{metric x date_label}
+  #'       pairs actually found in the folder's column schema.}
+  #'     \item{\code{missing_pairs}}{Data frame of \code{metric} and
+  #'       \code{label} columns listing every expected pair not found.
+  #'       Zero rows on pass.}
+  #'     \item{\code{duplicate_pairs}}{Data frame of all rows (including
+  #'       both copies) for any duplicated \code{metric x date_label}
+  #'       combination. Zero rows on pass.}
+  #'     \item{\code{partial_metrics}}{Data frame of metrics present for
+  #'       at least one but fewer than \code{length(date_order)} date
+  #'       labels. Informational; zero rows when coverage is complete.}
+  #'     \item{\code{ok}}{Logical. \code{TRUE} if no missing pairs and no
+  #'       duplicates were found for this geography.}
+  #'   }
+  #'
+  #' @section Side effects:
+  #'   Prints a per-geography summary line and, on failure, a compact
+  #'   breakdown of missing pairs grouped by metric with the specific
+  #'   missing date labels listed inline. Calls \code{stop()} if any
+  #'   geography has missing pairs or duplicates, halting execution before
+  #'   any output files are written.
+  #'
+  #' @seealso \code{\link{preflight_a_date_labels}},
+  #'   \code{\link{preflight_c_id_lengths}}
+  
+  cat("\n", strrep("=", 60), "\n")
+  cat("  PRE-FLIGHT B: Validating metric x date pairs per folder\n")
+  cat(strrep("=", 60), "\n")
+  
+  # Accumulator for per-geography results, and a global pass/fail flag.
+  # all_ok is flipped to FALSE on the first failing geography but the
+  # loop continues so every geography's issues are reported in one pass
+  # rather than stopping at the first failure.
+  log    <- vector("list", length(geo_levels))
+  all_ok <- TRUE
+  
+  for (i in seq_along(geo_levels)) {
+    
+    tag       <- geo_levels[[i]]$tag
+    in_folder <- geo_levels[[i]]$in_folder
+    keys      <- geo_levels[[i]]$keys
+    
+    # -- 1. Read column schema --------------------------------
+    # union_by_name merges schemas across chunks so columns that appear
+    # in only some chunks are still captured in the DESCRIBE output.
+    cols <- dbGetQuery(con, sprintf(
+      "DESCRIBE SELECT * FROM read_parquet('%s/*.parquet', union_by_name = true);",
+      in_folder
+    ))$column_name
+    
+    # Identify metric columns: must contain a double-underscore separator
+    # and must not be a key/identifier column.
+    is_key  <- cols %in% keys
+    has_sep <- grepl("__(?!.*__)", cols, perl = TRUE) & !is_key
+    
+    # -- 2. Build present-pairs table -------------------------
+    # Split each metric column name into its metric prefix (everything
+    # before the last "__") and its date label suffix (everything after
+    # the last "__"). Retain the original column name for duplicate
+    # reporting.
+    present_pairs <- data.frame(
+      metric = sub("__(?!.*__).*", "", cols[has_sep], perl = TRUE),
+      label  = sub("^.*__",        "", cols[has_sep]),
+      col    = cols[has_sep],
+      stringsAsFactors = FALSE
+    )
+    
+    # -- 3. Detect duplicates ---------------------------------
+    # A duplicated metric x date pair means the same combination appears
+    # under two different column names, which would create ambiguity in
+    # the downstream SELECT.  Both copies are retained in dup_pairs so
+    # the user can see exactly which column names are clashing.
+    dup_pairs <- present_pairs[
+      duplicated(present_pairs[, c("metric","label")]) |
+        duplicated(present_pairs[, c("metric","label")], fromLast = TRUE), ]
+    
+    # -- 4. Detect missing pairs ------------------------------
+    # Build the full expected grid and left-join the found pairs onto it.
+    # Any row surviving with _merge == "left_only" is a missing pair.
+    expected_pairs <- expand.grid(
+      metric = metric_order, label = date_order, stringsAsFactors = FALSE)
+    
+    missing_pairs <- merge(
+      expected_pairs, unique(present_pairs[, c("metric","label")]),
+      by = c("metric","label"), all.x = TRUE, indicator = TRUE
+    )
+    missing_pairs <- missing_pairs[
+      missing_pairs$`_merge` == "left_only", c("metric","label")]
+    
+    # -- 5. Detect partial metrics (informational) ------------
+    # A metric is "partial" if it is present for at least one date label
+    # but fewer than the full set.  These will already appear in
+    # missing_pairs; surfacing them separately makes it easier to
+    # distinguish a metric that was never computed from one that was
+    # only partially computed.
+    n_dates_per_metric <- aggregate(
+      label ~ metric,
+      data = unique(present_pairs[, c("metric","label")]),
+      FUN  = function(x) sum(x %in% date_order)
+    )
+    names(n_dates_per_metric)[2] <- "n_dates"
+    partial_metrics <- n_dates_per_metric[
+      n_dates_per_metric$n_dates > 0 &
+        n_dates_per_metric$n_dates < length(date_order), ]
+    
+    # -- 6. Summary line --------------------------------------
+    geo_ok <- nrow(missing_pairs) == 0 && nrow(dup_pairs) == 0
+    if (!geo_ok) all_ok <- FALSE
+    
+    n_exp  <- length(metric_order) * length(date_order)
+    n_pres <- nrow(unique(present_pairs[, c("metric","label")]))
+    
+    cat(sprintf(
+      "\n  %-12s  expected: %4d  |  found: %4d  |  missing: %3d  |  dupes: %3d  [%s]\n",
+      tag, n_exp, n_pres, nrow(missing_pairs), nrow(dup_pairs),
+      if (geo_ok) "OK" else "FAIL"
+    ))
+    
+    # -- 7. Detailed failure output ---------------------------
+    # Missing pairs: grouped by metric to keep output compact when many
+    # date labels are missing for the same metric, with the specific
+    # missing labels listed inline for surgical diagnosis.
+    if (nrow(missing_pairs) > 0) {
+      miss_by_metric <- aggregate(label ~ metric, data = missing_pairs, FUN = length)
+      names(miss_by_metric)[2] <- "n_dates_missing"
+      
+      # Sort by metric_order so the output matches the expected schema order.
+      miss_by_metric <- miss_by_metric[order(match(miss_by_metric$metric, metric_order)), ]
+      cat("    Metrics with missing dates:\n")
+      
+      for (j in seq_len(nrow(miss_by_metric))) {
+        these_dates <- missing_pairs$label[
+          missing_pairs$metric == miss_by_metric$metric[j]]
+        # Sort missing dates by date_order for readability.
+        these_dates <- these_dates[order(match(these_dates, date_order))]
+        cat(sprintf("      %-35s  missing %d: %s\n",
+                    miss_by_metric$metric[j],
+                    miss_by_metric$n_dates_missing[j],
+                    paste(these_dates, collapse = ", ")))
+      }
+    }
+    
+    # Duplicate columns: print the full rows so the user can see the
+    # exact column names that are clashing.
+    if (nrow(dup_pairs) > 0) {
+      cat("    Duplicate metric x date columns:\n")
+      print(dup_pairs, row.names = FALSE)
+    }
+    
+    # Partial metrics: informational only, does not affect geo_ok.
+    if (nrow(partial_metrics) > 0) {
+      cat("    Metrics present for only some dates (informational):\n")
+      print(partial_metrics[order(match(partial_metrics$metric, metric_order)), ],
+            row.names = FALSE)
+    }
+    
+    # -- 8. Store per-geography result ------------------------
+    log[[i]] <- list(
+      tag             = tag,
+      n_expected      = n_exp,
+      n_present       = n_pres,
+      missing_pairs   = missing_pairs,
+      duplicate_pairs = dup_pairs,
+      partial_metrics = partial_metrics,
+      ok              = geo_ok
+    )
+  }
+  
+  # -- 9. Hard stop after full loop -------------------------
+  # Stopping after the loop (rather than inside it) ensures all five
+  # geographies are reported before execution halts, so the user can
+  # fix all issues in one round rather than discovering them one by one.
+  if (!all_ok)
+    stop("Pre-flight B failed: metric x date pair issues found. Resolve before compiling.")
+  
+  cat("\n  Pre-flight B PASSED: all metric x date pairs present in every folder.\n")
+  invisible(log)
+}
+
+
+
+
+preflight_c_id_lengths <- function(geo_levels, con) {
+  #' Validate ID column character lengths across all input parquet folders 
+  #' (Pre-Flight C). For each geography, queries the full distribution of 
+  #' character lengths present in the identifier column (\code{geoid} or 
+  #' \code{zcta}) across all input parquet chunks and confirms that every value 
+  #' is exactly the expected Census Bureau length for that geography level:
+  #'
+  #' \tabular{ll}{
+  #'   \strong{Geography} \tab \strong{Expected length} \cr
+  #'   block_group        \tab 12 \cr
+  #'   tract              \tab 11 \cr
+  #'   county             \tab  5 \cr
+  #'   state              \tab  2 \cr
+  #'   zcta               \tab  5 \cr
+  #' }
+  #'
+  #' These lengths reflect standard Census FIPS/GEOID encoding where each
+  #' component is zero-padded to a fixed width (e.g. a block group GEOID is
+  #' composed of 2-digit state + 3-digit county + 6-digit tract + 1-digit
+  #' block group = 12 characters total). Any deviation -- including IDs that
+  #' are too short due to a missing leading zero -- is treated as a hard
+  #' failure, because malformed IDs would corrupt the division-filter logic
+  #' (\code{substring(geoid, 1, 2)}) and any downstream spatial joins.
+  #'
+  #' The full length distribution is reported on failure (not just a count
+  #' of bad rows) so the user can distinguish, for example, a handful of
+  #' truncated IDs from a systematic encoding error affecting a whole state.
+  #'
+  #' @param geo_levels A named list of geography definitions. Each element
+  #'   must contain:
+  #'   \describe{
+  #'     \item{\code{tag}}{Character. Short geography name (e.g.
+  #'       \code{"block_group"}).}
+  #'     \item{\code{in_folder}}{Character. Path to the folder containing
+  #'       the input \code{.parquet} chunks for this geography.}
+  #'     \item{\code{id_col}}{Character. Name of the identifier column to
+  #'       validate: \code{"geoid"} for all Census geographies,
+  #'       \code{"zcta"} for ZIP Code Tabulation Areas.}
+  #'     \item{\code{id_len}}{Integer. The exact character length every
+  #'       value in \code{id_col} must have for this geography.}
+  #'   }
+  #' @param con A live \code{DBI} connection to a DuckDB instance, opened
+  #'   and closed by the caller so that all three pre-flight checks can
+  #'   share a single connection.
+  #'
+  #' @return Invisibly returns a list with one element per geography,
+  #'   each containing:
+  #'   \describe{
+  #'     \item{\code{tag}}{Character. Geography tag.}
+  #'     \item{\code{id_col}}{Character. Name of the validated identifier
+  #'       column.}
+  #'     \item{\code{id_len}}{Integer. The expected character length.}
+  #'     \item{\code{total_rows}}{Integer. Total row count across all input
+  #'       chunks for this geography.}
+  #'     \item{\code{bad_row_n}}{Integer. Number of rows whose identifier
+  #'       is not exactly \code{id_len} characters. Zero on pass.}
+  #'     \item{\code{len_dist}}{Data frame with columns \code{id_length},
+  #'       \code{n_rows}, and \code{n_distinct_ids} showing the full
+  #'       distribution of observed identifier lengths. Useful for
+  #'       diagnosing the nature and scale of any encoding problem.}
+  #'     \item{\code{bad_samples}}{Character vector of up to 10 example
+  #'       identifier values whose length differs from \code{id_len}.
+  #'       Zero-length character vector on pass.}
+  #'     \item{\code{ok}}{Logical. \code{TRUE} if all identifier values
+  #'       are exactly \code{id_len} characters.}
+  #'   }
+  #'
+  #' @section Side effects:
+  #'   Prints a one-line summary per geography. On failure, also prints the
+  #'   full length distribution table with unexpected lengths flagged, and a
+  #'   sample of up to 10 offending identifier values. Calls \code{stop()}
+  #'   after completing the loop for all geographies if any failure was
+  #'   detected, so all issues are visible in a single run before execution
+  #'   halts.
+  #'
+  #' @seealso \code{\link{preflight_a_date_labels}},
+  #'   \code{\link{preflight_b_metric_pairs}}
+  
+  cat("\n", strrep("=", 60), "\n")
+  cat("  PRE-FLIGHT C: Validating ID column lengths\n")
+  cat(strrep("=", 60), "\n")
+  
+  # Accumulator for per-geography results, and a global pass/fail flag.
+  # all_ok is flipped to FALSE on the first failing geography but the
+  # loop continues so every geography's issues are visible in one run.
+  log    <- vector("list", length(geo_levels))
+  all_ok <- TRUE
+  
+  for (i in seq_along(geo_levels)) {
+    
+    tag       <- geo_levels[[i]]$tag
+    in_folder <- geo_levels[[i]]$in_folder
+    id_col    <- geo_levels[[i]]$id_col
+    id_len    <- geo_levels[[i]]$id_len
+    
+    # -- 1. Full length distribution --------------------------
+    # Groups every row by the character length of its identifier so
+    # the output shows the complete picture of what is present, not
+    # just whether any bad rows exist.  n_distinct_ids is included so
+    # the user can see whether bad-length rows represent a small number
+    # of systematically malformed IDs or a large, varied population.
+    len_dist <- dbGetQuery(con, sprintf("
+      SELECT
+        length(%s)         AS id_length,
+        COUNT(*)::BIGINT    AS n_rows,
+        COUNT(DISTINCT %s)  AS n_distinct_ids
+      FROM read_parquet('%s/*.parquet', union_by_name = true)
+      GROUP BY id_length
+      ORDER BY id_length;
+    ", quote_ident(id_col), quote_ident(id_col), in_folder))
+    
+    # Rows in the distribution whose length deviates from the expected.
+    bad_rows <- len_dist[len_dist$id_length != id_len, ]
+    
+    # -- 2. Sample of bad identifier values -------------------
+    # Only executed when bad rows exist. Fetches up to 10 distinct
+    # offending values so the user can immediately see whether the
+    # problem is a missing leading zero, a wrong geography mixed into
+    # the folder, a NULL cast to an empty string, etc.
+    bad_samples <- if (nrow(bad_rows) > 0) {
+      dbGetQuery(con, sprintf("
+        SELECT DISTINCT %s AS id_value
+        FROM read_parquet('%s/*.parquet', union_by_name = true)
+        WHERE length(%s) != %d
+        LIMIT 10;
+      ", quote_ident(id_col), in_folder, quote_ident(id_col), id_len))$id_value
+    } else {
+      character(0)
+    }
+    
+    # -- 3. Summarise and flag --------------------------------
+    total_rows <- sum(len_dist$n_rows)
+    bad_row_n  <- sum(bad_rows$n_rows)   # 0 when bad_rows is empty
+    geo_ok     <- bad_row_n == 0L
+    if (!geo_ok) all_ok <- FALSE
+    
+    cat(sprintf(
+      "\n  %-12s  id_col: %-6s  expected_len: %2d  total_rows: %9d  bad_rows: %7d  [%s]\n",
+      tag, id_col, id_len, total_rows, bad_row_n, if (geo_ok) "OK" else "FAIL"
+    ))
+    
+    # -- 4. Detailed failure output ---------------------------
+    # Print the full distribution so the scale and pattern of the
+    # problem is clear.  Flag unexpected lengths inline with an arrow
+    # so they are easy to spot when the table is long.
+    if (!geo_ok) {
+      cat("    Length distribution found:\n")
+      for (r in seq_len(nrow(len_dist))) {
+        cat(sprintf(
+          "      length %2d : %9d rows  (%d distinct ids)%s\n",
+          len_dist$id_length[r],
+          len_dist$n_rows[r],
+          len_dist$n_distinct_ids[r],
+          if (len_dist$id_length[r] != id_len) "  <-- UNEXPECTED" else ""
+        ))
+      }
+      # A small concrete sample is often enough to diagnose the root
+      # cause without the user needing to open the parquet files.
+      cat("    Sample of unexpected id values (up to 10):\n")
+      cat("     ", paste(bad_samples, collapse = "\n      "), "\n")
+    }
+    
+    # -- 5. Store per-geography result ------------------------
+    log[[i]] <- list(
+      tag         = tag,
+      id_col      = id_col,
+      id_len      = id_len,
+      total_rows  = total_rows,
+      bad_row_n   = bad_row_n,
+      len_dist    = len_dist,    # full distribution; useful even on pass
+      bad_samples = bad_samples, # empty character(0) on pass
+      ok          = geo_ok
+    )
+  }
+  
+  # -- 6. Hard stop after full loop -------------------------
+  # Stopping after the loop ensures all five geographies are reported
+  # before execution halts, consistent with Pre-Flights A and B.
+  if (!all_ok)
+    stop("Pre-flight C failed: unexpected ID lengths found. Resolve before compiling.")
+  
+  cat("\n  Pre-flight C PASSED: all ID values are the expected length.\n")
+  
+  # Return the log invisibly so the caller can assign and inspect it
+  # (e.g. preflight_c_log[[1]]$len_dist) without console noise.
+  invisible(log)
+}
+
+
+
 

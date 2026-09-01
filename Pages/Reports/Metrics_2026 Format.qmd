@@ -1,0 +1,579 @@
+---
+format:
+  pdf:
+    include-in-header: 
+      - text: |
+          \input{../../Scripts/For Analytical Reports/LaTeX Formatting/PDF Formatting Script.tex}
+highlight-style: ../../_styles/idle-fingers-light.theme
+bibliography: ../references.bib
+csl: ../../Scripts/nature.csl
+---
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| include: false
+
+## ----------------------------------------------------------------
+## SET UP THE ENVIRONMENT
+
+# Initiate the package environment.
+renv::restore()
+
+suppressPackageStartupMessages({
+  library("readr")            # Reads in CSV and other delimited files
+  library("dplyr")            # Data manipulation and transformation
+  library("stringr")          # String operations
+  library("ggplot2")          # Graphics and visualization
+  library("sf")               # Simple Features for spatial data (geometry + CRS operations)
+  library("gridExtra")        # Arrange multiple grid-based plots on a page
+  library("tibble")           # Manipulate data frames in tidyverse
+})
+
+# Define the "not in" operation
+"%!in%" <- function(x,y)!("%in%"(x,y))
+```
+
+\clearpage
+\null
+\thispagestyle{empty}
+\newpage
+\setcounter{page}{1}
+
+
+\tableofcontents
+\newpage
+
+# Generating the Dashboard Map Metrics from the 2026 Format Data
+
+**Prepared By:** [Shelby Golden, M.S.](https://www.linkedin.com/in/shelby-golden) from the Yale School of Public Health [Data Science and Data Equity](https://ysph.yale.edu/research/research-centers-and-initiatives/public-health-data-science-and-data-equity/) team
+
+**Date Created:** August 30<sup>th</sup>, 2026
+
+**Date Updated:** September 1<sup>st</sup>, 2026
+
+# Overview
+
+The project objectives were as follows:
+
+1. **REVIEW:** Evaluate the raw data and previously outlined cleaning, validation, and harmonization methods employed by [Dr. Insang Song](https://sigmafelix.wixsite.com/mysite) for accuracy and identify opportunities for improvement.
+
+2. **PREPARATION:** Implement identified improvements to prepare the dataset for analysis and distribution to qualifying collaborators.
+
+3. **METRICS:** Calculate the metrics necessary for dynamic visualization.
+
+
+Additionally, the project Principal Investigator (PI), [Professor Yusuf Ransome](https://ysph.yale.edu/profile/yusuf-ransome/), requested the pipeline be reproducible for future collaborators and readily adaptable to potential changes in project scope.
+
+Following receipt of the raw data in Summer 2025, a review was conducted and findings were compared against the original methodology provided by Dr. Song. When an updated dataset was subsequently delivered in May 2026, the pipeline was expanded to accommodate two designated variations: the **2023 Format** and the **2026 Format**.
+
+This document provides an overview of the methodological changes implemented following the initial prototype developed using the 2023 Format, and to accommodate the differences identified in the 2026 Format Review. While many of the fundamental methods were retained, notable changes include implementing identified points of improvement from the prototype, the exclusion of persistence, and the inclusion of additional metrics such as relocations.
+
+Results generated from this pipeline were used for the Fall 2026 [dashboard](https://www.socahlab.org/church-closures) developed by [Gordon Tu](https://gordontu.com/) with demographics by [Nick Begotka](https://geospatial.yale.edu/profile/nicolas-begotka).
+
+# Important Considerations
+
+Selected code excerpts are referenced below. The complete code used to generate this report can be found in ["Code/Generate the Metrics_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Generate%20the%20Metrics_2026%20Format.R) with all packages required documented in the **SET UP THE ENVIRONMENT** section. Custom functions used throughout the script are in ["Code/Support Functions/For Generate the Metrics_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Support%20Functions/For%20Generate%20the%20Metrics_2026%20Format.R).
+
+## Ignored Files
+
+Individual-level files are withheld from GitHub and Git tracking in accordance with the Data Use Agreement (DUA) with the data provider. Many of these are stored in `**/KEEP LOCAL/` directories or are explicitly listed under the "Project-Specific Exclusions" section of the `.gitignore` file.
+
+Most files are available on the SOCAH Lab OneDrive for the project, while others are user-specific and do not need to be shared. If there are local-only files for this project, they will be added to the "Church-Closures-Dashboard GitHub LOCAL ONLY Files" directory. This directory will contain `README.md` files specifying the intended use and filepath for each file.
+
+If you do not have access to the SOCAH Lab OneDrive, carefully follow the codebase instructions to establish the repository and replicate results on your own device. Raw data access instructions may vary depending on your institution.
+
+## Environment Reproducibility
+
+Results were produced using R (v4.5.2), RStudio (v2026.01.1+403), and Quarto (v1.8.27). The `renv` package (v1.1.4) is included to reproduce the coding environment, capturing all relevant packages and their versions. If issues arise when running the scripts, verify that the environment is initialized and that the correct versions of R, RStudio, and Quarto are being used.
+
+\vspace{1ex}
+
+\begin{callout-warning}[Compatibility]
+\small Updating packages, R, or Quarto may introduce compatibility issues with legacy code that will need to be resolved on a case-by-case basis.
+\end{callout-warning}
+
+\vspace{1ex}
+
+First-time users should initialize the environment to install all required packages and ensure a reproducible coding environment. To do so:
+
+1. In the command-line application (i.e., Terminal for Macs or Git Bash for Windows) navigate to the codebase file location.
+
+\begin{list}{}{\setlength\leftmargin{2.5em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{Command-Line Interface} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+  \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\func{cd} \str{"FILE-PATH/Church-Closures-Dashboard/"}
+  \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}
+\end{list}
+
+2. Launch the project by opening the `*.Rproj` file in RStudio.
+
+3. In the R console, activate the environment by running the following lines of code:
+
+\begin{list}{}{\setlength\leftmargin{2.5em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{Command-Line Interface} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\func{renv::restore()}   \com{# Download packages and their version saved in the lockfile.}
+  \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 2.5em\relax}{0.4pt}
+\end{list}
+
+\vspace{1em}
+
+:::{.callout-note}
+\small If you are asked to update packages, say no.`renv` is intended to recreate the same environment under which the project was created, making it reproducible. You are ready to proceed when running `renv::restore()` gives the output:
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+- The library is already synchronized with the lockfile.
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-3.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+If you experience any trouble with this step, you might want to confirm that you are using R (v4.5.2) in the RStudio (v2026.01.1+403) and Quarto (v1.8.27). You can also read more about `renv` in their [vignette](https://rstudio.github.io/renv/articles/renv.html)\ [@renv_intro].
+:::
+
+\newpage
+
+# Methods
+
+Four metrics were requested for dashboard visualization:
+
+1. Number of religious businesses closed
+2. Rate of religious businesses closed per 10,000 persons
+3. Number of religious businesses closed per square mile
+
+The following additional metrics were requested but were not intended for map visualization:
+
+1. Number of religious businesses open
+2. Number of religious business reopenings following a closure
+3. Number of religious businesses that relocated, i.e., those filed under a different address
+4. Number of religious businesses removed due to missing information: missing `address_line_1`, a PO Box listed as `address_line_1`, or missing geocoordinates
+
+Persistence was excluded as a metric following user review, where it was flagged as a confusing outcome. All metrics were calculated simultaneously. Counts were first prepared over all qualifying businesses open during a given date range, defined as those with at least one non-zero entry, at the block group level, the finest census boundary resolution available. These counts were then aggregated to coarser resolutions, and rates were calculated following this aggregation. No aggregation was required prior to rate calculation for the block group and ZIP Code Tabulation Area (ZCTA) census boundaries.
+
+Metrics are calculated across all user-selectable date ranges from 2000 to 2025; possible combinations are generated by `build_year_windows()`. The minimum selectable range is five years, as closure event detection requires identifying businesses that have not filed for four or more consecutive years. Applying this constraint to all valid start and end year combinations within the 2000–2025 period yields 253 possible date ranges.
+
+## Construct The Denominator Reference Tables
+
+Two metrics require denominators that vary across census boundaries and decennial years: rates per 10,000 persons and number of closures per square mile. To improve the efficiency of downstream calculations, these denominators were pre-compiled into a lookup table.
+
+Additionally, processing each census boundary level independently is unnecessary, as population and square mileage can be summed for higher-level aggregated GEOIDs. The only exception is ZCTAs, which must be calculated independently since their polygon boundaries do not cleanly align with GEOIDs. Under this approach, the smallest GEOID, block, was used to maximize future metric generation.
+
+To efficiently handle block-level GEOID data, the state-level [TIGER/Line Shapefiles](https://www.census.gov/cgi-bin/geo/shapefiles/index.php) manually downloaded during **Step 2** of the data cleaning and validation process were imported by census division (1–9), each grouping as many as nine states\ [@census_tigerline]. These were then compiled into a single lookup table containing both metrics. 
+
+\vspace{1em}
+
+:::{.callout-note}
+## Census Boundary Files: Download and Local Build Requirements
+
+All census boundary files, both the downloaded raw shapefiles and the compiled GeoPackage versions, are too large for effective Git tracking and distribution. New users will need to download the source files independently and generate the GeoPackage files locally. For download instructions and links to sources, refer to the [Directory Specific Notes](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Raw) in the project GitHub repository.  For the coded implementation, refer to **SUBSECTION A3: Build Precompiled TIGER/Line GeoPackages** in ["Clean Raw Data_Step 2_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R).
+
+\vspace{1em}
+
+Because this process is involved, a dedicated set of functions was created for the generation of these reference shapefiles: ["Support Functions/For Step 2_Compile Decennial Data.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Support%20Functions/For%20Step%202_Compile%20Decennial%20Data.R). The custom function `preflight_tiger_outputs()` first assesses the local environment for the status of shapefile downloads and builds, flagging any missing files or incomplete downloads to the user. See **SUBSECTION A4: Build Precompiled TIGER/Line GeoPackages** in [Clean Raw Data_Step 2_2026 Format.R](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Clean%20Raw%20Data_Step%202_2026%20Format.R) for the implementation.
+
+\vspace{1em}
+
+In brief, standardized decennial spatial layers for all census boundaries are compiled using `standardize_geo_layer()` for block and block group-level state GEOIDs, and `standardize_core_area_layer()` for Metropolitan/Micropolitan Statistical Areas (denoted as CBSA), Combined Statistical Areas (CSA), and ZCTAs. These standardized files are then written using `write_state_gpkg()` for GEOIDs and `write_core_areas_gpkg()` for CBSAs, CSAs, and ZCTAs, following the execution of their respective `build_cbsa_csa()` and `build_zcta()` functions.
+
+\vspace{1em}
+
+For size considerations, the GEOID files are retained separately by state, while the CBSA, CSA, and ZCTA layers are compiled as nationally representative files.
+:::
+
+\vspace{1em}
+
+### Square Miles
+
+Square mileage can be calculated from polygon boundaries in TIGER/Line Shapefiles using `set_units(st_area(x_ea), "acre")`, then converted to square miles\ [@units2026; @edzer_sf]. Because census GEOIDs are non-overlapping, this calculation is only required for the smallest available boundary, block. These are then summed to aggregate into larger GEOID census boundaries. ZCTAs are processed separately by the same method and are not aggregated into other census boundaries, as their polygon boundaries do not cleanly cross-walk with standard GEOIDs.
+
+When compiling lookup tables by GEOID, each TIGER/Line shapefile for a state block created for **Step 2**  in a given division is imported using the custom function `read_state_gpkgs_for_data()`. A progress bar tracks processing using the custom function `count_sf_in_blocks_by_state()` to count spatial objects per division. Lookup tables are stratified by GEOID and decennial year. Since each state-level shapefile contains lists for each decennial year, `get_year_from_name()` extracts the available years (2000, 2010, 2020) and `area_table_one(x, yr, id_col = "geoid")` computes a per-object area result table for each.
+
+ZCTA lookup tables are constructed similarly using the core areas slim file from **Step 2**, which contains CBSA, CSA, and ZCTA data. Only ZCTA lists are processed: `get_year_from_name()` extracts the available decennial years and `area_table_one(x, yr, id_col = "area_code")` computes the per-object area result table.
+
+In both cases, per-state/per-year result tables are appended into by-year tables as each division is processed. Once all divisions are complete, results are stacked within each year into a single deduplicated table using `purrr::imap()` and `bind_rows()`. Year-specific tables are then merged side-by-side on GEOID or ZCTA to produce a final sorted wide master table\ [@tidyverse2023].
+
+Refer to Appendix - [GEOID Square Mile Lookup Table](#code-results-source-1) and [ZCTA Square Mile Lookup Table](#code-results-source-2) for information on where to find the code that generates these results, as well as the results codebook.
+
+### Population Counts
+
+Total population values are pulled at the block level using `tidycensus`\ [@kyle_walker_tidycensus]. As shown in the prototype methods, the 2020 decennial year draws total population from a different table than 2000 and 2010. While 2000 and 2010 use the same variable name, "P001001", each refers to its own vintage-specific table. The following tables were used to pull total population for each respective decennial year:
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# SUBSECTION A2: Get Population Counts}
+
+\com{# Define the variable IDs and reference tables used by tidycensus to pull}
+\com{# total population for each decennial year.}
+spec \op{<-} \func{tribble}(
+  \op{~}year, \op{~}sumfile, \op{~}var\_totpop,
+  \op{2000},  \str{"sf1"},    \str{"P001001"},  \com{# 2000 Summary File 1 ("sf1")}
+  \op{2010},  \str{"sf1"},    \str{"P001001"},  \com{# 2010 Summary File 1 ("sf1")}
+  \op{2020},  \str{"dhc"},    \str{"P1\_001N"}   \com{# 2020 Demographic and Housing Characteristics File ("dhc"), Table P1}
+)
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+Values for block-level GEOIDs are built as a three-level ladder that breaks up the `tidycensus` API pull into smaller buckets, finally getting compiled into one master file similar to the square mile lookup table\ [@kyle_walker_tidycensus]. First, the custom function `get_block_pop_year_by_county()` requests one county in one state for one decennial year to return a minimal lookup: GEOID plus a `popYYYY` column for each decennial year. `get_block_pop_state_year()` then uses that building block by first listing all counties in the state (via `tigris::counties()`), and calling `get_block_pop_year_by_county()` for each county, row-binding the results into a complete state-wide block table for that year\ [@walker_tigris_package].
+
+Finally, `get_block_pop_all_states()` orchestrates the full run: it loops over states and over the year/spec rows, calls `get_block_pop_state_year()` to produce one table per year, joins those year tables side-by-side on GEOID to make a wide per-state dataset, and then stacks all states into one deduplicated, sorted block-level population master.
+
+ZCTA population values follows a simpler two-step workflow. The custom function `get_zcta_pop_year()` takes a decennial year and fetches ZCTA-level total population using `tidycensus::get_decennial(geography = "zcta", geometry = FALSE, output = "wide")`, then standardizes the identifier from GEOID to ZCTA and renames the estimate to a year-labeled `popYYYY` column. `get_zcta_pop_all_decennials()` then iterates over each row of the spec table using `purrr::pmap()`, collecting the resulting decennial year-specific values, merging them side-by-side into one master table of ZCTA and `popYYYY` columns, sorted by ZCTA\ [@tidyverse2023].
+
+Refer to Appendix - [GEOID Total Population Lookup Table](#code-results-source-3) and [ZCTA Total Population Lookup Table](#code-results-source-4) for information on where to find the code that generates these results, as well as the results codebook.
+
+## Prepare the Analytic Dataset
+
+In the final data cleaning and validation step (**Step 3**), the cleaned and validated data were reshaped and annotated with metrics that support metric generation. Select metadata and quality control outputs from earlier steps were retained through that process but are not needed for generating the metrics that follow, so they are excluded here.
+
+The geography columns for GEOID and ZCTA were pivoted from wide format (\texttt{geoid\_\allowbreak[2000|2010|2020]} and `zcta_[2000|2010|2020]`) to long format using `melt()`, so that each row represents one ABI/address observation for a single decennial year, with unified `geoid` and `zcta` columns alongside `year`\ [@tidyverse2023]. This structure allows the reference denominators — area in square miles and total population — to be joined by decennial year when computing the per-square-mile and per-10,000-persons metrics in subsequent steps. Finally, the year variable was recoded to an integer, columns were reordered so that `abi`, `address`, `year`, `geoid`, and `zcta` appear first, and rows were sorted by `abi`, `address`, and `year`.
+
+Both GEOID lookup tables described in the previous two sections were intentionally compiled at the smallest available census boundary level, blocks. These are pre-aggregated to the block-group level present in the dataset prior to joining. The aggregation algorithm in **SUBSECTION B2: Aggregate Block-Level GEOIDs to Dataset Boundary Level** does not assume a specific geography level, as preceding steps support processing at either the block or block-group level. It is assumed, however, that only one boundary level will be present at a time. While blocks or block groups are the expected units, this step agnostically inspects GEOID length and aggregates accordingly. ZCTA does not require pre-aggregation.
+
+Refer to [Appendix - Analysis Ready Dataset](#code-results-source-5) for information on where to find the code that generates these results, as well as the results
+
+## Metric Generation
+
+Metrics were calculated across different date range selections, religious affiliations, and decennial periods. At each step, the dataset was subset to only the data relevant to that stratification: rows in which all values were zero were removed after selecting columns for the given date range and then for ABI with any religious affiliation matching that run. Filtering was performed using the custom function `filter_ts()` to remove rows containing all zeros, and `abi_any_true()` to remove ABI records with no entries matching the religion being calculated.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Inside "SUBSECTION C2: Generate the Metrics in Chunks" for loop}
+
+\com{# Available religion classifiers.}
+relig\_cols \op{<-} \func{c}(
+  \str{"buddhist\_temple"}, \str{"christian\_church"}, \str{"hindu\_mandir"}, \str{"jewish\_synagogue"},
+  \str{"muslim\_mosque"}, \str{"sikh\_gurdwara"}, \str{"other\_religion"}, \str{"interfaith"}, \str{"unspecified"}
+)
+\end{Verbatim}
+  \end{codebox}
+
+  \vspace{-4ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+### Total and Missing Values
+
+Following filtering, all remaining ABIs are counted and checked for critical missing values. Any ABI containing critical missing values is excluded from subsequent metric calculations.
+
+\begin{list}{}{\setlength\leftmargin{0em}}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{1pt}\vspace{-2.5ex}
+  \item\small \textbf{RStudio Console} \normalsize \vspace{-2.5ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}\vspace{-0.8ex}
+  
+  \begin{codebox}
+    \begin{Verbatim}[breaklines = true, breaksymbol = \textcolor{idlelinnum}{\scriptsize$\hookrightarrow$}, commandchars = \\\{\}]
+\com{# Inside "SUBSECTION C2: Generate the Metrics in Chunks" for loop}
+\com{# ~ line 837}
+
+\com{# (1b) flags by (geoid, zcta)}
+    flag\_counts \op{<-} church\_relig[
+      ,
+      .(
+        \atr{n\_open      =} uniqueN(abi),
+        \atr{addr1\_na    =} uniqueN(abi[addr1\_is\_na    \op{\%in\%} \kw{TRUE}]),
+        \atr{addr1\_pobox =} uniqueN(abi[addr1\_is\_pobox \op{\%in\%} \kw{TRUE}]),
+        \atr{geoid\_na    =} uniqueN(abi[geoid\_is\_na    \op{\%in\%} \kw{TRUE}]),
+        \atr{zcta\_na     =} uniqueN(abi[zcta\_is\_na     \op{\%in\%} \kw{TRUE}])
+      ),
+      \atr{by =} .(geoid, zcta)
+    ]
+    \end{Verbatim}
+  \end{codebox}
+
+  \vspace{-2ex}
+  \item\noindent\rule[0.3ex]{\dimexpr\textwidth - 0em\relax}{0.4pt}
+\end{list}
+
+### Closures and Reopenings
+
+A closure is defined as an event in which four or more consecutive years have no filings under a given address. Closures were calculated both including and excluding ABI that filed under different addresses within that date range. When ABI with a relocation were included, the metric was aggregated column-wise into a single row-vector from which the number of closures was calculated.
+
+A reopening is defined as at least two consecutive years of activity following a closure. Reopenings are calculated both including and excluding ABI that relocated within the date range. Closures and reopenings were calculated using the custom function `calculate_closure(min_zero_run = 4L, min_one_run_reopen = 2L, multi_addr_mode = c("skip", "compress"))`.
+
+### Relocations
+
+A relocation is defined as any instance in which a religious business files under more than one address within the date range. Relocation metrics include: the number of ABI that relocated at least once; the average number of relocations per ABI, defined as the number of distinct addresses minus one; the move-count-weighted mean distance across all relocations; the maximum single-move distance recorded for any ABI; and binary flags indicating whether any move for a given ABI exceeded 5, 10, or 25 miles. Relocations were calculated using the custom function `calculate_closure(multi_addr_mode = c("compress"))`.
+
+### Rollups
+
+After all metrics are calculated for each religion, results are aggregated using the custom function `rollup_results()`. This process rolls up metrics calculated at the smallest geographic boundaries to progressively coarser census boundaries.  Block group GEOID calculations are aggregated to the tract, county, and state levels; however, ZCTA results are not rolled up. Aggregations are performed across each unique combination of GEOID, decennial year, and religion.
+
+Rather than summing raw closure and reopening events counts across ABI, each is summarised into three derived outputs: any — the count of ABI with at least one event; avg — the mean number of events per ABI among those with at least one event; and max — the maximum number of events recorded for any single ABI.
+
+Non-event columns follow custom aggregation rules: move threshold flags (i.e. moves greater than 5, 10, or 25 miles) are summed as counts of flagged ABI, total moves are averaged, weighted mean distances are averaged, and maximum move distances are taken as the maximum across all ABI. Finally, closure rates are derived from the any columns and appended as both per-10,000-population and per-square-mile rates, using the appropriate denominators for each geographic level.
+
+Following all aggregations, the resulting columns are reordered using the custom function `reorder_rollup_cols()` for clarity according to the following structure:
+
+1. Geographic identifiers, year, religion, and denominators appear first.
+2. Window-specific event columns follow the following order, where `<lab>` represent the date range selection:
+
+    - `n_open__<lab>` — count of open ABI
+    - No-move closures: any, rates, avg, max
+    - No-move reopenings: any, avg, max
+    - `n_move__<lab>` — count of ABI with moves (inserted after \texttt{reopenings\_no\_move\_\allowbreak max\_\_<lab>})
+    - All closures: any, rates, avg, max
+    - All reopenings: any, avg, max
+
+3. All remaining columns appear last, including move totals, distances, and threshold flags.
+
+Refer to [Appendix - Final Results](#code-results-source-6) for information on where to find the code that generates these results, as well as the results codebook.
+
+
+# Results
+
+**SUBSECTION C3: Validate Chunk Coverage** assesses whether all expected metrics were calculated across all chunks using three pre-flight checks. Pre-flights A, B, and C confirm that the chunks written by the preceding metric generation function cover all expected combinations of metrics, metric × date range, and geographic identifiers.
+
+- Pre-flight A confirms that the date labels embedded in each folder's column names match `date_range$label` exactly.
+
+- Pre-flight B confirms that every metric × date column pair expected from `metric_order` × `date_order` is present in each folder's schema, with no duplicates.
+
+- Pre-flight C confirms that every GEOID and ZCTA value is exactly the Census-standard character length for its geography type.
+
+One limitation of this approach is the size of the resulting output files. Handling all metrics calculated across every geographic boundary simultaneously is preclusive, particularly at finer geographic resolutions. As a result, the files must be used strategically, rather than loading all data into memory at once. **SUBSECTION D3: Compile Results for Three Date Ranges** demonstrates one approach to managing this over multiple chunks.
+
+\newpage
+
+# Appendix
+
+## GEOID Square Mile Lookup Table {#code-results-source-1}
+
+For the implementation, refer to **SUBSECTION A1: Get Square Miles** in ["Code/Generate the Metrics_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Generate%20the%20Metrics_2026%20Format.R). All 50 states and the District of Columbia block-level GeoPackage files contain a spatial geometry column with boundary polygons for each census unit, represented as an `sf` geometry object, were converted to square mile area lookup tables. Results were written to `"./Data/Results/KEEP LOCAL/From Generate the Metrics/GEOID Square Miles_Block Level_08.18.2026.parquet"`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for TIGER/Line-Based Square Mileage Estimates}
+\label{tab:codebook-1}
+\begin{tabular}{l p{0.63\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{geoid} & Block-level GEOID covering the entire US and District of Columbia. \\
+\addlinespace[10pt]
+\texttt{area[2000|2010|2020]\_mi2} & Calculated square mileage for each decennial period's GEOID mapping. \\
+\end{tabular}
+\endgroup
+
+## ZCTA Square Mile Lookup Table {#code-results-source-2}
+
+For the implementation, refer to **SUBSECTION A1: Get Square Miles** in ["Code/Generate the Metrics_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Generate%20the%20Metrics_2026%20Format.R). All 50 states and the District of Columbia ZCTA GeoPackage files contain a spatial geometry column with boundary polygons for each census unit, represented as an `sf` geometry object, were converted to square mile area lookup tables. Results were written to `"./Data/Results/KEEP LOCAL/From Generate the Metrics/ZCTA Square Miles_08.18.2026.parquet"`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for TIGER/Line-Based Square Mileage Estimates}
+\label{tab:codebook-2}
+\begin{tabular}{l p{0.63\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{zcta} & ZIP Code Tabulation Areas (ZCTA) covering the entire US and District of Columbia. \\
+\addlinespace[10pt]
+\texttt{area[2000|2010|2020]\_mi2} & Calculated square mileage for each decennial period's ZCTA mapping. \\
+\end{tabular}
+\endgroup
+
+## GEOID Total Population Lookup Table {#code-results-source-3}
+
+For the implementation, refer to **SUBSECTION A2: Get Population Counts** in ["Code/Generate the Metrics_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Generate%20the%20Metrics_2026%20Format.R). Total population counts at the block level were retrieved via `tidycensus`, which queries the US Census Bureau using a specified table and variable. The 2000 and 2010 decennial census data were drawn from Summary File 1 (`sf1`), Table P001, variable P001001. The 2020 decennial census data were drawn from the Demographic and Housing Characteristics File (`dhc`), Table P1. Results were written to `"./Data/Results/KEEP LOCAL/From Generate the Metrics/GEOID Population_Block Level_08.20.2026.parquet"`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for Block-Level Decennial Population (\texttt{tidycensus})}
+\label{tab:codebook-3}
+\begin{tabular}{l p{0.69\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{geoid} & Block-level GEOID covering the entire US and District of Columbia. \\
+\addlinespace[10pt]
+\texttt{pop[2000|2010|2020]} & Total population count for each decennial census year at the block level. \\
+\end{tabular}
+\endgroup
+
+## ZCTA Total Population Lookup Table {#code-results-source-4}
+
+For the implementation, refer to **SUBSECTION A2: Get Population Counts** in ["Code/Generate the Metrics_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Generate%20the%20Metrics_2026%20Format.R). Total population counts for ZCTA census boundaries were retrieved via `tidycensus`, which queries the US Census Bureau using a specified table and variable. The 2000 and 2010 decennial census data were drawn from Summary File 1 (`sf1`), Table P001, variable P001001. The 2020 decennial census data were drawn from the Demographic and Housing Characteristics File (`dhc`), Table P1. Results were written to `"./Data/Results/KEEP LOCAL/From Generate the Metrics/ZCTA Population_08.20.2026.parquet"`.
+
+\vspace{2ex}
+
+\begingroup
+\captionof{table}{Codebook for ZCTA-Level Decennial Population (\texttt{tidycensus})}
+\label{tab:codebook-4}
+\begin{tabular}{l p{0.69\linewidth}}
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{zcta} & ZIP Code Tabulation Areas (ZCTA) covering the entire US and District of Columbia. \\
+\addlinespace[10pt]
+\texttt{pop[2000|2010|2020]} & Total population count for each decennial period's ZCTA mapping. \\
+\end{tabular}
+\endgroup
+
+
+## Analysis Ready Dataset {#code-results-source-5}
+
+For the implementation, refer to **PART B: FINAL RESHAPE AND JOIN REFERENCE DENOMINATORS** in ["Code/Generate the Metrics_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Generate%20the%20Metrics_2026%20Format.R). The **Step 3** results were reshaped and trimmed to support joining with the square-mile and population denominator tables, retaining only the variables needed for metric generation. Results were written to \texttt{"./Data/Results/KEEP LOCAL/From Generate the Metrics/church\_2026\_form\_\allowbreak analysis\_ready\_08.20.2026.parquet"}.
+
+\vspace{2ex}
+
+\begingroup
+\renewcommand{\arraystretch}{1.05}
+\setlength{\LTpre}{0pt}
+\setlength{\LTpost}{0pt}
+
+\begin{longtable}{l p{0.68\linewidth}}
+\caption{Codebook for New Lookup-Table Fields (Population and Square Miles)}
+\label{tab:codebook-lookup-pop-areami2}\\
+
+\toprule
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{2}{r}{\emph{Continued on next page}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+\texttt{[geoid|zcta]\_pop} & Total population count for each decennial census year, mapped to the corresponding GEOID or ZCTA. GEOID-level values were pre-aggregated to match the census boundary level present in the \textbf{Step 3} table. \\
+\addlinespace[6pt]
+\texttt{[geoid|zcta]\_sqMiles} & Total square mileage for each decennial census year, mapped to the corresponding GEOID or ZCTA. GEOID-level values were pre-aggregated to match the census boundary level present in the \textbf{Step 3} table. \\
+
+\end{longtable}
+\endgroup
+
+## Final Results {#code-results-source-6}
+
+For the implementation, refer to **SUBSECTION C2: Generate the Metrics in Chunks** in ["Code/Generate the Metrics_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Generate%20the%20Metrics_2026%20Format.R). All **Step 3** results reshaped into the metric calculation form were processed. All chunk results were saved in their respective directory in `./Data/Results/KEEP LOCAL/From Generate the Metrics/All Metric Results"`.
+
+\vspace{2ex}
+
+\begingroup
+\renewcommand{\arraystretch}{1.05}
+\setlength{\LTpre}{0pt}
+\setlength{\LTpost}{0pt}
+
+\begin{longtable}{p{0.32\linewidth} p{0.58\linewidth}}
+\caption{Codebook for All Metric-Algorithm Output Fields}
+\label{tab:codebook-metric-algorithm}\\
+
+\toprule
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{2}{r}{\emph{Continued on next page}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+\texttt{[geoid|zcta]} & The Census boundary unit to which all metrics in this row have been aggregated: block group, tract, county, or state GEOID, or ZIP Code Tabulation Area (ZCTA). \\
+\addlinespace[6pt]
+\texttt{religion} & The religious classification represented by this row's metrics: e.g. \textit{"Christian Churches"}, \textit{"Other Religion"}, \textit{"All Religions"}. \\
+\addlinespace[6pt]
+\texttt{year} & Decennial census reference year: \textit{2000}, \textit{2010}, or \textit{2020}. \\
+\addlinespace[6pt]
+
+\texttt{[geoid|zcta]\_pop}\allowbreak\texttt{\_\_YYYY\_YYYY} & Total resident population for the corresponding decennial census year, assigned to each GEOID or ZCTA. GEOID-level counts were aggregated to match the census boundary granularity. \\
+\addlinespace[6pt]
+\texttt{[geoid|zcta]\_sqMiles}\allowbreak\texttt{\_\_YYYY\_YYYY} & Total land area in square miles for the corresponding decennial census year, assigned to each GEOID or ZCTA. GEOID-level values were aggregated to match the census boundary granularity. \\
+\addlinespace[6pt]
+
+\texttt{n\_open\_\_YYYY\_YYYY} & Total number of ABIs located within the geographic unit and time window. Includes ABIs subsequently excluded by a missingness flag. \\
+\addlinespace[6pt]
+
+\texttt{closures\_[no\_moves|all]}\allowbreak\texttt{\_any\_\_YYYY\_YYYY} & Count of ABIs with at least one qualifying closure event, defined as four or more consecutive inactive years following at least one active year. \textit{no\_moves} indicates ABIs appearing under multiple addresses within the selected date range were excluded prior to analysis. \textit{all} indicates all ABIs were retained and compressed: year-activity indicators across all addresses were summed column-wise before event detection. \\
+\addlinespace[6pt]
+\texttt{closures\_[no\_moves|all]}\allowbreak\texttt{\_per\_sqmi\_\_YYYY\_YYYY} & Count of ABIs with at least one qualifying closure event, normalised by the total land area (square miles) of the census boundary unit in the corresponding decennial period. \\
+\addlinespace[6pt]
+\texttt{closures\_[no\_moves|all]}\allowbreak\texttt{\_per\_10k\_\_YYYY\_YYYY} & Count of ABIs with at least one qualifying closure event, normalised by the total resident population of the census boundary unit in the corresponding decennial period, expressed per 10{,}000 residents. \\
+\addlinespace[6pt]
+\texttt{closures\_[no\_moves|all]}\allowbreak\texttt{\_avg\_\_YYYY\_YYYY} & Mean number of closure events recorded by any single ABI within the selected geographic unit and time window. \\
+\addlinespace[6pt]
+\texttt{closures\_[no\_moves|all]}\allowbreak\texttt{\_max\_\_YYYY\_YYYY} & Maximum number of closure events recorded by any single ABI within the selected geographic unit and time window. \\
+\addlinespace[6pt]
+
+\texttt{reopenings\_[no\_moves|all]}\allowbreak\texttt{\_[any|avg|max]\_\_YYYY\_YYYY} &
+Reopening-event counterparts to the closure fields above, sharing identical \textit{no\_moves}/\textit{all} and \textit{any}/\textit{avg}/\textit{max} semantics. A reopening event is defined as two or more consecutive active years immediately following a qualifying closure. \\
+\addlinespace[6pt]
+
+\texttt{n\_move\_\_YYYY\_YYYY} & Count of ABIs within the geographic unit that relocated at least once during the selected time window. \\
+\addlinespace[6pt]
+\texttt{moves\_total\_\_YYYY\_YYYY} & Mean number of relocations per ABI within the selected geographic unit and time window. \\
+\addlinespace[6pt]
+\texttt{wavg\_dist\_km\_\_YYYY\_YYYY} & Mean across all ABIs of each ABI's move-count-weighted average relocation distance (km). The per-ABI weighted average uses number of moves at each recorded distance as weights; this field reports the mean of those per-ABI values across the geographic unit. \\
+\addlinespace[6pt]
+\texttt{max\_dist\_km\_\_YYYY\_YYYY} & Greatest single-move distance (km) recorded among all ABIs within the geographic unit and time window. \\
+\addlinespace[6pt]
+\texttt{move\_gt\_[5|10|25]mi}\allowbreak\texttt{\_\_YYYY\_YYYY} & Count of ABIs within the geographic unit that made at least one relocation exceeding the stated distance threshold (5, 10, or 25 miles). \\
+\addlinespace[6pt]
+
+\texttt{addr1\_na\_\_YYYY\_YYYY} & Missingness flag. \textit{address\_line\_1} is \textit{NA}, preventing address-based geocoding. \\
+\addlinespace[6pt]
+\texttt{addr1\_pobox\_\_YYYY\_YYYY} & Missingness flag. \textit{address\_line\_1} contains a PO Box value; the physical location cannot be determined. \\
+\addlinespace[6pt]
+\texttt{[geoid|zcta]\_na}\allowbreak\texttt{\_\_YYYY\_YYYY} & Missingness flag. The GEOID or ZCTA value is \textit{NA}, preventing assignment to a geographic unit. \\
+\addlinespace[8pt]
+
+\multicolumn{2}{p{0.92\linewidth}}{\textbf{NOTE:} The suffix \textit{YYYY\_YYYY} represents the start and end years of possible date range textit, where each year is a value between 2000 and 2025 (e.g., \textit{2004\_2017}).} \\
+
+\end{longtable}
+\endgroup
+
+## Confirm Deliverables Subset {#code-results-source-6}
+
+For the implementation, refer to **SUBSECTION D3: Compile Results for Three Date Ranges** in ["Code/Generate the Metrics_2026 Format.R"](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/blob/main/Code/Generate%20the%20Metrics_2026%20Format.R). Results were compiled for three date range selections: 2000–2006, 2007–2024, and 2010–2015. These were exported as Parquet files across all census boundary levels — block group, tract, county, state, and ZCTA. Additionally, results were further filtered to tract-level GEOIDs corresponding to the city of Milwaukee, WI, exported as a CSV, with the 2010–2015 range visualised as a plot. No new variables from [Final Results](#code-results-source-5) were introduced. Results were saved in `./Data/Results/KEEP LOCAL/From Generate the Metrics/PART D Confirm Deliverables"`.
+
+# References
