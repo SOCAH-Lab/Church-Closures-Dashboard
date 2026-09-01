@@ -22,6 +22,104 @@ This codebase includes a [GitHub Pages website](https://socah-lab.github.io/Chur
 
 The Church Closure Dashboard is a collaborative effort led by the Yale School of Public Health Society Connectedness & Health Lab's (SOCAH Lab).
 
+<style>
+  /*-- scss: collaborator logos --*/
+  
+  .logo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+  }
+  .logo-grid figure {
+    margin: 0;
+    height: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    border: 1px solid #e2e2e2;
+    padding: 1rem;
+  }
+  .logo-grid figure.wide {
+    grid-column: span 2;
+    padding-bottom: 0rem !important;
+  }
+  .logo-grid img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+  }
+  .logo-grid figcaption {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+    color: #555;
+    text-align: center;
+  }
+  .logo-grid figure.dissc img {
+    max-height: 70%;
+    max-width: 70%;
+  }
+  @media (max-width: 600px) {
+    .logo-grid {
+      grid-template-columns: 1fr;
+    }
+    .logo-grid figure.wide,
+    .logo-grid figure.dissc {
+      grid-column: span 1;
+      max-width: none;
+      justify-self: stretch;
+    }
+    .logo-grid figure.wide {
+      padding-bottom: 0rem !important;
+    }
+    .logo-grid figure:not(.wide) {
+      max-width: 220px;
+      justify-self: center;
+    }
+    .logo-grid figcaption {
+      margin-top: 0.75rem;
+    }
+    .logo-grid figure.ycrc img {
+      max-height: 75%;
+      max-width: 75%;
+    }
+    .logo-grid figure.dissc img {
+      max-height: 68%;
+      max-width: 68%;
+    }
+    .logo-grid figure.wide {
+      grid-column: span 1;
+      height: 100px;
+    }
+  }
+</style>
+
+<div class="logo-grid">
+  <figure>
+    <img src="Images/Collaborator Logos/YSPH-wordmark-stacked-blues.png" alt="Yale School of Public Health">
+  </figure>
+  <figure class="wide">
+    <img src="Images/Collaborator Logos/Wordmark-SOCAH_Lab-blues.png" alt="Yale School of Public Health, Society, Connectedness, and Health Lab">
+  </figure>
+  <figure>
+    <img src="Images/Collaborator Logos/ycgs_logo.png" alt="Yale Center for Geospatial Solutions">
+  </figure>
+  <figure class="wide">
+    <img src="Images/Collaborator Logos/Wordmark-Data-Science-and-Data-Equity-blues.png" alt="Yale School of Public Health, Data Science and Data Equity">
+  </figure>
+  <figure class="wide dissc">
+    <img src="Images/Collaborator Logos/dissc_logo.png" alt="Yale Data-Intensive Social Science Center">
+  </figure>
+  <figure class="ycrc">
+    <img src="Images/Collaborator Logos/ycrc_logo.png" alt="Yale Center for Research Computing">
+    <figcaption>Yale Center for Research Computing</figcaption>
+  </figure>
+</div>
+
 # Access Restrictions and Requirements
 
 Under the Data Use Agreements (DUAs) with Data Axle and the USPS API license, raw data cannot be publicly distributed and is stored locally in `~/KEEP LOCAL` directories. Some code or results may also be restricted. All publicly distributed results are summarized, and publicly distributed code has been constructed to avoid referencing individual-level data. Executing the code below requires access to the raw data and results.
@@ -30,4 +128,4 @@ API keys are user-specific and, where applicable, instructions have been provide
 
 # Data Disclaimer
 
-This dashboard is intended for research and informational purposes. These data are provided “as is”, without warranty of any kind, explicit or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement. While every effort has been made to ensure the accuracy and completeness of the data, errors or omissions may occur due to limitations in the underlying data sources or data processing methods. If you believe a data point is inaccurate or have information that may improve the dataset, please contact the project team at socah.lab@yale.edu. In no event shall the authors, contributors, or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the data or the use or other dealings in the data. We welcome feedback and will review all reported discrepancies." 
+This dashboard is intended for research and informational purposes. These data are provided “as is”, without warranty of any kind, explicit or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement. While every effort has been made to ensure the accuracy and completeness of the data, errors or omissions may occur due to limitations in the underlying data sources or data processing methods. If you believe a data point is inaccurate or have information that may improve the dataset, please contact the project team at socah.lab\@yale.edu. In no event shall the authors, contributors, or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the data or the use or other dealings in the data. We welcome feedback and will review all reported discrepancies."
