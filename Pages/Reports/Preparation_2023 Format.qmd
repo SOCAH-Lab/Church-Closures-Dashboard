@@ -402,7 +402,7 @@ To mitigate potential match failures against the API database, candidate ZIP cod
 :::{.callout-note}
 # API Credentials and Configuration
 
-Users who wish to utilize this resource for their own work will need to register for a USPS Developer account, sign the license agreement, and configure their own individual API client key and secret. 
+Users who wish to utilize this resource for their own work will need to register for a USPS Developer account, sign the license agreement, and configure their own individual API client key and secret.
 
 \vspace{1em}
 
@@ -717,7 +717,7 @@ This section reports how the processing scripts were assessed for computational 
 
 Functions with long local runtimes despite parallelization via the `future.apply` package were profiled using `profvis()`, an R tool for identifying where R spends the most time during execution. This analysis identified two operations as primary contributors to overall processing time: data subsetting and row-wise data combination (row-binding).
 
-To address these bottlenecks, three common R approaches were benchmarked: base R, the `tidyverse`, and `data.table`. Within each approach, specific strategies were also compared. For example, `dplyr::filter()` versus `dplyr::semi_join()` for subsetting, and `data.table::rbindlist()` applied within a loop versus after loop completion for row-binding.
+To address these bottlenecks, three common R approaches were benchmarked: base R, the `tidyverse`, and `data.table`. Within each approach, specific strategies were also compared. For example, `dplyr::filter()` versus `dplyr::semi_join()` for subsetting, and `data.table::rbindlist()` applied within a loop versus after loop completion for row-binding\ [@tidyverse2023; @datatable2026].
 
 ```{r}
 #| echo: false
