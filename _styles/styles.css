@@ -63,6 +63,42 @@ b, strong {
 
 /* Download buttons */
 
+.btn {
+  background: var(--color-dark-blue);
+  color: var(--color-white);
+  border: none;
+  border-radius: .3rem;
+  padding-top: 0.5rem;
+  padding-right: 1rem;
+  padding-bottom: 0.6rem;
+  padding-left: 1rem;
+  margin-bottom: 1em;
+  font-weight: normal;
+}
+.btn:hover {
+  background: #1a3a6b; /* lightened version of --color-dark-blue */
+  color: var(--color-white);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.btn i {
+  margin-right: .4em;
+}
+.download-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.download-buttons a {
+  text-decoration: none;
+}
+.download-buttons .btn {
+  margin-bottom: 0;
+}
+
+
 /* A clean “download” button style that layers nicely on top of Bootstrap .btn */
 button.downloadthis {
   display: inline-flex;

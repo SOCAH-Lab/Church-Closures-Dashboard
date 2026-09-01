@@ -28,15 +28,35 @@ Additionally, the project pipeline should be reasonably reproducible for future 
 
 ## 2023 Format
 
-{{< downloadthis "Reports/Review_2023 Format.pdf" dname="Review_2023 Format" label="Raw Data Review" type=light >}} {{< downloadthis "Reports/Preparation_2023 Format.pdf" dname="Preparation_2023 Format" label="Data Preparation" type=light >}} {{< downloadthis "Reports/Metrics_2023 Format.pdf" dname="Metrics_2023 Format" label="Metric Generation" type=light >}}
+```{=html}
+<div class="download-buttons">
+  <a href="Reports/Review_2023 Format.pdf" download="Review_2023 Format.pdf">
+    <button class="btn"><i class="bi bi-download"></i>&nbsp Raw Data Review</button>
+  </a>
+  <a href="Reports/Preparation_2023 Format.pdf" download="Preparation_2023 Format.pdf">
+    <button class="btn"><i class="bi bi-download"></i>&nbsp Data Preparation</button>
+  </a>
+  <a href="Reports/Metrics_2023 Format.pdf" download="Metrics_2023 Format.pdf">
+    <button class="btn"><i class="bi bi-download"></i>&nbsp Metric Generation</button>
+  </a>
+</div>
+```
 
 ## 2026 Format
 
-<a href="Reports/Review_2026 Format.pdf">
-  <button class="btn" style="margin-bottom: 0rem !important;"><i class="bi bi-download"></i>&nbsp Review_2026 Format</button>
-</a>
-
-{{< downloadthis "Reports/Review_2026 Format.pdf" dname="Review_2026 Format" label="Raw Data Review" type=light >}} {{< downloadthis "Reports/Preparation_2026 Format.pdf" dname="Preparation_2026 Format" label="Data Preparation" type=light >}} {{< downloadthis "Reports/Metrics_2026 Format.pdf" dname="Metrics_2026 Format" label="Metric Generation" type=light >}}
+```{=html}
+<div class="download-buttons">
+  <a href="Reports/Review_2026 Format.pdf" download="Review_2026 Format.pdf">
+    <button class="btn"><i class="bi bi-download"></i>&nbsp Raw Data Review</button>
+  </a>
+  <a href="Reports/Preparation_2026 Format.pdf" download="Preparation_2026 Format.pdf">
+    <button class="btn"><i class="bi bi-download"></i>&nbsp Data Preparation</button>
+  </a>
+  <a href="Reports/Metrics_2026 Format.pdf" download="Metrics_2026 Format.pdf">
+    <button class="btn"><i class="bi bi-download"></i>&nbsp Metric Generation</button>
+  </a>
+</div>
+```
 
 # Important Links and Locations
 
