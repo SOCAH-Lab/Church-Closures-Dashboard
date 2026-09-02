@@ -14,8 +14,6 @@ This folder contains scripts used to generate analytical report PDFs, web elemen
 
 **Publishing Updates:**
 
-## Publishing Updates
-
 A Shell script was created to render the site while preventing unused media from being transferred to the GitHub repository. Follow the steps below to render and publish the website.
 
 1. Ensure all work is saved and committed.
