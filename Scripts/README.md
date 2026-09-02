@@ -34,13 +34,13 @@ A Shell script was created to render the site while preventing unused media from
 3. Make sure the shell script is executable.
 
         ```{.bash}
-        chmod +x Code/copy_images.sh
+        chmod +x Scripts/copy_images.sh
         ```
 
 4. Run the script.
 
         ```{.bash}
-        ./Code/copy_images.sh
+        ./Scripts/copy_images.sh
         ```
 
 5. **OPTIONAL:** Verify that all the correct files have been rendered to the `_site` directory.
