@@ -2,7 +2,7 @@
 
 **Date Created:** July 22<sup>nd</sup>, 2026
 
-**Date Updated:** July 24<sup>th</sup>, 2026
+**Date Updated:** September 2<sup>nd</sup>, 2026
 
 **Purpose:**
 
@@ -29,7 +29,7 @@ Each script used to review or process the Data Axle data is prefixed by a descri
     | Description | Path |
     |--|---|
     | Refactored pipeline results | `~/Results/KEEP LOCAL/From Clean Raw Data/Step *_2023 Format/` |
-    | Original prototype results (archived) | `~/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/` |
+    | Original prototype results (archived) | `~/Results/KEEP LOCAL/From Clean Raw Data/Summer 2025 Dashboard Prototype_ARCHIVED/` and `~/Results/KEEP LOCAL/From Generate the Metrics/Summer 2025 Dashboard Prototype_ARCHIVED/` |
     | Prototype GeoJSON files | `~/Results/Dashboard Datasets/` |
 
 \
