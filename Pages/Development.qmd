@@ -24,7 +24,7 @@ Note that in May 2026, an updated version of the raw data was provided in a form
 
 # Project Objectives
 
-1. **REVIEW:** Evaluate the raw data and previously outlined cleaning, validation, and harmonization methods employed by [Insang Song, Ph.D.](https://sigmafelix.wixsite.com/mysite) for accuracy and identify opportunities for improvement.
+1. **REVIEW:** Evaluate the raw data and previously outlined cleaning, validation, and harmonization methods employed by Insang Song, Ph.D. for accuracy and identify opportunities for improvement.
 
 2. **PREPARATION:** Implement identified improvements to prepare the dataset for analysis and distribution to qualifying collaborators.
 
@@ -70,7 +70,7 @@ Additionally, the project pipeline should be reasonably reproducible for future 
 
 In accordance with the Data Use Agreement for this dataset, some repositories may not be publicly accessible or may contain local files that are not tracked by Git and or included on GitHub. Complete copies of the data and summary results can be accessed in the `"SOCAH LAB\Church closing\Raw data"` folder on Yale's OneDrive.
 
-Summer 2025 dashboard prototype by [Gordon Tu](https://gordontu.com/): [Closed Churches in the US](https://church-closing-dashboard.vercel.app/)
+Summer 2025 Prototype by Gordon Tu: [Closed Churches in the US](https://church-closing-dashboard.vercel.app/)
 
 Original GitHub Repo by Dr. Song: [sigmafelix/healthreligion_project](https://github.com/sigmafelix/healthreligion_project)
 
