@@ -25,7 +25,7 @@ ul.task-list li input[type="checkbox"] {
 
 <script src="../site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="../site_libs/quarto-nav/headroom.min.js"></script>
-<link href="../Images/DSDE-Social-Media-Profile.png" rel="icon" type="image/png">
+<link href="../Images/SOCAH Lab Favicon.png" rel="icon" type="image/png">
 <script src="../site_libs/clipboard/clipboard.min.js"></script>
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -118,6 +118,10 @@ ul.task-list li input[type="checkbox"] {
     <a class="nav-link" href="../Pages/Development.html"> 
 <span class="menu-text">Development</span></a>
   </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../Pages/About-Us.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
@@ -133,7 +137,7 @@ ul.task-list li input[type="checkbox"] {
         
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content page-columns page-full" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
@@ -154,18 +158,85 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p><small>Last Updated: July 22<sup>nd</sup>, 2026</small></p>
-<div class="callout callout-style-default callout-important callout-empty-content callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Important</span>COMING SOON
-</div>
-</div>
-<div class="callout-body-container callout-body">
+<p><small>Last Updated: September 1<sup>st</sup>, 2026</small></p>
+<div class="column-page-inset">
+<div class="pipeline" style="margin-top: 3rem;">
+  <div class="circle c1"></div>
+  <div class="circle c2"></div>
+  <div class="circle c3"></div>
+  <div class="circle c4"></div>
+  <div class="circle c5"></div>
+  <div class="circle c6"></div>
+  <div class="circle c7"></div>
+  <div class="circle c8"></div>
+  <div class="circle c9"></div>
+  <div class="phase-card">
+    <div class="phase-number">PHASE 1: CLEANING AND VALIDATING RAW DATA</div>
+      <div class="step-columns">
+        <div class="step-col" style="flex: 1.1;">
+          <h3 class="anchored">Step 1</h3>
+          <p>Manual standardisation of variable columns directly relevant to the analysis; the North American Industry Classification System (NAICS) and Standard Industrial Classification (SIC) code columns. 
+          <br><br>
+          The exported CSV is also converted to Parquet for more efficient data storage and loading.</p>
+        </div>
+        <div class="step-col" style="flex: 1.4;">
+          <h3 class="anchored">Step 2</h3>
+          <p>Clean and validate variable columns relevant to geocoding and spatial annotation.</p>
+          <br>
+          <ol class="process-steps">
+            <li>Optionally validate addresses against the <a href="https://developers.usps.com/addressesv3">USPS Addresses</a> database and compress them to remove typographical errors.</li>
+            <li>Use validated addresses to verify geocoordinates (longitude/latitude) via the <a href="https://geocoding.geo.census.gov/geocoder/">U.S. Census Bureau Geocoder</a> API.</li>
+            <li>Use the resulting geocoordinates for spatial joining against <a href="https://www.census.gov/cgi-bin/geo/shapefiles/index.php">U.S. Census Bureau TIGER/Line Shapefiles</a> for census boundary annotation, including GEOIDs (block group, tract, county, state) and Core Statistical Areas (CBSA and CSA).</li>
+          </ol>
+        </div>
+        <div class="step-col" style="flex: 1.5;">
+          <h3 class="anchored">Step 3</h3>
+          <p>Reshaping and annotation of the cleaned and validated data in preparation for metric calculation over unique American Business Identifier (ABI)/address combinations.</p>
+          <br>
+          <ol class="process-steps">
+            <li>Normalise SIC codes across unique ABI/address entries and translate them into religious affiliations (e.g., Hindu, Judaism, Christian).</li>
+            <li>Fill in missing years-open values between filings shorter than the closure threshold.</li>
+            <li>For ABIs filed under more than one address, annotate relocation metrics: number of moves; mean and maximum haversine distance (km) between addresses; and a Boolean flag indicating whether the move exceeded 5, 10, or 25 miles.</li>
+          </ol>
+        </div>
+      </div>
+  </div>
+  <div class="phase-card">
+    <div class="phase-number">PHASE 2</div>
+    <h3 class="anchored">Metric Generation</h3>
+    <div class="phase-columns-2-1">
+      <div class="col-wide">
+        <p>Three metrics were requested for dashboard visualisation; all remaining metrics were intended to generate insights from the aggregation tables. All metrics are calculated across three stratifications: census boundary, religious affiliation, and decennial year (2000, 2010, and 2020).
+        <br><br>
+        Metrics are first calculated at the block group level, the smallest census boundary, then aggregated upward to coarser boundaries, with values summed, averaged, or maxed at each step; this process is referred to as a rollup. Only GEOIDs are rolled up; ZCTA were not, as they do not crosswalk to census boundaries.</p>
+      </div>
+      <div class="col-narrow">
+        <dl class="field-summary">
+          <dt>Openings</dt>
+          <dd>Total ABIs located in the unit/window, including those later excluded by a missingness flag.</dd>
 
+          <dt>Closures &amp; Reopenings</dt>
+          <dd>Closure events (4+ inactive years following activity) and reopenings (2+ active years following a closure) are reported as counts per any event, per sq. mi., per 10k residents, average number of events, and max number of events.
+          <br><br>
+          Each is reported for <code>no_moves</code> (excludes multi-address ABIs) and <code>all</code> (addresses for an ABI column-wise summed).</dd>
+
+          <dt>Relocations</dt>
+          <dd>Count of ABIs that moved, average moves per ABI, weighted-average and max move distance (km), and counts exceeding 5/10/25-mile thresholds.</dd>
+
+          <dt>Missingness flags</dt>
+          <dd>Address missing, address is a PO Box, or GEOID/ZCTA missing.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="phase-card">
+    <div class="phase-number">USAGE NOTES</div>
+    <p>Refer to <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Code">Code/</a> for all scripts related to the pipeline. All files designed for the "2026 Formatted" dataset represent the most current version; any "2023 Formatted" scripts are retained for posterity, as they were used for the 2025 Summer prototype.</p>
+    <br>
+    <p>Not all data used in this process can be or was shared. Users must consult their institution on how to gain access to the Data Axle business data processed here. All other ancillary data sources, such as the U.S. Census Bureau TIGER/Line Shapefiles, are listed with access instructions in the <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Raw">Data/Raw/</a> and <a href="https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Data/Results">Data/Results/</a> <code>README.md</code> files.</p>
+    <br>
+    <p>The pipeline assumes the data is cleaned and validated anew and does not include a pathway for incorporating new yearly releases. While this functionality was not a priority in the current iteration, it can be incorporated in Phase 1, Step 2, reducing the time and financial costs associated with API validation.</p>
+  </div>
 </div>
 </div>
 
@@ -245,7 +316,7 @@ ul.task-list li input[type="checkbox"] {
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https:\/\/SOCAH-Lab\.github\.io\/Church-Closures-Dashboard\/");
+        var filterRegex = new RegExp('/' + window.location.host + '/');
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -593,6 +664,11 @@ ul.task-list li input[type="checkbox"] {
     <li class="nav-item">
     <a class="nav-link" href="../Pages/Development.html">
 <p>Development</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../Pages/About-Us.html">
+<p>About</p>
 </a>
   </li>  
 </ul>
