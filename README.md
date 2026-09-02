@@ -8,7 +8,7 @@
 
 The Yale School of Public Health [Society Connectedness & Health Lab's (SOCAH Lab)](https://www.socahlab.org/) premier Church Closure Dashboard is designed to dynamically display metrics describing church closures down to the block group level over user-provided date ranges. Users can select regions to explore socioeconomic information alongside church closure metrics, or apply institutional filters to refine their view.
 
-Shelby Golden, M.S. from the Yale School of Public Health [Data Science and Data Equity](https://ysph.yale.edu/research/research-centers-and-initiatives/public-health-data-science-and-data-equity/) team was contracted to review and update the data cleaning, validation, and harmonization methods previously employed by [Insang Song, Ph.D.](https://sigmafelix.wixsite.com/mysite) to generate data compatible with dynamic visualization on the dashboard map.
+Shelby Golden, M.S. from the Yale School of Public Health [Data Science and Data Equity](https://ysph.yale.edu/research/research-centers-and-initiatives/public-health-data-science-and-data-equity/) team was contracted to review and update the data cleaning, validation, and harmonization methods previously employed by Insang Song, Ph.D. to generate data compatible with dynamic visualization on the dashboard map.
 
 This codebase includes a [GitHub Pages website](https://socah-lab.github.io/Church-Closures-Dashboard/) outlining the development process and describing the pipeline for researchers interested in replicating results or preparing the raw data for their own work. [Scripts](https://github.com/SOCAH-Lab/Church-Closures-Dashboard/tree/main/Code) include detailed annotations explaining the code and provide guidelines to help subsequent analysts reproduce results or adapt the process for improvements or other applications.
 
@@ -20,7 +20,7 @@ This codebase includes a [GitHub Pages website](https://socah-lab.github.io/Chur
 
 # Our Collaborators
 
-The Church Closure Dashboard is a collaborative effort led by the Yale School of Public Health Society Connectedness & Health Lab's (SOCAH Lab).
+The Church Closure Dashboard is a collaborative effort led by the Yale School of Public Health Society Connectedness & Health Lab's (SOCAH Lab). See some of the people on the team who contributed to to the effort on the [About](https://socah-lab.github.io/Church-Closures-Dashboard/Pages/About-Us.html) page.
 
 ![Collaborator logos](collaborator-logo-grid-composite.png)
 
