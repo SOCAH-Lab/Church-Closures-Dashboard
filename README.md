@@ -20,7 +20,7 @@ This codebase includes a [GitHub Pages website](https://socah-lab.github.io/Chur
 
 # Our Collaborators
 
-The Church Closure Dashboard is a collaborative effort led by the Yale School of Public Health Society Connectedness & Health Lab's (SOCAH Lab). See some of the people on the team who contributed to to the effort on the [About](https://socah-lab.github.io/Church-Closures-Dashboard/Pages/About-Us.html) page.
+The Church Closure Dashboard is a collaborative effort led by the Yale School of Public Health Society Connectedness & Health Lab's (SOCAH Lab). See some of the people on the team who contributed to the effort on the [About](https://socah-lab.github.io/Church-Closures-Dashboard/Pages/About-Us.html) page.
 
 ![Collaborator logos](collaborator-logo-grid-composite.png)
 
