@@ -358,8 +358,8 @@ b, strong {
 
 /* Large deep gold circle, bottom-right */
 .pipeline .c4 {
-  width: 460px;
-  height: 460px;
+  width: 660px;
+  height: 660px;
   right: -160px;
   bottom: -220px;
   background: radial-gradient(circle at 55% 40%, #F2B93B, #E8961C 55%, #D97F0A 100%);
@@ -388,28 +388,28 @@ b, strong {
 
 /* NEW: mid-size pale circle, center, between phase 1 and 2 */
 .pipeline .c7 {
-  width: 200px;
-  height: 200px;
-  left: 48%;
+  width: 500px;
+  height: 500px;
+  left: 10%;
   top: 33%;
-  background: radial-gradient(circle at 45% 45%, #F6E4D8, #FFFFFF 75%);
+  background: radial-gradient(circle at 45% 35%, #F6E4D8, #E8961C 75%);
   opacity: 0.7;
 }
 
 /* NEW: small gold accent, center-right, near phase 2 */
 .pipeline .c8 {
-  width: 130px;
-  height: 130px;
+  width: 350px;
+  height: 350px;
   right: 12%;
-  top: 55%;
-  background: radial-gradient(circle at 50% 50%, #F7C863, #E8961C 70%);
+  top: 65%;
+  background: radial-gradient(circle at 50% 50%, #F7C863, #E8961C 40%);
   opacity: 0.65;
 }
 
 /* NEW: mid pale circle, center-left, near usage notes */
 .pipeline .c9 {
-  width: 160px;
-  height: 160px;
+  width: 360px;
+  height: 360px;
   left: 20%;
   top: 78%;
   background: radial-gradient(circle at 40% 40%, #F2B93B, #E8961C 70%);
