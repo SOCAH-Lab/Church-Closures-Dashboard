@@ -64,19 +64,19 @@ b, strong {
 /* Download buttons */
 
 .btn {
-  background: var(--color-dark-blue);
-  color: var(--color-white);
-  border: none;
+  background: var(--color-white);
+  color: var(--color-black);
+  border: 1.5px solid var(--color-dark-blue);
   border-radius: .3rem;
   padding-top: 0.5rem;
   padding-right: 1rem;
   padding-bottom: 0.6rem;
   padding-left: 1rem;
   margin-bottom: 1em;
-  font-weight: normal;
+  font-weight: 600;
 }
 .btn:hover {
-  background: #1a3a6b; /* lightened version of --color-dark-blue */
+  background: var(--color-dark-blue);
   color: var(--color-white);
 }
 .btn:disabled {
@@ -96,72 +96,6 @@ b, strong {
 }
 .download-buttons .btn {
   margin-bottom: 0;
-}
-
-
-/* A clean “download” button style that layers nicely on top of Bootstrap .btn */
-button.downloadthis {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  padding: 0.55rem 0.9rem;
-  border-radius: 0.8rem;
-
-  border: 1.5px solid rgba(0, 0, 0, 0.12);
-  background: linear-gradient(180deg, #ffffff 0%, #f6f8fb 100%);
-
-  color: #0f172a;              /* slate-900 */
-  font-weight: 600;
-  letter-spacing: 0.01em;
-
-  box-shadow:
-    0 1px 1px rgba(15, 23, 42, 0.06),
-    0 8px 20px rgba(15, 23, 42, 0.08);
-
-  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background 140ms ease;
-}
-
-button.downloadthis i {
-  font-size: 1.05em;
-  line-height: 1;
-}
-
-/* Hover/focus: slightly “lift” + clearer outline */
-/* Softer hover background (very subtle tint) */
-button.downloadthis:hover {
-  background: linear-gradient(180deg, #ffffff 0%, #fdfdff 100%); /* softer than before */
-  transform: translateY(-1px);
-  border-color: rgba(37, 99, 235, 0.28);
-  box-shadow:
-    0 2px 2px rgba(15, 23, 42, 0.06),
-    0 12px 26px rgba(15, 23, 42, 0.12);
-}
-
-button.downloadthis:focus-visible {
-  outline: 3px solid rgba(37, 99, 235, 0.35);
-  outline-offset: 2px;
-}
-
-/* Active: press down */
-button.downloadthis:active {
-  transform: translateY(0);
-  box-shadow:
-    0 1px 1px rgba(15, 23, 42, 0.06),
-    0 6px 14px rgba(15, 23, 42, 0.10);
-}
-
-/* Disabled */
-button.downloadthis:disabled,
-button.downloadthis[aria-disabled="true"] {
-  opacity: 0.55;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-/* Optional: make it look “download-y” by tinting the icon */
-button.downloadthis .bi-download {
-  color: #2563eb; /* blue-600 */
 }
 
 /* Popup for Feedback */
@@ -387,39 +321,115 @@ button.downloadthis .bi-download {
   overflow: hidden;
 }
 
-.pipeline::before,
-.pipeline::after,
-.pipeline .blob {
-  content: "";
+.pipeline .circle {
   position: absolute;
   border-radius: 50%;
   z-index: 0;
 }
 
-.pipeline::before {
+/* Large soft cream circle, upper-left */
+.pipeline .c1 {
   width: 420px;
   height: 420px;
   left: -140px;
   top: -160px;
-  background: radial-gradient(circle at 30% 30%, #F6E4D8, #FFFFFF 70%);
+  background: radial-gradient(circle at 35% 35%, #F6E4D8, #FFFFFF 70%);
 }
 
-.pipeline::after {
+/* Mid gold circle, upper-right */
+.pipeline .c2 {
+  width: 320px;
+  height: 320px;
+  right: -100px;
+  top: -60px;
+  background: radial-gradient(circle at 60% 35%, #F7C863, #E8961C 70%);
+  opacity: 0.85;
+}
+
+/* Small accent circle, top-middle */
+.pipeline .c3 {
+  width: 140px;
+  height: 140px;
+  left: 44%;
+  top: -70px;
+  background: radial-gradient(circle at 45% 45%, #F2B93B, #D97F0A 80%);
+  opacity: 0.8;
+}
+
+/* Large deep gold circle, bottom-right */
+.pipeline .c4 {
   width: 460px;
   height: 460px;
   right: -160px;
-  bottom: -200px;
-  background: radial-gradient(circle at 60% 40%, #F2B93B, #E8961C 60%, #D97F0A 100%);
+  bottom: -220px;
+  background: radial-gradient(circle at 55% 40%, #F2B93B, #E8961C 55%, #D97F0A 100%);
   opacity: 0.9;
 }
 
-.pipeline .blob {
-  width: 380px;
-  height: 380px;
-  left: 38%;
-  top: -140px;
-  background: radial-gradient(circle at 40% 40%, #F7C863, #E8961C 70%);
-  opacity: 0.85;
+/* Small pale circle, lower-left */
+.pipeline .c5 {
+  width: 180px;
+  height: 180px;
+  left: -40px;
+  bottom: 4%;
+  background: radial-gradient(circle at 40% 40%, #F6E4D8, #FFFFFF 75%);
+  opacity: 0.9;
+}
+
+/* Small accent circle, mid-left */
+.pipeline .c6 {
+  width: 110px;
+  height: 110px;
+  left: 6%;
+  top: 42%;
+  background: radial-gradient(circle at 50% 50%, #F7C863, #E8961C 70%);
+  opacity: 0.7;
+}
+
+/* NEW: mid-size pale circle, center, between phase 1 and 2 */
+.pipeline .c7 {
+  width: 200px;
+  height: 200px;
+  left: 48%;
+  top: 33%;
+  background: radial-gradient(circle at 45% 45%, #F6E4D8, #FFFFFF 75%);
+  opacity: 0.7;
+}
+
+/* NEW: small gold accent, center-right, near phase 2 */
+.pipeline .c8 {
+  width: 130px;
+  height: 130px;
+  right: 12%;
+  top: 55%;
+  background: radial-gradient(circle at 50% 50%, #F7C863, #E8961C 70%);
+  opacity: 0.65;
+}
+
+/* NEW: mid pale circle, center-left, near usage notes */
+.pipeline .c9 {
+  width: 160px;
+  height: 160px;
+  left: 20%;
+  top: 78%;
+  background: radial-gradient(circle at 40% 40%, #F2B93B, #E8961C 70%);
+  opacity: 0.6;
+}
+
+.process-steps {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #4a4a4a;
+}
+
+.process-steps li {
+  margin-bottom: 0.5rem;
+}
+
+.process-steps li:last-child {
+  margin-bottom: 0;
 }
 
 .phase-card {
@@ -434,11 +444,11 @@ button.downloadthis .bi-download {
 }
 
 .phase-card .phase-number {
-  font-size: 0.85rem;
+  font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: #D97F0A;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .phase-card h3 {
@@ -455,6 +465,47 @@ button.downloadthis .bi-download {
   color: #4a4a4a;
 }
 
+.phase-columns-2-1 {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.phase-columns-2-1 .col-wide {
+  flex: 1.5;
+}
+
+.phase-columns-2-1 .col-narrow {
+  flex: 1.5;
+}
+
+.col-narrow .field-summary {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #4a4a4a;
+}
+
+.col-narrow .field-summary dt {
+  font-weight: 700;
+  color: #14213D;
+  margin-top: 0.75rem;
+}
+
+.col-narrow .field-summary dt:first-child {
+  margin-top: 0;
+}
+
+.col-narrow .field-summary dd {
+  margin: 0.15rem 0 0 0;
+}
+
+.col-narrow .field-summary code {
+  font-size: 0.78rem;
+  background: #f2f2f2;
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+}
+
 .step-columns {
   display: flex;
   gap: 1.5rem;
@@ -467,34 +518,29 @@ button.downloadthis .bi-download {
 .step-col h3 {
   font-size: 1.05rem;
 }
+
 @media (max-width: 600px) {
-  .step-columns {
+  .step-columns,
+  .phase-columns-2-1 {
     flex-direction: column;
     gap: 1rem;
   }
 
-  .pipeline::before,
-  .pipeline::after,
-  .pipeline .blob {
-    width: 240px;
-    height: 240px;
+  .pipeline .circle {
+    transform: scale(0.55);
   }
 
-  .pipeline::before {
-    left: -100px;
-    top: -100px;
-  }
-
-  .pipeline::after {
-    right: -100px;
-    bottom: -120px;
-  }
-
-  .pipeline .blob {
-    left: 30%;
-    top: -90px;
-  }
+  .pipeline .c1 { left: -100px; top: -110px; }
+  .pipeline .c2 { right: -80px; top: -40px; }
+  .pipeline .c3 { left: 40%; top: -50px; }
+  .pipeline .c4 { right: -110px; bottom: -160px; }
+  .pipeline .c5 { left: -20px; bottom: 2%; }
+  .pipeline .c6 { left: 4%; top: 38%; }
+  .pipeline .c7 { left: 42%; top: 30%; }
+  .pipeline .c8 { right: 8%; top: 52%; }
+  .pipeline .c9 { left: 14%; top: 75%; }
 }
+
 
 /*-- scss: about-us people titles --*/
 
@@ -515,10 +561,10 @@ body.people {
   display: flex;
   flex-direction: row;
   background-color: none;
-  border: none;
+  border: none; 
   border-radius: 8px;
-  width: calc(50% - 8px - 24px);
-  margin: 6px 12px;
+  width: calc(50% - 8px - 30px);
+  margin: 12px 15px;
   align-items: flex-start;
   min-width: 280px;
   height: auto;
@@ -566,7 +612,7 @@ body.people {
   word-wrap: break-word;
 }
 .people .tile-content .description {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   margin-bottom: 8px;
   word-wrap: break-word;
   overflow: auto;
@@ -880,7 +926,7 @@ body.people {
   margin: 0 0 0.6rem 0;
   font-size: 1.15rem;
   color: #14213D;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .subheader p {
@@ -929,5 +975,19 @@ body.people {
   .subheader .blob {
     left: 30%;
     top: -90px;
+  }
+}
+
+
+.subheader.doc-header h2 {
+  font-size: clamp(3em, 5vw, 3em);
+  margin-bottom: 0em;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  font-weight: 600;
+}
+@media (max-width: 768px) {
+  .subheader.doc-header h2 {
+    font-size: clamp(1.5em, 5vw, 1.5em);
   }
 }

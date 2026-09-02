@@ -10,7 +10,7 @@ listing:
 
 ::: column-screen
 ```{=html}
-<div class="subheader" style="margin-bottom: 30px">
+<div class="subheader" style="margin-bottom: 60px">
     <div class="blob"></div>
     <div class="header-content">
         <h2>About Us</h2>
@@ -19,6 +19,7 @@ listing:
 </div>
 ```
 :::
+
 
 ::: {#contributors .column-screen-inset}
 :::
