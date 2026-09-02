@@ -457,6 +457,9 @@ b, strong {
   color: #14213D;
   font-weight: 700;
 }
+.step-col h3 > a.anchorjs-link {
+  display: none;
+}
 
 .phase-card p {
   margin: 0;
